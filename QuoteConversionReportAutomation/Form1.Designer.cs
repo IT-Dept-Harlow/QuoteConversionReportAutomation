@@ -28,7 +28,6 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
             this.datepickFrom = new System.Windows.Forms.DateTimePicker();
             this.datepickTo = new System.Windows.Forms.DateTimePicker();
             this.label1 = new System.Windows.Forms.Label();
@@ -40,19 +39,20 @@
             this.btnViewAnalysis = new System.Windows.Forms.Button();
             this.toolStripProgressBar1 = new System.Windows.Forms.ToolStripStatusLabel();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
+            this.checkBox1 = new System.Windows.Forms.CheckBox();
             this.statusStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
             // datepickFrom
             // 
-            this.datepickFrom.Location = new System.Drawing.Point(201, 113);
+            this.datepickFrom.Location = new System.Drawing.Point(201, 155);
             this.datepickFrom.Name = "datepickFrom";
             this.datepickFrom.Size = new System.Drawing.Size(200, 20);
             this.datepickFrom.TabIndex = 0;
             // 
             // datepickTo
             // 
-            this.datepickTo.Location = new System.Drawing.Point(201, 145);
+            this.datepickTo.Location = new System.Drawing.Point(201, 187);
             this.datepickTo.Name = "datepickTo";
             this.datepickTo.Size = new System.Drawing.Size(200, 20);
             this.datepickTo.TabIndex = 1;
@@ -60,7 +60,7 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(97, 115);
+            this.label1.Location = new System.Drawing.Point(97, 157);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(87, 13);
             this.label1.TabIndex = 2;
@@ -69,7 +69,7 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(97, 147);
+            this.label2.Location = new System.Drawing.Point(97, 189);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(77, 13);
             this.label2.TabIndex = 3;
@@ -80,11 +80,12 @@
             this.label3.AutoSize = true;
             this.label3.BackColor = System.Drawing.SystemColors.Control;
             this.label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label3.Location = new System.Drawing.Point(96, 22);
+            this.label3.Location = new System.Drawing.Point(116, 9);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(328, 40);
+            this.label3.Size = new System.Drawing.Size(323, 80);
             this.label3.TabIndex = 4;
-            this.label3.Text = "Please check the report date below.\r\nThis should cover the previous 15 days .";
+            this.label3.Text = "Date calculations are automatic but\r\nPlease check the report date below\r\nThis sho" +
+    "uld cover the previous 15 days \r\nor a Month if the box is ticked.";
             this.label3.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // button1
@@ -143,11 +144,24 @@
             this.statusStrip1.TabIndex = 10;
             this.statusStrip1.Text = "statusStrip1";
             // 
+            // checkBox1
+            // 
+            this.checkBox1.AutoSize = true;
+            this.checkBox1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.checkBox1.Location = new System.Drawing.Point(201, 120);
+            this.checkBox1.Name = "checkBox1";
+            this.checkBox1.Size = new System.Drawing.Size(115, 20);
+            this.checkBox1.TabIndex = 11;
+            this.checkBox1.Text = "Is It Monthly?";
+            this.checkBox1.UseVisualStyleBackColor = true;
+            this.checkBox1.CheckedChanged += new System.EventHandler(this.checkBox1_CheckedChanged);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(533, 366);
+            this.Controls.Add(this.checkBox1);
             this.Controls.Add(this.statusStrip1);
             this.Controls.Add(this.btnViewAnalysis);
             this.Controls.Add(this.btnViewReport);
@@ -158,7 +172,6 @@
             this.Controls.Add(this.label1);
             this.Controls.Add(this.datepickTo);
             this.Controls.Add(this.datepickFrom);
-            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "Form1";
             this.Text = "Quote Conversion Automation";
             this.statusStrip1.ResumeLayout(false);
@@ -181,6 +194,7 @@
         private System.Windows.Forms.Button btnViewAnalysis;
         private System.Windows.Forms.ToolStripStatusLabel toolStripProgressBar1;
         private System.Windows.Forms.StatusStrip statusStrip1;
+        private System.Windows.Forms.CheckBox checkBox1;
     }
 }
 
