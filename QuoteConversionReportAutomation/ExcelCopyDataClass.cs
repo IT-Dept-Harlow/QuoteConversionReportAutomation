@@ -12,18 +12,23 @@ using System.Windows.Forms;
 /// </summary>
 public class ExcelCopyData
 {
-    // Constants for column indices.
-    private const int CustomerColumn = 1;
-    private const int DateColumn = 13;
-    private const int FinancialYearColumn = 14;
-    private const int SourceFileNameColumn = 12;
+    // Constants for column indices.  Using 0-based indexing.
+    private const int CustomerColumn = 0; // Column A
+    private const int DateColumn = 12;    // Column M
+    private const int FinancialYearColumn = 13; // Column N
+    private const int SourceFileNameColumn = 11; // Column L
     private const string DataSheetName = "DATA";
     private const string AnalysisSheetName = "Analysis";
+    private const string MonthlyOrderPivotSheetName = "OrderPivot";
+    private const string MonthlyEstimatePivotSheetName = "Estimate Success PivotTable";
+    private const string MonthlyOrderPivotName = "PivotTable6";       // OrderPivot
+    private const string MonthlyEstimatePivotName = "PivotTable3"; // Estimate Success Pivot
     private const string WeeklyReportSheetName = "2024_25"; // Or your target sheet name i.e 2025_26
 
     /// <summary>
     /// Copies data from a source Excel sheet to a destination Excel sheet, performing processing steps asynchronously with status reporting.
     /// </summary>
+    /// <param name="useMonthly">Indicates whether to use monthly or weekly report processing.</param>
     /// <param name="sourceFilePath">The path to the source Excel file.</param>
     /// <param name="sourceSheetName">The name of the source sheet.</param>
     /// <param name="fileSaveLocation">The location where the new Excel file will be saved.</param>
@@ -33,13 +38,32 @@ public class ExcelCopyData
     /// <param name="startCol">The starting column for copying data (default is 1).</param>
     /// <param name="statusBar">The StatusStrip control to display status messages.</param>
     /// <param name="sendEmailAction">Action to send email with attachment.</param>
-    /// <param name="setButtonTextAction">Action to set button text.</param>
-    /// <param name="enableButtonAction">Action to enable button.</param>
-    /// <param name="showButtonAction">Action to show button.</param>
-    /// <param name="showViewAnalysisButtonAction">Action to show the View Analysis Button</param>
-    /// <param name="setFilePathAction">Action to return the fileLocation2 in the main form</param>
+    /// <param name="setButtonTextAction">Action to set button text for the first button.</param>
+    /// <param name="setButtonTextAction2">Action to set button text for the second button.</param>
+    /// <param name="enableButtonAction">Action to enable the first button.</param>
+    /// <param name="enableButtonAction2">Action to enable the second button.</param>
+    /// <param name="showButtonAction">Action to show the first button.</param>
+    /// <param name="showViewAnalysisButtonAction">Action to show the View Analysis Button.</param>
+    /// <param name="setFilePathAction">Action to return the fileLocation2 in the main form.</param>
     /// <returns>The path to the newly created Excel file, or null if an error occurs.</returns>
-    public static string CopyDataBetweenExcelSheetsAsync(string sourceFilePath, string sourceSheetName, string fileSaveLocation, string destinationFilePath, string destinationSheetName, int startRow = 1, int startCol = 1, StatusStrip statusBar = null, Action<string> sendEmailAction = null, Action<string> setButtonTextAction = null, Action<bool> enableButtonAction = null, Action<bool> showButtonAction = null, Action<bool> showViewAnalysisButtonAction = null, Action<string> setFilePathAction = null)
+    public static string CopyDataBetweenExcelSheetsAsync(
+        bool useMonthly,
+        string sourceFilePath,
+        string sourceSheetName,
+        string fileSaveLocation,
+        string destinationFilePath,
+        string destinationSheetName,
+        int startRow = 1,
+        int startCol = 1,
+        StatusStrip statusBar = null,
+        Action<string> sendEmailAction = null,
+        Action<string> setButtonTextAction = null,
+        Action<string> setButtonTextAction2 = null,
+        Action<bool> enableButtonAction = null,
+        Action<bool> enableButtonAction2 = null,
+        Action<bool> showButtonAction = null,
+        Action<bool> showViewAnalysisButtonAction = null,
+        Action<string> setFilePathAction = null)
     {
         // Create a new BackgroundWorker instance.
         BackgroundWorker worker = new BackgroundWorker
@@ -48,7 +72,7 @@ public class ExcelCopyData
             WorkerSupportsCancellation = true
         };
 
-        // Define the parameters for the DoWork event.
+        // Define the parameters for the DoWork event.  Use descriptive names.
         var parameters = new
         {
             SourceFilePath = sourceFilePath,
@@ -61,16 +85,19 @@ public class ExcelCopyData
             StatusBar = statusBar,
             SendEmailAction = sendEmailAction,
             SetButtonTextAction = setButtonTextAction,
+            SetButtonTextAction2 = setButtonTextAction2,
             EnableButtonAction = enableButtonAction,
+            EnableButtonAction2 = enableButtonAction2,
             ShowButtonAction = showButtonAction,
             ShowViewAnalysisButtonAction = showViewAnalysisButtonAction,
-            SetFilePathAction = setFilePathAction // TODO: make this work, currently not passing path to main form
+            SetFilePathAction = setFilePathAction,
+            UseMonthly = useMonthly
         };
 
-        // Define the DoWork event handler.
-        worker.DoWork += (sender, e) =>
+        // Define the DoWork event handler.  Use more descriptive variable names.
+        worker.DoWork += (sender, eventArgs) =>
         {
-            var paramsObj = (dynamic)e.Argument;
+            var paramsObj = (dynamic)eventArgs.Argument;
             string sourceFilePathBW = paramsObj.SourceFilePath;
             string sourceSheetNameBW = paramsObj.SourceSheetName;
             string fileSaveLocationBW = paramsObj.FileSaveLocation;
@@ -81,8 +108,9 @@ public class ExcelCopyData
             StatusStrip statusBarBW = paramsObj.StatusBar;
             BackgroundWorker bw = (BackgroundWorker)sender;
             string result = null;
-            Action<bool> showViewAnalysisButtonActionBW = paramsObj.ShowViewAnalysisButtonAction; // Get the View analysis button action
-            Action<string> setFilePathActionBW = paramsObj.SetFilePathAction; // Get the file path action
+            Action<bool> showViewAnalysisButtonActionBW = paramsObj.ShowViewAnalysisButtonAction;
+            Action<string> setFilePathActionBW = paramsObj.SetFilePathAction;
+            bool useMonthlyBW = paramsObj.UseMonthly;
 
             try
             {
@@ -99,7 +127,7 @@ public class ExcelCopyData
                     if (sourceWorksheet == null)
                     {
                         Logger.LogInfo($"Source sheet '{sourceSheetNameBW}' not found.");
-                        e.Result = null;
+                        eventArgs.Result = null;
                         return; // Return null if the source sheet is not found.
                     }
 
@@ -108,13 +136,13 @@ public class ExcelCopyData
                     {
                         // Get or create the destination worksheet.
                         var destinationWorksheet = destinationPackage.Workbook.Worksheets[destinationSheetNameBW] ??
-                                                    destinationPackage.Workbook.Worksheets.Add(destinationSheetNameBW);
+                            destinationPackage.Workbook.Worksheets.Add(destinationSheetNameBW);
 
                         // Get the dimensions of the source worksheet.
                         int sourceRowCount = sourceWorksheet.Dimension?.Rows ?? 0;
                         int sourceColCount = sourceWorksheet.Dimension?.Columns ?? 0;
 
-                        // Get the dimensions of the destingation worksheet.
+                        // Get the dimensions of the destination worksheet.
                         int destRow = 2;
                         int destColCount = destinationWorksheet.Dimension?.Columns ?? 0;
 
@@ -127,14 +155,14 @@ public class ExcelCopyData
                             {
                                 for (int i = destColCount + 1; i <= sourceColCount; i++)
                                 {
-                                    //add columns until it matches, should never need this loop if using the template
+                                    // Add columns until it matches, should never need this loop if using the template.
                                     destinationWorksheet.InsertColumn(i, 1);
                                 }
                                 destColCount = sourceColCount;
                             }
                             statusBarBW?.Invoke((MethodInvoker)delegate { statusBarBW.Items[0].Text = "Copying Data..."; });
 
-                            // Copy the cell value.
+                            // Copy the cell values.
                             CopyDataBetweenExcelSheets(sourcePackage, destinationPackage, sourceWorksheet, destinationWorksheet, startRowBW, sourceRowCount, sourceColCount, ref destRow, destColCount, bw);
                         }
                         else
@@ -145,13 +173,25 @@ public class ExcelCopyData
                         // Create folder structure if necessary.
                         FolderCreation createFolderStruc = new FolderCreation();
                         destinationPackage.Workbook.FullCalcOnLoad = true;
-                        string createdFolderPath = createFolderStruc.CreateFolder(fileSaveLocationBW);
+                        string createdFolderPath = createFolderStruc.CreateFolder(useMonthlyBW, fileSaveLocationBW);
+
+                        string currentDate;
+                        string fileName;
+                        if (useMonthlyBW)
+                        {
+                            // Generate the file name with the date (Monthly).
+                            currentDate = DateTime.Now.ToString("MMM_yyyy"); // Consistent format
+                            fileName = $"Estimate_Success_Rate_{currentDate}.xlsx";
+                        }
+                        else
+                        {
+                            // Generate the file name with the date (Weekly).
+                            currentDate = DateTime.Now.ToString("yyyyMMdd");
+                            fileName = $"{currentDate}_Estimate_Success_Rate.xlsx";
+                        }
 
                         if (createdFolderPath != null)
                         {
-                            // Generate the file name with the date.
-                            string currentDate = DateTime.Now.ToString("yyyyMMdd");
-                            string fileName = $"{currentDate} Estimate Success Rate.xlsx";
                             string fileSaveLocation2 = Path.Combine(createdFolderPath, fileName);
                             FileInfo newFile = new FileInfo(fileSaveLocation2);
                             destinationPackage.Workbook.CalcMode = ExcelCalcMode.Automatic;
@@ -167,18 +207,21 @@ public class ExcelCopyData
                             CalculateAnalysisSheet(destinationPackage, AnalysisSheetName);
 
                             // Delete empty rows from the "Analysis" sheet.
-                            DeleteEmptyRows(fileSaveLocation2, AnalysisSheetName, statusBarBW, bw);
+                            DeleteEmptyRows(fileSaveLocation2, AnalysisSheetName, statusBarBW, bw, useMonthlyBW);
 
-                            // Copy data from the "Analysis" sheet to the weekly report.
-                            CopyAnalysisDataToWeeklyReport(fileSaveLocation2, statusBarBW, bw);
+                            if (!useMonthlyBW)
+                            {
+                                // Copy data from the "Analysis" sheet to the weekly report.
+                                CopyAnalysisDataToWeeklyReport(fileSaveLocation2, statusBarBW, bw);
+                            }
 
-                            e.Result = fileSaveLocation2; // Pass the file path back via param
+                            eventArgs.Result = fileSaveLocation2; // Pass the file path back via eventArgs
                             setFilePathActionBW?.Invoke(fileSaveLocation2); // Call the action to pass back file path to main form
                         }
                         else
                         {
                             Logger.LogError("Failed to create folder structure.");
-                            e.Result = null;
+                            eventArgs.Result = null;
                             return; // Return null if folder creation fails.
                         }
                     }
@@ -187,42 +230,42 @@ public class ExcelCopyData
             catch (Exception ex)
             {
                 Logger.LogError($"Error occurred: {ex.Message}");
-                e.Result = null;
-                e.Cancel = true; //cancel background thread
+                eventArgs.Result = null;
+                eventArgs.Cancel = true; // Cancel background thread
             }
         };
 
-        //sets up the status bar, progress updates, using the background worker
-        worker.ProgressChanged += (sender, e) =>
+        // Sets up the status bar, progress updates, using the background worker.
+        worker.ProgressChanged += (sender, eventArgs) =>
         {
             parameters.StatusBar?.Invoke((MethodInvoker)delegate
             {
-                if (e.UserState != null)
+                if (eventArgs.UserState != null)
                 {
-                    parameters.StatusBar.Items[0].Text = e.UserState.ToString();
+                    parameters.StatusBar.Items[0].Text = eventArgs.UserState.ToString();
                 }
             });
         };
 
-        //background worked, run this when operation has been successful, pass back actions
-        worker.RunWorkerCompleted += (sender, e) =>
+        // Background worker completed, run this when operation has been successful, pass back actions.
+        worker.RunWorkerCompleted += (sender, eventArgs) =>
         {
-            if (e.Cancelled)
+            if (eventArgs.Cancelled)
             {
-                MessageBox.Show("Operation was cancelled", "Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                parameters.SetButtonTextAction?.Invoke("Cancelled"); //set UI to cancelled
-                parameters.EnableButtonAction?.Invoke(true); //re enable button 2, to allow the analysis to re run
+                MessageBox.Show("Operation was cancelled - Check logs", "Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                parameters.SetButtonTextAction?.Invoke("Try Again");
+                parameters.EnableButtonAction?.Invoke(true);
             }
-            else if (e.Error != null)
+            else if (eventArgs.Error != null)
             {
-                MessageBox.Show("An error occurred: " + e.Error.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                parameters.SetButtonTextAction?.Invoke("Error"); //set UI to "Error"
-                parameters.EnableButtonAction?.Invoke(true); // re enables button to allow try again
+                MessageBox.Show("An error occurred: " + eventArgs.Error.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                parameters.SetButtonTextAction?.Invoke("Try Again");
+                parameters.EnableButtonAction?.Invoke(true);
             }
             else
             {
                 // Get the result
-                if (e.Result is string result)
+                if (eventArgs.Result is string result)
                 {
                     parameters.StatusBar?.Invoke((MethodInvoker)delegate
                     {
@@ -232,11 +275,13 @@ public class ExcelCopyData
                     // Send the email here, after successful processing
                     parameters.SendEmailAction?.Invoke(result);
                     // Update the UI elements.
-                    parameters.SetButtonTextAction?.Invoke("Complete"); // Change button text
+                    parameters.SetButtonTextAction?.Invoke("Create Analysis &\r\nSend Email"); // Change button text
+                    parameters.SetButtonTextAction2?.Invoke("Create Report");             // Change button text
                     parameters.SetFilePathAction?.Invoke(result);
-                    parameters.EnableButtonAction?.Invoke(false);      // disable the button as all processing is complete now.
-                    parameters.ShowButtonAction?.Invoke(false);          // disable the button as all processing is complete now.
-                    parameters.ShowViewAnalysisButtonAction?.Invoke(false); //TODO: Fix this as fileLocaton2 is not returning to the main form, disabled for now
+                    parameters.EnableButtonAction?.Invoke(false);
+                    parameters.EnableButtonAction2?.Invoke(true);
+                    parameters.ShowButtonAction?.Invoke(false);
+                    parameters.ShowViewAnalysisButtonAction?.Invoke(false); // Make sure this is called.
                 }
                 else
                 {
@@ -245,7 +290,7 @@ public class ExcelCopyData
                         parameters.StatusBar.Items[0].Text = "Error";
                     });
                     MessageBox.Show("Excel processing failed.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    parameters.SetButtonTextAction?.Invoke("Error");
+                    parameters.SetButtonTextAction?.Invoke("Try again");
                     parameters.EnableButtonAction?.Invoke(true);
                 }
                 if (parameters.StatusBar != null && parameters.StatusBar.Parent != null)
@@ -258,7 +303,7 @@ public class ExcelCopyData
             }
         };
 
-        //run the worker async, pass in the params
+        // Run the worker async, pass in the params
         worker.RunWorkerAsync(parameters);
         return null;
     }
@@ -271,16 +316,16 @@ public class ExcelCopyData
         // Ensure destRow is within the valid range of the destination worksheet.
         if (destRow < 1)
         {
-            destRow = 1; // Set destRow to 1 if it's less than 1
+            destRow = 1;
         }
 
-        //insert romake sure destination has at least 1 row
+        // Insert row to make sure destination has at least 1 row
         if (destinationWorksheet.Dimension == null || destRow > destinationWorksheet.Dimension.Rows + 1)
         {
             destinationWorksheet.InsertRow(destinationWorksheet.Dimension?.Rows ?? 1, destRow - (destinationWorksheet.Dimension?.Rows ?? 1));
         }
 
-        //loop to copy the values between the sheets
+        // Loop to copy the values between the sheets
         for (int sourceRowIndex = startRow; sourceRowIndex <= sourceRowCount; sourceRowIndex++)
         {
             if (worker.CancellationPending)
@@ -293,10 +338,10 @@ public class ExcelCopyData
                 {
                     try
                     {
-                        //copy the value
+                        // Copy the value
                         var sourceCellValue = sourceWorksheet.Cells[sourceRowIndex, col].Value;
                         destinationWorksheet.Cells[destRow, col].Value = sourceCellValue;
-#if DEBUG               //Debug logging, shows all values copied
+#if DEBUG
                         Logger.LogDebug($"Copied from Source[{sourceRowIndex},{col}] to Dest[{destRow},{col}], Value: '{sourceCellValue}'");
 #endif
                     }
@@ -312,7 +357,7 @@ public class ExcelCopyData
                 }
             }
             destRow++;
-            //creates a percentage to be used in status bar
+            // Creates a percentage to be used in status bar
             int progress = (int)((double)sourceRowIndex / sourceRowCount * 100);
             worker.ReportProgress(progress, $"Copying data... {progress}%");
         }
@@ -338,38 +383,33 @@ public class ExcelCopyData
         int rowCount = dataSheet.Dimension?.Rows ?? 0;
         HashSet<string> uniqueCustomers = new HashSet<string>();
 
-        //Variable for progress tracking
+        // Variable for progress tracking
         int processedRows = 0;
 
-        // Extract unique customer names, start from row 3, because of the copying data bug that leaves row 2 blank and row 1 is headers which needs to be skipped.
+        // Extract unique customer names, start from row 3 (index 2).
         for (int row = 3; row <= rowCount; row++)
         {
             if (worker != null && worker.CancellationPending)
             {
                 return;
             }
-            object cellValue = dataSheet.Cells[row, CustomerColumn].Value;
+            object cellValue = dataSheet.Cells[row, CustomerColumn + 1].Value; // +1 for 1-based indexing
             if (cellValue != null && !string.IsNullOrWhiteSpace(cellValue.ToString()))
             {
                 uniqueCustomers.Add(cellValue.ToString());
             }
             processedRows++;
-            if (processedRows % 10 == 0 && statusBar != null && worker != null) // Update every 10 rows(arbitrary)
+            if (processedRows % 10 == 0 && statusBar != null && worker != null)
             {
                 int progress = (int)((double)processedRows / rowCount * 100);
                 worker.ReportProgress(progress, $"Extracting customers... {progress}%");
             }
         }
-        //log the count of unique customers to make sure the correct amount of lines are copied to into the sheets and and most importantly the PowerBI sheet, copied lines should match this
         Logger.LogInfo($"Unique customers count: {uniqueCustomers.Count}");
 
-        //variables for the foreach loop, outside to ensure they don't change
-        int analysisRow = 6; // Start from row 6. To skip the Headers in the template.
+        // Variables for the foreach loop.
+        int analysisRow = 6;
         string calTime = DateTime.Today.ToString("dd/MM/yyyy");
-
-#if DEBUG //Debug log for checking the calculated time is correct in the worksheet
-        Logger.LogDebug(calTime);
-#endif
 
         foreach (string customer in uniqueCustomers)
         {
@@ -379,16 +419,14 @@ public class ExcelCopyData
             }
 #if DEBUG
             Logger.LogDebug($"{customer}");
-#endif    
-            //copy the unique customers, and fill out other columns
-            analysisSheet.Cells[analysisRow, CustomerColumn].Value = customer;
-            analysisSheet.Cells[analysisRow, DateColumn].Value = null;
-            analysisSheet.Cells[analysisRow, DateColumn].Value = calTime;
-            analysisSheet.Cells[analysisRow, FinancialYearColumn].Value = GetCurrentFinancialYear();
+#endif
+            analysisSheet.Cells[analysisRow, CustomerColumn + 1].Value = customer; // +1 for 1-based indexing
+            analysisSheet.Cells[analysisRow, DateColumn + 1].Value = calTime;    // +1 for 1-based indexing
+            analysisSheet.Cells[analysisRow, FinancialYearColumn + 1].Value = GetCurrentFinancialYear(); // +1
             analysisRow++;
         }
 
-        //save package to ensure the delete step works correctly
+        // Save package to ensure the delete step works correctly.
         package.Save();
 
         Logger.LogInfo($"Unique customers extracted and copied to '{analysisSheetName}'.");
@@ -406,8 +444,8 @@ public class ExcelCopyData
         int startYear;
         int endYear;
 
-        // Determine the financial year (assuming it starts in April).
-        if (today.Month >= 4)
+        // Determine the financial year.  Using May as the start month.
+        if (today.Month >= 5)
         {
             startYear = year;
             endYear = year + 1;
@@ -418,7 +456,6 @@ public class ExcelCopyData
             endYear = year;
         }
 
-        //returns the last 2 numbers of the year - e.g FY24/25
         return $"FY {startYear.ToString().Substring(2)}/{endYear.ToString().Substring(2)}";
     }
 
@@ -445,14 +482,10 @@ public class ExcelCopyData
     private static void CopyAnalysisDataToWeeklyReport(string sourceFilePath, StatusStrip statusBar = null, BackgroundWorker worker = null)
     {
         ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
-
-        // Get the current user's username.
         string username = Environment.UserName;
 #if DEBUG
-// Use a copy of the weekly report file for debugging.
         string destinationFilePath = $@"C:\Users\{username}\Harlow Printing\IT - Documents\PowerBI\Quote Conversion Report\Quotes conversion data_wrangled\weekly report quotes conversion merged - copy.xlsx";
 #else
-        // Use the actual weekly report file.
         string destinationFilePath = $@"C:\Users\{username}\Harlow Printing\IT - Documents\PowerBI\Quote Conversion Report\Quotes conversion data_wrangled\weekly report quotes conversion merged.xlsx";
 #endif
         // Open the source Excel file.
@@ -468,7 +501,6 @@ public class ExcelCopyData
                 return;
             }
 
-            // Refresh the worksheet and calculate formulas.
             sourceWorksheet.Calculate();
             sourcePackage.Workbook.Calculate();
 
@@ -485,15 +517,15 @@ public class ExcelCopyData
                     return;
                 }
 
-                // Find the next free row in the destination worksheet (e.g., in column A).
+                // Find the next free row in the destination worksheet.
                 int nextFreeRow = destinationWorksheet.Dimension?.Rows ?? 0;
                 while (destinationWorksheet.Cells[nextFreeRow + 1, 1].Value != null)
                 {
                     nextFreeRow++;
                 }
-                nextFreeRow++;// Move to the next free row
+                nextFreeRow++;
 
-                // Get the source file name (without the full path).
+                // Get the source file name.
                 string sourceFileName = Path.GetFileName(sourceFilePath);
 
                 // Get the dimensions of the source worksheet.
@@ -504,35 +536,30 @@ public class ExcelCopyData
                 // Copy data from the source worksheet to the destination worksheet
                 if (sourceRowCount > 0 && sourceColCount > 0)
                 {
-                    for (int sourceRow = 6; sourceRow <= sourceRowCount; sourceRow++) // Start from row 6, skip headers
+                    // Start from row 6 (index 5) in the source sheet.
+                    for (int sourceRow = 6; sourceRow <= sourceRowCount; sourceRow++)
                     {
-                        //makes sure worker is not null or pending Cancellation, returns if true
                         if (worker != null && worker.CancellationPending)
                         {
                             return;
                         }
                         // Check if there is data in column A of the source row before copying.
-                        object cellValueA = sourceWorksheet.Cells[sourceRow, 1].Value; // Get value from column A
+                        object cellValueA = sourceWorksheet.Cells[sourceRow, 1].Value;
 
                         if (cellValueA != null && !string.IsNullOrWhiteSpace(cellValueA.ToString()))
                         {
                             for (int col = 1; col <= sourceColCount; col++)
                             {
-                                // *** Explicitly get and set the value ***
+                                //  Explicitly get and set the value
                                 object cellValue = sourceWorksheet.Cells[sourceRow, col].Value;
 #if DEBUG
-                                // *** Debugging: Inspect the value ***
                                 Debug.WriteLine($"Copying from [{sourceRow},{col}]: Value = '{cellValue}'");
 #endif
                                 destinationWorksheet.Cells[nextFreeRow, col].Value = cellValue;
                             }
-                            // Set column L to the source file name.
-                            destinationWorksheet.Cells[nextFreeRow, SourceFileNameColumn].Value = sourceFileName;
+                            destinationWorksheet.Cells[nextFreeRow, SourceFileNameColumn + 1].Value = sourceFileName; // +1
                             nextFreeRow++;
                         }
-                        // If column A is empty, the row is skipped.
-
-                        //status strip tracking
                         processedRows++;
                         if (processedRows % 10 == 0 && statusBar != null && worker != null)
                         {
@@ -556,7 +583,7 @@ public class ExcelCopyData
     /// <summary>
     /// Deletes rows from a worksheet where the specified column is empty.
     /// </summary>
-    private static void DeleteEmptyRows(string filePath, string sheetName, StatusStrip statusBar = null, BackgroundWorker worker = null)
+    private static void DeleteEmptyRows(string filePath, string sheetName, StatusStrip statusBar = null, BackgroundWorker worker = null, bool useMonthly = false)
     {
         // Set the license context for EPPlus to non-commercial.
         ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
@@ -574,11 +601,11 @@ public class ExcelCopyData
                 return;
             }
 
-            // Get the number of rows in the worksheet
+            // Get the number of rows in the worksheet.
             int rowCount = worksheet.Dimension?.Rows ?? 0;
-            if (rowCount == null || rowCount <= 0) return; // Add check for empty sheet - might now work, always false
+            if (rowCount == null || rowCount <= 0) return;
 
-            // Get the data from Column A into a list (starting from row 7, skipping headers).
+            // Get the data from Column A into a list (starting from row 7).
             List<object> columnAValues = new List<object>();
             for (int row = 7; row <= rowCount; row++)
             {
@@ -586,39 +613,108 @@ public class ExcelCopyData
                 {
                     return;
                 }
-                columnAValues.Add(worksheet.Cells[row, CustomerColumn].Value);
+                columnAValues.Add(worksheet.Cells[row, CustomerColumn + 1].Value); // +1
             }
-            int deletedRows = 0;
 
-            // Iterate backwards through the collected data, avoids indexing errors.
-            // Adjust loop to start from the *original* rowCount.
+            int deletedRows = 0;
+            // Iterate in reverse to avoid index shifting issues when deleting rows.
             for (int row = rowCount; row >= 7; row--)
             {
                 if (worker != null && worker.CancellationPending)
                 {
                     return;
                 }
-                object cellValue = columnAValues[row - 7]; // Adjust index for list
+                object cellValue = columnAValues[row - 7];
 
                 // Check if the cell value is empty.
                 if (cellValue == null || (cellValue is string strValue && string.IsNullOrWhiteSpace(strValue)))
                 {
-                    worksheet.DeleteRow(row); // Delete the row.
+                    worksheet.DeleteRow(row);
                     deletedRows++;
-                    if (deletedRows % 5 == 0 && statusBar != null && worker != null) // Update progress every 5 deleted rows.
+                    if (deletedRows % 5 == 0 && statusBar != null && worker != null)
                     {
-                        int progress = (int)((double)deletedRows / (rowCount - 6) * 100); //subtract 6 because we start at row 7
+                        int progress = (int)((double)deletedRows / (rowCount - 6) * 100);
                         worker.ReportProgress(progress, $"Deleting empty rows... {progress}%");
                     }
                 }
             }
-            
-            package.Workbook.Calculate(); // Calculate the workbook.
-            package.Save(); // Save the changes.
-            package.Dispose(); // Dispose of the package to release resources.
+
+            package.Workbook.Calculate();
+            package.Save();
+            package.Dispose();
             Logger.LogInfo($"Empty rows deleted from '{filePath}', sheet '{sheetName}'.");
             statusBar?.Invoke((MethodInvoker)delegate { statusBar.Items[0].Text = "Empty rows deleted."; });
+
+            RefreshPivotTablesIfNeeded(useMonthly, filePath, statusBar, worker);
+        }
+    }
+
+    /// <summary>
+    /// Refreshes the specified pivot table in the Excel workbook.
+    /// </summary>
+    /// <param name="filePath">The path to the Excel file.</param>
+    /// <param name="sheetName">The name of the worksheet containing the pivot table.</param>
+    /// <param name="pivotTableName">The name of the pivot table to refresh.</param>
+    /// <param name="statusBar">Status bar for status reporting.</param>
+    /// <param name="worker">Background worker for async operations.</param>
+    private static void RefreshPivotTables(string filePath, string sheetName, string pivotTableName, StatusStrip statusBar = null, BackgroundWorker worker = null)
+    {
+        ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+        try
+        {
+            using (ExcelPackage package = new ExcelPackage(new FileInfo(filePath)))
+            {
+                ExcelWorksheet worksheet = package.Workbook.Worksheets[sheetName];
+                if (worksheet != null)
+                {
+                    Logger.LogInfo($"Worksheet '{sheetName}' found.");
+                    foreach (var pivotTable in worksheet.PivotTables)
+                    {
+                        Logger.LogInfo($"Found pivot table: {pivotTable.Name}");
+                        if (pivotTable.Name == pivotTableName)
+                        {
+                            Logger.LogInfo($"Refreshing pivot table: {pivotTableName}");
+                            pivotTable.CacheDefinition.PivotTable.Calculate();
+                            pivotTable.Calculate();
+                            pivotTable.CacheDefinition.Refresh();
+                            package.Workbook.Calculate();
+                            package.Save();
+                            package.Dispose();
+                            Logger.LogInfo($"Pivot table '{pivotTableName}' in sheet '{sheetName}' refreshed.");
+                            if (statusBar != null && worker != null)
+                            {
+                                worker.ReportProgress(100, $"Pivot table '{pivotTableName}' refreshed.");
+                                statusBar.Invoke((MethodInvoker)delegate { statusBar.Items[0].Text = $"Pivot table '{pivotTableName}' refreshed."; });
+                            }
+                            return; // Refresh only the specified pivot table
+                        }
+                    }
+                    Logger.LogWarning($"Pivot table '{pivotTableName}' not found in sheet '{sheetName}'.");
+                }
+                else
+                {
+                    Logger.LogError($"Worksheet '{sheetName}' not found.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Error refreshing pivot table: {ex.Message}");
+        }
+    }
+
+    private static void RefreshPivotTablesIfNeeded(bool useMonthly, string filePath, StatusStrip statusBar = null, BackgroundWorker worker = null)
+    {
+        if (useMonthly)
+        {
+            RefreshPivotTables(filePath, MonthlyOrderPivotSheetName, MonthlyOrderPivotName, statusBar, worker);
+            RefreshPivotTables(filePath, MonthlyEstimatePivotSheetName, MonthlyEstimatePivotName, statusBar, worker);
+            Logger.LogInfo("Pivot tables refreshed after deleting empty rows (useMonthly = true).");
+            statusBar?.Invoke((MethodInvoker)delegate { statusBar.Items[0].Text = "Pivot tables refreshed."; });
+        }
+        else
+        {
+            Logger.LogInfo("Pivot tables not refreshed (useMonthly = false).");
         }
     }
 }
-

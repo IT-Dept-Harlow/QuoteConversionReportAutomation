@@ -11,6 +11,18 @@ namespace QuoteConversionReportAutomation
     /// </summary>
     public class RunCrystalReportClass
     {
+        private bool _useWeekly; // Store the checkbox value
+
+        /// <summary>
+        /// Gets the bool for check box value
+        /// </summary>
+        /// <param name="useMonthly"></param>
+        // Constructor to accept the checkbox value.
+        public RunCrystalReportClass(bool useMonthly)
+        {
+            _useWeekly = useMonthly;
+        }
+
         /// <summary>
         /// Runs a Crystal Report, sets parameters, and exports it to an Excel workbook, providing progress updates.
         /// </summary>
