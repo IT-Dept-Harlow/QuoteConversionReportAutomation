@@ -12,6 +12,8 @@ namespace QuoteConversionReportAutomation
     /// </summary>
     public partial class Form1 : Form
     {
+        string Version = "1.0.4";
+
         // Private field to store the generated file path.
         private string _generatedFilePath;
 
@@ -32,14 +34,16 @@ namespace QuoteConversionReportAutomation
             {
                 // Gets today's date.
                 DateTime today = DateTime.Today;
-
+                string baseDir = @"C:\Users\" + Environment.UserName + @"\Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimate Reports Exports";
                 // Constructs the file path using the current user's profile and date.
-                return Path.Combine(
-                    @"C:\Users\",
-                    Environment.UserName,
-                    @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimate Reports Exports\",
-                    $"{today.ToString("yyyyMMdd ")}Estimate Success Report.xlsx"
-                );
+                if (checkBox1.Checked)
+                {
+                    return Path.Combine(baseDir, "Monthly Reports", $"{today.ToString("yyyyMMdd ")}Estimate Success Report.xlsx");
+                }
+                else
+                {
+                    return Path.Combine(baseDir, "Weekly Reports", $"{today.ToString("yyyyMMdd ")}Estimate Success Report.xlsx");
+                }
             }
         }
 
@@ -50,13 +54,17 @@ namespace QuoteConversionReportAutomation
         {
             get
             {
-                // Constructs the template file path.
-                return Path.Combine(
-                    @"C:\Users\",
-                    Environment.UserName,
-                    @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimates\Weekly reports\",
-                    $"TEMPLATE_Estimate Success Rate.xlsx"
-                );
+                string baseDir = @"C:\Users\" + Environment.UserName + @"\Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimates\";
+                if (checkBox1.Checked)
+                {
+                    // Constructs the template file path.
+                    return Path.Combine(baseDir, $"Monthly reports", "TEMPLATE_Estimate Success Rate MMM 2025.xlsx");
+                }
+                else
+                {
+                    // Constructs the template file path.
+                    return Path.Combine(baseDir, $"Weekly reports", "TEMPLATE_Estimate Success Rate.xlsx");
+                }
             }
         }
 
@@ -68,16 +76,20 @@ namespace QuoteConversionReportAutomation
             get
             {
                 // Gets today's date.
-                _ = DateTime.Today;
-
+                DateTime today = DateTime.Today;
+                string baseDir = @"C:\Users\" + Environment.UserName + @"\Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimates\";
                 // Constructs the save location path.
-                return Path.Combine(
-                    @"C:\Users\",
-                    Environment.UserName,
-                    @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimates\Weekly reports\2025"
-                );
+                if (checkBox1.Checked)
+                {
+                    return Path.Combine(baseDir, "Monthly reports", "2025");
+                }
+                else
+                {
+                    return Path.Combine(baseDir, "Weekly reports", "2025");
+                }
             }
         }
+
 
         /// <summary>
         /// Initializes a new instance of the Form1 class.
@@ -92,9 +104,9 @@ namespace QuoteConversionReportAutomation
 
 
 #if DEBUG
-            Text = "Quote Conversion Automation - Debug";
+            Text = $"Quote Conversion Automation - Debug - {Version}";
 #else
-            Text = "Quote Conversion Automation - Release";
+            Text = $"Quote Conversion Automation - Release - {Version}";
 #endif
 
             // Centers the form on the screen.
@@ -146,8 +158,7 @@ namespace QuoteConversionReportAutomation
             try
             {
                 // Creates an instance of the report runner class.
-                RunCrystalReportClass reportRunner = new RunCrystalReportClass();
-
+                RunCrystalReportClass reportRunner = new RunCrystalReportClass(checkBox1.Checked); // Pass the value
                 // Runs the Crystal Report.
                 reportRunner.RunReport(crystalReportLocation, ReportOutputLocation, datepickFrom.Value, datepickTo.Value, statusStrip1);
 
@@ -198,12 +209,12 @@ namespace QuoteConversionReportAutomation
                 // Store the action, and the result
                 Action<string> setEmailAction = SendEmailWithAttachment;
                 Action<string> setTextAction = SetButton2Text;
+                Action<string> setTextAction2 = SetButton1Text;
                 Action<bool> enableAction = EnableButton2;
+                Action<bool> enableAction2 = EnableButton1;
                 Action<bool> showAnalysisButtonAction = ShowBtnViewAnalysis;
 
-                ExcelCopyData.CopyDataBetweenExcelSheetsAsync(ReportOutputLocation, sourceSheetName, excelCopytSaveLocation, excelCopyTemplateLocation, destinationSheetName, 0, 0, statusStrip1, setEmailAction, setTextAction, enableAction, ShowBtnViewAnalysis);
-
-
+                ExcelCopyData.CopyDataBetweenExcelSheetsAsync(checkBox1.Checked, ReportOutputLocation, sourceSheetName, excelCopytSaveLocation, excelCopyTemplateLocation, destinationSheetName, 0, 0, statusStrip1, setEmailAction, setTextAction, setTextAction2, enableAction, enableAction2, ShowBtnViewAnalysis); // Pass value
             }
             catch (FileNotFoundException ex)
             {
@@ -232,6 +243,28 @@ namespace QuoteConversionReportAutomation
         }
 
         // Action methods to update the UI.  These MUST be in the form.
+        private void SetButton1Text(string text)
+        {
+            if (button1.InvokeRequired)
+            {
+                button1.Invoke(new MethodInvoker(delegate { button1.Text = text; }));
+            }
+            else
+            {
+                button1.Text = text;
+            }
+        }
+        private void EnableButton1(bool enable)
+        {
+            if (button1.InvokeRequired)
+            {
+                button1.Invoke(new MethodInvoker(delegate { button1.Enabled = enable; }));
+            }
+            else
+            {
+                button1.Enabled = enable;
+            }
+        }
         private void SetButton2Text(string text)
         {
             if (button2.InvokeRequired)
@@ -287,37 +320,53 @@ namespace QuoteConversionReportAutomation
 
                 EmailUtility emailUtility = new EmailUtility(smtpServer, smtpPort, smtpUsername, smtpPassword, enableSsl);
 
+                List<string> toAddresses = new List<string>();
+                List<string> ccAddresses = new List<string>();
+
 #if DEBUG
                 // Debug configuration: send emails to the me for testing.
-                List<string> toAddresses = new List<string>
-        {
-            "chrisp@harlowsolutions.co.uk"
-        };
-                List<string> ccAddresses = new List<string>
-        {
-            "chrisp@harlowsolutions.co.uk"
-        };
+                toAddresses.Add("chrisp@harlowsolutions.co.uk");
+                ccAddresses.Add("chrisp@harlowsolutions.co.uk");
 #else
-        // Release configuration: send emails to the team.
-        List<string> toAddresses = new List<string>
-        {
-            "andrewp@harlowsolutions.co.uk",
-            "kirstym@harlowsolutions.co.uk",
-            "stuartm@harlowsolutions.co.uk"
-        };
-        List<string> ccAddresses = new List<string>
-        {
-            "emmanuel@harlowsolutions.co.uk",
-            "femi@harlowsolutions.co.uk",
-            "jackh@harlowsolutions.co.uk",
-            "pauls@harlowsolutions.co.uk",
-            "ITdept@harlowsolutions.co.uk",
-            "gordonb@harlowsolutions.co.uk"
-        };
+                // Release configuration: send emails to the team.
+
+                //this bit is just untill I get approval to send to directors from femi and only for the monthly one, on those 2 dates when femi asked me to run them.
+                DateTime specificDate1 = new DateTime(2025, 4, 4);
+                DateTime specificDate2 = new DateTime(2025, 4, 11);
+
+                if (checkBox1.Checked && (today == specificDate1 || today == specificDate2))
+                {
+                    toAddresses.Add("femi@harlowsolutions.co.uk");
+                    toAddresses.Add("ITdept@harlowsolutions.co.uk");
+                }
+                else
+                {
+                    toAddresses.Add("andrewp@harlowsolutions.co.uk");
+                    toAddresses.Add("kirstym@harlowsolutions.co.uk");
+                    toAddresses.Add("stuartm@harlowsolutions.co.uk");
+                    ccAddresses.Add("emmanuel@harlowsolutions.co.uk");
+                    ccAddresses.Add("femi@harlowsolutions.co.uk");
+                    ccAddresses.Add("jackh@harlowsolutions.co.uk");
+                    ccAddresses.Add("pauls@harlowsolutions.co.uk");
+                    ccAddresses.Add("ITdept@harlowsolutions.co.uk");
+                    ccAddresses.Add("gordonb@harlowsolutions.co.uk");
+                }
 #endif
 
-                string subject = "Weekly Estimate Success Rate Report";
-                string body = "Hi All,\r\n\r\nPlease see the \"Estimates Success Rate\" file attached with the list of quotes in the last two weeks for the entire team; please review them ahead of your respective check-ins for follow-ups required.\r\n\r\nThank you.\r\n";
+                string subject;
+                string body;
+
+                if (!checkBox1.Checked)
+                {
+                    subject = "Weekly Estimate Success Rate Report";
+                    body = "Hi All,\r\n\r\nPlease see the \"Estimates Success Rate\" file attached with the list of quotes in the last two weeks for the entire team; please review them ahead of your respective check-ins for follow-ups required.\r\n\r\nThank you.\r\n";
+                }
+                else
+                {
+                    subject = "Monthly Estimate Success Rate Report";
+                    body = $"Hi All,\r\n\r\nPlease see the \"Estimates Success Rate\" file attached with the list of quotes in for: {datepickFrom.Value.ToString("MMMMM yyyy")} for the entire team; please review them ahead of your respective check-ins for follow-ups required.\r\n\r\nThank you.\r\n";
+                }
+
 
                 // Validate attachment path.
                 if (!File.Exists(attachmentPath))
@@ -431,6 +480,50 @@ namespace QuoteConversionReportAutomation
             {
                 Logger.LogInfo($"No file path available to view.");
                 MessageBox.Show("No file path available to view.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
+            //  The code block will be executed when the CheckBox's state changes (checked or unchecked).
+            if (sender is CheckBox checkBox)
+            {
+                if (checkBox.Checked)
+                {
+                    // Calculate the first day of the current month.
+                    DateTime firstDayOfMonth = new DateTime(today.Year, today.Month, 1);
+                    DateTime lastDayOfMonth = firstDayOfMonth.AddMonths(1).AddDays(-1);
+
+                    // Determine if today is in the first half of the month.
+                    if (today.Day <= 15)
+                    {
+                        // If in the first half, set the date to the 1st and last day of the *previous* month.
+                        DateTime firstDayOfLastMonth = firstDayOfMonth.AddMonths(-1);
+                        DateTime lastDayOfLastMonth = firstDayOfMonth.AddDays(-1);
+                        datepickFrom.Value = firstDayOfLastMonth;
+                        datepickTo.Value = lastDayOfLastMonth;
+                        Logger.LogInfo("CheckBox1 is checked, Date From set to 1st of last month: " + firstDayOfLastMonth + " Date To: " + lastDayOfLastMonth);
+                    }
+                    else
+                    {
+                        // Otherwise, set it to the 1st and last day of the *current* month.
+                        datepickFrom.Value = firstDayOfMonth;
+                        datepickTo.Value = lastDayOfMonth;
+                        Logger.LogInfo("CheckBox1 is checked, Date From set to 1st of current month: " + firstDayOfMonth + " Date To: " + lastDayOfMonth);
+                    }
+                }
+                else
+                {
+                    // If the checkbox is unchecked, set the date to the last 15 days.
+                    DateTime fifteenDaysAgo = today.AddDays(-15);
+                    datepickFrom.Value = fifteenDaysAgo;
+                    datepickTo.Value = today;
+                    Logger.LogInfo("CheckBox1 is unchecked, Date From set to last 15 days: " + fifteenDaysAgo + " Date To: " + today);
+                }
+            }
+            else
+            {
+                Logger.LogWarning("Sender is not a CheckBox");
             }
         }
     }

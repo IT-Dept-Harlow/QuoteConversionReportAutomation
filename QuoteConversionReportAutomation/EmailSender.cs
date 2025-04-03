@@ -163,7 +163,7 @@ namespace EmailSender
                 if (statusStrip != null)
                 {
                     //since this is the very last thing include overall success message, fail message for failure
-                    statusStrip.Items[0].Text = success ? "Email sent - Report Complete - Please Close The Program." : "Email operation failed.";
+                    statusStrip.Items[0].Text = success ? "Email sent - Report Complete" : "Email operation failed.";
                 }
 
             };
