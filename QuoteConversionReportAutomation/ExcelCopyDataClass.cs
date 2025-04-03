@@ -72,7 +72,7 @@ public class ExcelCopyData
             WorkerSupportsCancellation = true
         };
 
-        // Define the parameters for the DoWork event.  Use descriptive names.
+        // Define the parameters for the DoWork event.  Use descriptive names. BW=Background Worker
         var parameters = new
         {
             SourceFilePath = sourceFilePath,
@@ -94,7 +94,7 @@ public class ExcelCopyData
             UseMonthly = useMonthly
         };
 
-        // Define the DoWork event handler.  Use more descriptive variable names.
+        // Define the DoWork event handler.  Use more descriptive variable names. BW=Background Worker
         worker.DoWork += (sender, eventArgs) =>
         {
             var paramsObj = (dynamic)eventArgs.Argument;
@@ -179,8 +179,24 @@ public class ExcelCopyData
                         string fileName;
                         if (useMonthlyBW)
                         {
+                            // Determine if we should use the current or previous month.
+                            DateTime now = DateTime.Now;
+                            DateTime targetMonth;
+
+                            //1st half of the month use the previous month
+                            if (now.Day <= 15)
+                            {
+                                // Use the previous month.
+                                targetMonth = now.AddMonths(-1);
+                            }
+                            else
+                            {
+                                // Use the current month.
+                                targetMonth = now;
+                            }
+
                             // Generate the file name with the date (Monthly).
-                            currentDate = DateTime.Now.ToString("MMM_yyyy"); // Consistent format
+                            currentDate = targetMonth.ToString("MMM_yyyy"); // Consistent format       
                             fileName = $"Estimate_Success_Rate_{currentDate}.xlsx";
                         }
                         else
@@ -427,7 +443,7 @@ public class ExcelCopyData
         }
 
         // Save package to ensure the delete step works correctly.
-        package.Save();
+        package.SaveAsync();
 
         Logger.LogInfo($"Unique customers extracted and copied to '{analysisSheetName}'.");
         statusBar?.Invoke((MethodInvoker)delegate { statusBar.Items[0].Text = "Unique customers extracted."; });
@@ -573,7 +589,7 @@ public class ExcelCopyData
                     Logger.LogInfo("Source worksheet is empty.");
                 }
 
-                destinationPackage.Save();
+                destinationPackage.SaveAsync();
                 Logger.LogInfo($"Data appended to '{destinationFilePath}'.");
             }
         }
@@ -640,7 +656,7 @@ public class ExcelCopyData
             }
 
             package.Workbook.Calculate();
-            package.Save();
+            package.SaveAsync();
             package.Dispose();
             Logger.LogInfo($"Empty rows deleted from '{filePath}', sheet '{sheetName}'.");
             statusBar?.Invoke((MethodInvoker)delegate { statusBar.Items[0].Text = "Empty rows deleted."; });
@@ -674,11 +690,12 @@ public class ExcelCopyData
                         if (pivotTable.Name == pivotTableName)
                         {
                             Logger.LogInfo($"Refreshing pivot table: {pivotTableName}");
+                            package.Workbook.FullCalcOnLoad = true;
                             pivotTable.CacheDefinition.PivotTable.Calculate();
                             pivotTable.Calculate();
                             pivotTable.CacheDefinition.Refresh();
                             package.Workbook.Calculate();
-                            package.Save();
+                            package.SaveAsync();
                             package.Dispose();
                             Logger.LogInfo($"Pivot table '{pivotTableName}' in sheet '{sheetName}' refreshed.");
                             if (statusBar != null && worker != null)
