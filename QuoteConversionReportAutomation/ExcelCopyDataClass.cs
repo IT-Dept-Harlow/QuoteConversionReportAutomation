@@ -1,27 +1,30 @@
 ﻿using OfficeOpenXml;
-using QuoteConversionReportAutomation;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
+using QuoteConversionReportAutomation;
+using System.Diagnostics;
+using OfficeOpenXml.Table;
+using System.Linq;
 
 /// <summary>
-/// Provides methods for copying data between Excel sheets and performing related operations asynchronously using BackgroundWorkers with status reporting.
+/// Provides methods for copying data between Excel sheets and performing related operations asynchronously with status reporting.
 /// </summary>
 public class ExcelCopyData
 {
     // Constants for column indices.  Using 0-based indexing.
     private const int CustomerColumn = 0; // Column A
-    private const int DateColumn = 12;    // Column M
+    private const int DateColumn = 12;     // Column M
     private const int FinancialYearColumn = 13; // Column N
     private const int SourceFileNameColumn = 11; // Column L
     private const string DataSheetName = "DATA";
     private const string AnalysisSheetName = "Analysis";
     private const string MonthlyOrderPivotSheetName = "OrderPivot";
     private const string MonthlyEstimatePivotSheetName = "Estimate Success PivotTable";
-    private const string MonthlyOrderPivotName = "PivotTable6";       // OrderPivot
+    private const string MonthlyOrderPivotName = "PivotTable1";       // OrderPivot - Changed from PivotTable6 to PivotTable1
     private const string MonthlyEstimatePivotName = "PivotTable3"; // Estimate Success Pivot
     private const string WeeklyReportSheetName = "2024_25"; // Or your target sheet name i.e 2025_26
 
@@ -72,9 +75,10 @@ public class ExcelCopyData
             WorkerSupportsCancellation = true
         };
 
-        // Define the parameters for the DoWork event.  Use descriptive names. BW=Background Worker
+        // Define the parameters for the DoWork event.  Use descriptive names.
         var parameters = new
         {
+            UseMonthly = useMonthly,
             SourceFilePath = sourceFilePath,
             SourceSheetName = sourceSheetName,
             FileSaveLocation = fileSaveLocation,
@@ -91,163 +95,36 @@ public class ExcelCopyData
             ShowButtonAction = showButtonAction,
             ShowViewAnalysisButtonAction = showViewAnalysisButtonAction,
             SetFilePathAction = setFilePathAction,
-            UseMonthly = useMonthly
         };
 
-        // Define the DoWork event handler.  Use more descriptive variable names. BW=Background Worker
+        // Define the DoWork event handler.
         worker.DoWork += (sender, eventArgs) =>
         {
             var paramsObj = (dynamic)eventArgs.Argument;
-            string sourceFilePathBW = paramsObj.SourceFilePath;
-            string sourceSheetNameBW = paramsObj.SourceSheetName;
-            string fileSaveLocationBW = paramsObj.FileSaveLocation;
-            string destinationFilePathBW = paramsObj.DestinationFilePath;
-            string destinationSheetNameBW = paramsObj.DestinationSheetName;
-            int startRowBW = paramsObj.StartRow;
-            int startColBW = paramsObj.StartCol;
-            StatusStrip statusBarBW = paramsObj.StatusBar;
-            BackgroundWorker bw = (BackgroundWorker)sender;
             string result = null;
-            Action<bool> showViewAnalysisButtonActionBW = paramsObj.ShowViewAnalysisButtonAction;
-            Action<string> setFilePathActionBW = paramsObj.SetFilePathAction;
-            bool useMonthlyBW = paramsObj.UseMonthly;
+            BackgroundWorker bw = (BackgroundWorker)sender;
 
             try
             {
-                // Set the license context for EPPlus to non-commercial.
-                ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
-
-                // Open the source Excel file.
-                using (var sourcePackage = new ExcelPackage(new FileInfo(sourceFilePathBW)))
-                {
-                    // Get the source worksheet.
-                    var sourceWorksheet = sourcePackage.Workbook.Worksheets[sourceSheetNameBW];
-
-                    // Check if the source worksheet exists.
-                    if (sourceWorksheet == null)
-                    {
-                        Logger.LogInfo($"Source sheet '{sourceSheetNameBW}' not found.");
-                        eventArgs.Result = null;
-                        return; // Return null if the source sheet is not found.
-                    }
-
-                    // Open the destination Excel file.
-                    using (var destinationPackage = new ExcelPackage(new FileInfo(destinationFilePathBW)))
-                    {
-                        // Get or create the destination worksheet.
-                        var destinationWorksheet = destinationPackage.Workbook.Worksheets[destinationSheetNameBW] ??
-                            destinationPackage.Workbook.Worksheets.Add(destinationSheetNameBW);
-
-                        // Get the dimensions of the source worksheet.
-                        int sourceRowCount = sourceWorksheet.Dimension?.Rows ?? 0;
-                        int sourceColCount = sourceWorksheet.Dimension?.Columns ?? 0;
-
-                        // Get the dimensions of the destination worksheet.
-                        int destRow = 2;
-                        int destColCount = destinationWorksheet.Dimension?.Columns ?? 0;
-
-                        Logger.LogInfo($"Source Sheet: {sourceSheetNameBW}, Rows: {sourceRowCount}, Cols: {sourceColCount}");
-                        Logger.LogInfo($"Destination Sheet: {destinationSheetNameBW}, Rows: {destRow}, Cols: {destColCount}");
-
-                        if (sourceRowCount > 0 && sourceColCount > 0)
-                        {
-                            if (destColCount < sourceColCount)
-                            {
-                                for (int i = destColCount + 1; i <= sourceColCount; i++)
-                                {
-                                    // Add columns until it matches, should never need this loop if using the template.
-                                    destinationWorksheet.InsertColumn(i, 1);
-                                }
-                                destColCount = sourceColCount;
-                            }
-                            statusBarBW?.Invoke((MethodInvoker)delegate { statusBarBW.Items[0].Text = "Copying Data..."; });
-
-                            // Copy the cell values.
-                            CopyDataBetweenExcelSheets(sourcePackage, destinationPackage, sourceWorksheet, destinationWorksheet, startRowBW, sourceRowCount, sourceColCount, ref destRow, destColCount, bw);
-                        }
-                        else
-                        {
-                            Logger.LogInfo("Source sheet is empty.");
-                        }
-
-                        // Create folder structure if necessary.
-                        FolderCreation createFolderStruc = new FolderCreation();
-                        destinationPackage.Workbook.FullCalcOnLoad = true;
-                        string createdFolderPath = createFolderStruc.CreateFolder(useMonthlyBW, fileSaveLocationBW);
-
-                        string currentDate;
-                        string fileName;
-                        if (useMonthlyBW)
-                        {
-                            // Determine if we should use the current or previous month.
-                            DateTime now = DateTime.Now;
-                            DateTime targetMonth;
-
-                            //1st half of the month use the previous month
-                            if (now.Day <= 15)
-                            {
-                                // Use the previous month.
-                                targetMonth = now.AddMonths(-1);
-                            }
-                            else
-                            {
-                                // Use the current month.
-                                targetMonth = now;
-                            }
-
-                            // Generate the file name with the date (Monthly).
-                            currentDate = targetMonth.ToString("MMM_yyyy"); // Consistent format       
-                            fileName = $"Estimate_Success_Rate_{currentDate}.xlsx";
-                        }
-                        else
-                        {
-                            // Generate the file name with the date (Weekly).
-                            currentDate = DateTime.Now.ToString("yyyyMMdd");
-                            fileName = $"{currentDate}_Estimate_Success_Rate.xlsx";
-                        }
-
-                        if (createdFolderPath != null)
-                        {
-                            string fileSaveLocation2 = Path.Combine(createdFolderPath, fileName);
-                            FileInfo newFile = new FileInfo(fileSaveLocation2);
-                            destinationPackage.Workbook.CalcMode = ExcelCalcMode.Automatic;
-                            destinationPackage.SaveAs(newFile);
-
-                            Logger.LogInfo($"Data copied from '{sourceSheetNameBW}' in '{sourceFilePathBW}' to '{destinationSheetNameBW}' in '{destinationFilePathBW}'. Saved to: {fileSaveLocation2}");
-                            result = fileSaveLocation2; // Store the file path
-
-                            // Extract unique customers from the "DATA" sheet and populate the "Analysis" sheet
-                            ExtractUniqueCustomers(destinationPackage, DataSheetName, AnalysisSheetName, statusBarBW, bw);
-
-                            // Calculate the "Analysis" sheet.
-                            CalculateAnalysisSheet(destinationPackage, AnalysisSheetName);
-
-                            // Delete empty rows from the "Analysis" sheet.
-                            DeleteEmptyRows(fileSaveLocation2, AnalysisSheetName, statusBarBW, bw, useMonthlyBW);
-
-                            if (!useMonthlyBW)
-                            {
-                                // Copy data from the "Analysis" sheet to the weekly report.
-                                CopyAnalysisDataToWeeklyReport(fileSaveLocation2, statusBarBW, bw);
-                            }
-
-                            eventArgs.Result = fileSaveLocation2; // Pass the file path back via eventArgs
-                            setFilePathActionBW?.Invoke(fileSaveLocation2); // Call the action to pass back file path to main form
-                        }
-                        else
-                        {
-                            Logger.LogError("Failed to create folder structure.");
-                            eventArgs.Result = null;
-                            return; // Return null if folder creation fails.
-                        }
-                    }
-                }
+                result = CopyDataBetweenExcelSheetsInternal(
+                    paramsObj.UseMonthly,
+                    paramsObj.SourceFilePath,
+                    paramsObj.SourceSheetName,
+                    paramsObj.FileSaveLocation,
+                    paramsObj.DestinationFilePath,
+                    paramsObj.DestinationSheetName,
+                    paramsObj.StartRow,
+                    paramsObj.StartCol,
+                    bw,
+                    paramsObj.StatusBar
+                    );
+                eventArgs.Result = result;
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Error occurred: {ex.Message}");
+                Logger.LogError($"Error in DoWork: {ex.Message}");
                 eventArgs.Result = null;
-                eventArgs.Cancel = true; // Cancel background thread
+                eventArgs.Cancel = true; // Ensure cancellation is flagged
             }
         };
 
@@ -288,11 +165,35 @@ public class ExcelCopyData
                         parameters.StatusBar.Items[0].Text = "Complete";
                     });
                     Logger.LogInfo($"Excel processing completed. File saved to: {result}");
-                    // Send the email here, after successful processing
-                    parameters.SendEmailAction?.Invoke(result);
+                    // Send the email here, after successful processing only if it's not the monthly report, will change after approval of report
+                    if (!useMonthly)
+                    {
+                        parameters.SendEmailAction?.Invoke(result);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Opening Excel File. Please manually refresh PivotTables and Slicers and close excel to allow program to continue.", "Opening Excel File...", MessageBoxButtons.OK, MessageBoxIcon.Information, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
+
+                        try
+                        {
+                            // Open the file using the default associated program
+                            Process process = Process.Start(result);
+                            if (process != null)
+                            {
+                                process.WaitForExit(); // Wait for the process to exit.
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.LogError($"Error opening file: {ex.Message}");
+                            MessageBox.Show($"Error opening file: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
+                        }
+                        parameters.SendEmailAction?.Invoke(result); //send email
+                    }
+
                     // Update the UI elements.
                     parameters.SetButtonTextAction?.Invoke("Create Analysis &\r\nSend Email"); // Change button text
-                    parameters.SetButtonTextAction2?.Invoke("Create Report");             // Change button text
+                    parameters.SetButtonTextAction2?.Invoke("Create Report");                                 // Change button text
                     parameters.SetFilePathAction?.Invoke(result);
                     parameters.EnableButtonAction?.Invoke(false);
                     parameters.EnableButtonAction2?.Invoke(true);
@@ -305,7 +206,7 @@ public class ExcelCopyData
                     {
                         parameters.StatusBar.Items[0].Text = "Error";
                     });
-                    MessageBox.Show("Excel processing failed.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Excel processing failed.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1, MessageBoxOptions.DefaultDesktopOnly);
                     parameters.SetButtonTextAction?.Invoke("Try again");
                     parameters.EnableButtonAction?.Invoke(true);
                 }
@@ -325,9 +226,111 @@ public class ExcelCopyData
     }
 
     /// <summary>
-    /// Copies data from one Excel sheet to another.
+    /// Internal method to copy data between Excel sheets.  Handles file operations and calls the actual copy logic.
     /// </summary>
-    private static void CopyDataBetweenExcelSheets(ExcelPackage sourcePackage, ExcelPackage destinationPackage, ExcelWorksheet sourceWorksheet, ExcelWorksheet destinationWorksheet, int startRow, int sourceRowCount, int sourceColCount, ref int destRow, int destColCount, BackgroundWorker worker)
+    private static string CopyDataBetweenExcelSheetsInternal(
+        bool useMonthly,
+        string sourceFilePath,
+        string sourceSheetName,
+        string fileSaveLocation,
+        string destinationFilePath,
+        string destinationSheetName,
+        int startRow,
+        int startCol,
+        BackgroundWorker worker,
+        StatusStrip statusBar)
+    {
+        ExcelPackage.License.SetNonCommercialPersonal("Harlow");
+        string result = null;
+
+        using (var sourcePackage = new ExcelPackage(new FileInfo(sourceFilePath)))
+        using (var destinationPackage = new ExcelPackage(new FileInfo(destinationFilePath)))
+        {
+            var sourceWorksheet = sourcePackage.Workbook.Worksheets[sourceSheetName];
+            if (sourceWorksheet == null)
+            {
+                Logger.LogInfo($"Source sheet '{sourceSheetName}' not found.");
+                return null;
+            }
+
+            var destinationWorksheet = destinationPackage.Workbook.Worksheets[destinationSheetName] ??
+                                         destinationPackage.Workbook.Worksheets.Add(destinationSheetName);
+
+            int sourceRowCount = sourceWorksheet.Dimension?.Rows ?? 0;
+            int sourceColCount = sourceWorksheet.Dimension?.Columns ?? 0;
+            int destRow = 2;
+            int destColCount = destinationWorksheet.Dimension?.Columns ?? 0;
+
+            Logger.LogInfo($"Source Sheet: {sourceSheetName}, Rows: {sourceRowCount}, Cols: {sourceColCount}");
+            Logger.LogInfo($"Destination Sheet: {destinationSheetName}, Rows: {destRow}, Cols: {destColCount}");
+
+            if (sourceRowCount > 0 && sourceColCount > 0)
+            {
+                if (destColCount < sourceColCount)
+                {
+                    for (int i = destColCount + 1; i <= sourceColCount; i++)
+                    {
+                        destinationWorksheet.InsertColumn(i, 1);
+                    }
+                    destColCount = sourceColCount;
+                }
+                statusBar?.Invoke((MethodInvoker)delegate { statusBar.Items[0].Text = "Copying Data..."; });
+                CopyDataBetweenExcelSheets(sourceWorksheet, destinationWorksheet, startRow, sourceRowCount, sourceColCount, ref destRow, destColCount, worker, statusBar); // Pass statusBar
+            }
+            else
+            {
+                Logger.LogInfo("Source sheet is empty.");
+            }
+            // Create folder structure if necessary.
+            FolderCreation createFolderStruc = new FolderCreation();
+            destinationPackage.Workbook.FullCalcOnLoad = true;
+            string createdFolderPath = createFolderStruc.CreateFolder(useMonthly, fileSaveLocation);
+
+            string currentDate;
+            string fileName;
+            if (useMonthly)
+            {
+                DateTime now = DateTime.Now;
+                DateTime targetMonth = now.Day <= 15 ? now.AddMonths(-1) : now;
+                currentDate = targetMonth.ToString("MMM_yyyy");
+                fileName = $"Estimate_Success_Rate_{currentDate}.xlsx";
+            }
+            else
+            {
+                currentDate = DateTime.Now.ToString("yyyyMMdd");
+                fileName = $"{currentDate}_Estimate_Success_Rate.xlsx";
+            }
+
+            if (createdFolderPath != null)
+            {
+                string fileSaveLocation2 = Path.Combine(createdFolderPath, fileName);
+                FileInfo newFile = new FileInfo(fileSaveLocation2);
+                destinationPackage.SaveAs(newFile);
+                Logger.LogInfo($"Data copied from '{sourceSheetName}' in '{sourceFilePath}' to '{destinationSheetName}' in '{destinationFilePath}'. Saved to: {fileSaveLocation2}");
+                result = fileSaveLocation2;
+
+                ExtractUniqueCustomers(destinationPackage, DataSheetName, AnalysisSheetName, statusBar, worker);
+                CalculateAnalysisSheet(destinationPackage, AnalysisSheetName);
+                DeleteEmptyRows(fileSaveLocation2, AnalysisSheetName, statusBar, worker, useMonthly);
+
+                if (!useMonthly)
+                {
+                    CopyAnalysisDataToWeeklyReport(fileSaveLocation2, statusBar, worker);
+                }
+            }
+            else
+            {
+                Logger.LogError("Failed to create folder structure.");
+                return null;
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Copies data from one Excel sheet to another using Range.Copy.
+    /// </summary>
+    private static void CopyDataBetweenExcelSheets(ExcelWorksheet sourceWorksheet, ExcelWorksheet destinationWorksheet, int startRow, int sourceRowCount, int sourceColCount, ref int destRow, int destColCount, BackgroundWorker worker, StatusStrip statusBar)
     {
         // Ensure destRow is within the valid range of the destination worksheet.
         if (destRow < 1)
@@ -335,47 +338,50 @@ public class ExcelCopyData
             destRow = 1;
         }
 
-        // Insert row to make sure destination has at least 1 row
-        if (destinationWorksheet.Dimension == null || destRow > destinationWorksheet.Dimension.Rows + 1)
+        try
         {
-            destinationWorksheet.InsertRow(destinationWorksheet.Dimension?.Rows ?? 1, destRow - (destinationWorksheet.Dimension?.Rows ?? 1));
-        }
+            // Log the parameters for debugging
+            Logger.LogInfo($"CopyDataBetweenExcelSheets: startRow = {startRow}, sourceRowCount = {sourceRowCount}, sourceColCount = {sourceColCount}, destRow = {destRow}, destColCount = {destColCount}");
+            Logger.LogInfo($"Source worksheet dimension rows: {sourceWorksheet.Dimension?.Rows}");
 
-        // Loop to copy the values between the sheets
-        for (int sourceRowIndex = startRow; sourceRowIndex <= sourceRowCount; sourceRowIndex++)
+            // Get the source range to copy.
+            ExcelRange sourceRange = sourceWorksheet.Cells[1, 1, sourceRowCount, sourceColCount];
+            int rowsToCopy = sourceRowCount - 1 + 1;
+
+            // Ensure that the destination worksheet has enough rows.
+            if (destinationWorksheet.Dimension == null)
+            {
+                destinationWorksheet.InsertRow(1, rowsToCopy);
+                Logger.LogInfo($"Destination sheet was empty. Inserted {rowsToCopy} rows.");
+            }
+            else if (destinationWorksheet.Dimension.Rows < destRow + rowsToCopy - 1)
+            {
+                int existingRows = destinationWorksheet.Dimension.Rows;
+                int missingRows = destRow + rowsToCopy - 1 - existingRows;
+                destinationWorksheet.InsertRow(existingRows + 1, missingRows);
+                Logger.LogInfo($"Destination sheet had {existingRows} rows. Inserted {missingRows} rows starting from {existingRows + 1}.");
+            }
+            else
+            {
+                Logger.LogInfo($"Destination sheet has enough rows ({destinationWorksheet.Dimension.Rows}).");
+            }
+
+            // Get the starting cell for the destination range.
+            ExcelRange destinationStartCell = destinationWorksheet.Cells[destRow, 1];
+
+            // Copy the source range to the destination.
+            sourceRange.Copy(destinationStartCell);
+
+            // Calculate the new destRow.
+            destRow = destRow + rowsToCopy;
+            worker.ReportProgress(100, $"Data copied using Range.Copy");
+            statusBar?.Invoke((MethodInvoker)delegate { statusBar.Items[0].Text = "Data Copied"; });
+
+        }
+        catch (Exception ex)
         {
-            if (worker.CancellationPending)
-            {
-                return;
-            }
-            for (int col = 1; col <= sourceColCount; col++)
-            {
-                if (col <= destColCount && col > 0)
-                {
-                    try
-                    {
-                        // Copy the value
-                        var sourceCellValue = sourceWorksheet.Cells[sourceRowIndex, col].Value;
-                        destinationWorksheet.Cells[destRow, col].Value = sourceCellValue;
-#if DEBUG
-                        Logger.LogDebug($"Copied from Source[{sourceRowIndex},{col}] to Dest[{destRow},{col}], Value: '{sourceCellValue}'");
-#endif
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogError($"Error setting cell value at Dest[{destRow},{col}]: {ex.Message}");
-                    }
-                }
-                else
-                {
-                    Logger.LogError($"Column {col} is out of range in destination sheet. Source Row: {sourceRowIndex}, Source ColCount: {sourceColCount}, Dest ColCount: {destColCount}");
-                    break;
-                }
-            }
-            destRow++;
-            // Creates a percentage to be used in status bar
-            int progress = (int)((double)sourceRowIndex / sourceRowCount * 100);
-            worker.ReportProgress(progress, $"Copying data... {progress}%");
+            Logger.LogError($"Error copying data using Range.Copy: {ex.Message}");
+            throw; // Re-throw the exception to be handled by the caller.
         }
     }
 
@@ -437,7 +443,7 @@ public class ExcelCopyData
             Logger.LogDebug($"{customer}");
 #endif
             analysisSheet.Cells[analysisRow, CustomerColumn + 1].Value = customer; // +1 for 1-based indexing
-            analysisSheet.Cells[analysisRow, DateColumn + 1].Value = calTime;    // +1 for 1-based indexing
+            analysisSheet.Cells[analysisRow, DateColumn + 1].Value = calTime;     // +1 for 1-based indexing
             analysisSheet.Cells[analysisRow, FinancialYearColumn + 1].Value = GetCurrentFinancialYear(); // +1
             analysisRow++;
         }
@@ -452,7 +458,6 @@ public class ExcelCopyData
     /// <summary>
     /// Calculates and returns the current financial year.
     /// </summary>
-    /// <returns>The current financial year in the format "FY YY/YY".</returns>
     private static string GetCurrentFinancialYear()
     {
         DateTime today = DateTime.Today;
@@ -497,20 +502,18 @@ public class ExcelCopyData
     /// </summary>
     private static void CopyAnalysisDataToWeeklyReport(string sourceFilePath, StatusStrip statusBar = null, BackgroundWorker worker = null)
     {
-        ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+        ExcelPackage.License.SetNonCommercialPersonal("Harlow");
         string username = Environment.UserName;
 #if DEBUG
         string destinationFilePath = $@"C:\Users\{username}\Harlow Printing\IT - Documents\PowerBI\Quote Conversion Report\Quotes conversion data_wrangled\weekly report quotes conversion merged - copy.xlsx";
 #else
         string destinationFilePath = $@"C:\Users\{username}\Harlow Printing\IT - Documents\PowerBI\Quote Conversion Report\Quotes conversion data_wrangled\weekly report quotes conversion merged.xlsx";
 #endif
-        // Open the source Excel file.
-        using (ExcelPackage sourcePackage = new ExcelPackage(new FileInfo(sourceFilePath)))
-        {
-            // Get the Analysis worksheet.
-            ExcelWorksheet sourceWorksheet = sourcePackage.Workbook.Worksheets["Analysis"];
 
-            // Check if the Analysis worksheet exists.
+        using (ExcelPackage sourcePackage = new ExcelPackage(new FileInfo(sourceFilePath)))
+        using (ExcelPackage destinationPackage = new ExcelPackage(new FileInfo(destinationFilePath)))
+        {
+            ExcelWorksheet sourceWorksheet = sourcePackage.Workbook.Worksheets["Analysis"];
             if (sourceWorksheet == null)
             {
                 Logger.LogError("Source worksheet 'Analysis' not found.");
@@ -520,78 +523,62 @@ public class ExcelCopyData
             sourceWorksheet.Calculate();
             sourcePackage.Workbook.Calculate();
 
-            // Open the destination Excel file (weekly report).
-            using (ExcelPackage destinationPackage = new ExcelPackage(new FileInfo(destinationFilePath)))
+            ExcelWorksheet destinationWorksheet = destinationPackage.Workbook.Worksheets[WeeklyReportSheetName];
+            if (destinationWorksheet == null)
             {
-                // Get the destination worksheet.
-                ExcelWorksheet destinationWorksheet = destinationPackage.Workbook.Worksheets[WeeklyReportSheetName];
+                Logger.LogError($"Destination worksheet '{WeeklyReportSheetName}' not found.");
+                return;
+            }
 
-                // Check if the destination worksheet exists.
-                if (destinationWorksheet == null)
-                {
-                    Logger.LogError($"Destination worksheet '{WeeklyReportSheetName}' not found.");
-                    return;
-                }
-
-                // Find the next free row in the destination worksheet.
-                int nextFreeRow = destinationWorksheet.Dimension?.Rows ?? 0;
-                while (destinationWorksheet.Cells[nextFreeRow + 1, 1].Value != null)
-                {
-                    nextFreeRow++;
-                }
+            int nextFreeRow = destinationWorksheet.Dimension?.Rows ?? 0;
+            while (destinationWorksheet.Cells[nextFreeRow + 1, 1].Value != null)
+            {
                 nextFreeRow++;
+            }
+            nextFreeRow++;
 
-                // Get the source file name.
-                string sourceFileName = Path.GetFileName(sourceFilePath);
+            string sourceFileName = Path.GetFileName(sourceFilePath);
+            int sourceRowCount = sourceWorksheet.Dimension?.Rows ?? 0;
+            int sourceColCount = destinationWorksheet.Dimension?.Columns ?? 0;
+            int processedRows = 0;
 
-                // Get the dimensions of the source worksheet.
-                int sourceRowCount = sourceWorksheet.Dimension?.Rows ?? 0;
-                int sourceColCount = sourceWorksheet.Dimension?.Columns ?? 0;
-                int processedRows = 0;
-
-                // Copy data from the source worksheet to the destination worksheet
-                if (sourceRowCount > 0 && sourceColCount > 0)
+            if (sourceRowCount > 0 && sourceColCount > 0)
+            {
+                for (int sourceRow = 6; sourceRow <= sourceRowCount; sourceRow++)
                 {
-                    // Start from row 6 (index 5) in the source sheet.
-                    for (int sourceRow = 6; sourceRow <= sourceRowCount; sourceRow++)
+                    if (worker != null && worker.CancellationPending)
                     {
-                        if (worker != null && worker.CancellationPending)
+                        return;
+                    }
+                    object cellValueA = sourceWorksheet.Cells[sourceRow, 1].Value;
+                    if (cellValueA != null && !string.IsNullOrWhiteSpace(cellValueA.ToString()))
+                    {
+                        for (int col = 1; col <= sourceColCount; col++)
                         {
-                            return;
-                        }
-                        // Check if there is data in column A of the source row before copying.
-                        object cellValueA = sourceWorksheet.Cells[sourceRow, 1].Value;
-
-                        if (cellValueA != null && !string.IsNullOrWhiteSpace(cellValueA.ToString()))
-                        {
-                            for (int col = 1; col <= sourceColCount; col++)
-                            {
-                                //  Explicitly get and set the value
-                                object cellValue = sourceWorksheet.Cells[sourceRow, col].Value;
+                            object cellValue = sourceWorksheet.Cells[sourceRow, col].Value;
 #if DEBUG
-                                Debug.WriteLine($"Copying from [{sourceRow},{col}]: Value = '{cellValue}'");
+                            Debug.WriteLine($"Copying from [{sourceRow},{col}]: Value = '{cellValue}'");
 #endif
-                                destinationWorksheet.Cells[nextFreeRow, col].Value = cellValue;
-                            }
-                            destinationWorksheet.Cells[nextFreeRow, SourceFileNameColumn + 1].Value = sourceFileName; // +1
-                            nextFreeRow++;
+                            destinationWorksheet.Cells[nextFreeRow, col].Value = cellValue;
                         }
-                        processedRows++;
-                        if (processedRows % 10 == 0 && statusBar != null && worker != null)
-                        {
-                            int progress = (int)((double)processedRows / sourceRowCount * 100);
-                            worker.ReportProgress(progress, $"Copying analysis data... {progress}%");
-                        }
+                        destinationWorksheet.Cells[nextFreeRow, SourceFileNameColumn + 1].Value = sourceFileName; // +1
+                        nextFreeRow++;
+                    }
+                    processedRows++;
+                    if (processedRows % 10 == 0 && statusBar != null && worker != null)
+                    {
+                        int progress = (int)((double)processedRows / sourceRowCount * 100);
+                        worker.ReportProgress(progress, $"Copying analysis data... {progress}%");
                     }
                 }
-                else
-                {
-                    Logger.LogInfo("Source worksheet is empty.");
-                }
-
-                destinationPackage.SaveAsync();
-                Logger.LogInfo($"Data appended to '{destinationFilePath}'.");
             }
+            else
+            {
+                Logger.LogInfo("Source worksheet is empty.");
+            }
+
+            destinationPackage.SaveAsync();
+            Logger.LogInfo($"Data appended to '{destinationFilePath}'.");
         }
         statusBar?.Invoke((MethodInvoker)delegate { statusBar.Items[0].Text = "Data copied to weekly report."; });
     }
@@ -601,27 +588,19 @@ public class ExcelCopyData
     /// </summary>
     private static void DeleteEmptyRows(string filePath, string sheetName, StatusStrip statusBar = null, BackgroundWorker worker = null, bool useMonthly = false)
     {
-        // Set the license context for EPPlus to non-commercial.
-        ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
-
-        // Open the Excel file.
+        ExcelPackage.License.SetNonCommercialPersonal("Harlow");
         using (ExcelPackage package = new ExcelPackage(new FileInfo(filePath)))
         {
-            // Get the worksheet.
             ExcelWorksheet worksheet = package.Workbook.Worksheets[sheetName];
-
-            // Check if the worksheet exists.
             if (worksheet == null)
             {
                 Logger.LogInfo($"Sheet '{sheetName}' not found in '{filePath}'.");
                 return;
             }
 
-            // Get the number of rows in the worksheet.
             int rowCount = worksheet.Dimension?.Rows ?? 0;
-            if (rowCount == null || rowCount <= 0) return;
+            if (rowCount <= 0) return;
 
-            // Get the data from Column A into a list (starting from row 7).
             List<object> columnAValues = new List<object>();
             for (int row = 7; row <= rowCount; row++)
             {
@@ -633,7 +612,6 @@ public class ExcelCopyData
             }
 
             int deletedRows = 0;
-            // Iterate in reverse to avoid index shifting issues when deleting rows.
             for (int row = rowCount; row >= 7; row--)
             {
                 if (worker != null && worker.CancellationPending)
@@ -641,8 +619,6 @@ public class ExcelCopyData
                     return;
                 }
                 object cellValue = columnAValues[row - 7];
-
-                // Check if the cell value is empty.
                 if (cellValue == null || (cellValue is string strValue && string.IsNullOrWhiteSpace(strValue)))
                 {
                     worksheet.DeleteRow(row);
@@ -660,22 +636,16 @@ public class ExcelCopyData
             package.Dispose();
             Logger.LogInfo($"Empty rows deleted from '{filePath}', sheet '{sheetName}'.");
             statusBar?.Invoke((MethodInvoker)delegate { statusBar.Items[0].Text = "Empty rows deleted."; });
-
             RefreshPivotTablesIfNeeded(useMonthly, filePath, statusBar, worker);
         }
     }
 
     /// <summary>
-    /// Refreshes the specified pivot table in the Excel workbook.
+    /// Refreshes the specified pivot table.
     /// </summary>
-    /// <param name="filePath">The path to the Excel file.</param>
-    /// <param name="sheetName">The name of the worksheet containing the pivot table.</param>
-    /// <param name="pivotTableName">The name of the pivot table to refresh.</param>
-    /// <param name="statusBar">Status bar for status reporting.</param>
-    /// <param name="worker">Background worker for async operations.</param>
     private static void RefreshPivotTables(string filePath, string sheetName, string pivotTableName, StatusStrip statusBar = null, BackgroundWorker worker = null)
     {
-        ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+        ExcelPackage.License.SetNonCommercialPersonal("Harlow");
         try
         {
             using (ExcelPackage package = new ExcelPackage(new FileInfo(filePath)))
@@ -684,6 +654,9 @@ public class ExcelCopyData
                 if (worksheet != null)
                 {
                     Logger.LogInfo($"Worksheet '{sheetName}' found.");
+                    bool pivotTableRefreshed = false; // Track if the pivot table was actually refreshed
+
+                    //gets all pivot tables in the sheet.
                     foreach (var pivotTable in worksheet.PivotTables)
                     {
                         Logger.LogInfo($"Found pivot table: {pivotTable.Name}");
@@ -693,20 +666,28 @@ public class ExcelCopyData
                             package.Workbook.FullCalcOnLoad = true;
                             pivotTable.CacheDefinition.PivotTable.Calculate();
                             pivotTable.Calculate();
-                            pivotTable.CacheDefinition.Refresh();
                             package.Workbook.Calculate();
-                            package.SaveAsync();
-                            package.Dispose();
-                            Logger.LogInfo($"Pivot table '{pivotTableName}' in sheet '{sheetName}' refreshed.");
-                            if (statusBar != null && worker != null)
-                            {
-                                worker.ReportProgress(100, $"Pivot table '{pivotTableName}' refreshed.");
-                                statusBar.Invoke((MethodInvoker)delegate { statusBar.Items[0].Text = $"Pivot table '{pivotTableName}' refreshed."; });
-                            }
-                            return; // Refresh only the specified pivot table
+                            pivotTableRefreshed = true; // Set to true after refresh
+                            break; // Exit the loop after refreshing the target pivot table
                         }
                     }
-                    Logger.LogWarning($"Pivot table '{pivotTableName}' not found in sheet '{sheetName}'.");
+
+                    // Refresh slicers only if the pivot table was refreshed
+                    if (pivotTableRefreshed)
+                    {
+                        package.SaveAsync();
+                        package.Dispose();
+                        Logger.LogInfo($"Pivot table '{pivotTableName}' in sheet '{sheetName}' refreshed.");
+                        if (statusBar != null && worker != null)
+                        {
+                            worker.ReportProgress(100, $"Pivot table '{pivotTableName}' refreshed.");
+                            statusBar.Invoke((MethodInvoker)delegate { statusBar.Items[0].Text = $"Pivot table '{pivotTableName}' refreshed."; });
+                        }
+                    }
+                    else
+                    {
+                        Logger.LogWarning($"Pivot table '{pivotTableName}' not found in sheet '{sheetName}'.");
+                    }
                 }
                 else
                 {
@@ -720,6 +701,9 @@ public class ExcelCopyData
         }
     }
 
+    /// <summary>
+    /// Refreshes pivot tables if the report is a monthly report.
+    /// </summary>
     private static void RefreshPivotTablesIfNeeded(bool useMonthly, string filePath, StatusStrip statusBar = null, BackgroundWorker worker = null)
     {
         if (useMonthly)
@@ -735,3 +719,4 @@ public class ExcelCopyData
         }
     }
 }
+
