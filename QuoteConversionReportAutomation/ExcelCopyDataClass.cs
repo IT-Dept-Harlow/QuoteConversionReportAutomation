@@ -608,7 +608,7 @@ public class ExcelCopyData
                 {
                     return;
                 }
-                columnAValues.Add(worksheet.Cells[row, CustomerColumn + 1].Value); // +1
+                columnAValues.Add(worksheet.Cells[row, CustomerColumn + 1].Value); // +1 indexing 
             }
 
             int deletedRows = 0;

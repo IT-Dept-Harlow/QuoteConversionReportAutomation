@@ -336,21 +336,22 @@ namespace QuoteConversionReportAutomation
 
                 if (checkBox1.Checked && (today == specificDate1 || today == specificDate2))
                 {
-                    toAddresses.Add("femi@harlowsolutions.co.uk");
-                    toAddresses.Add("ITdept@harlowsolutions.co.uk");
-                }
-                else
+                    Logger.LogInfo($"Using Femi only email list as date is {specificDate1} or {specificDate2} and is Monthly is {checkBox1.Checked}");
+                    toAddresses.Add("femi@harlowsolutions.co.uk");
+                    toAddresses.Add("ITdept@harlowsolutions.co.uk");
+                }
+                else
                 {
-                    toAddresses.Add("andrewp@harlowsolutions.co.uk");
-                    toAddresses.Add("kirstym@harlowsolutions.co.uk");
-                    toAddresses.Add("stuartm@harlowsolutions.co.uk");
-                    ccAddresses.Add("emmanuel@harlowsolutions.co.uk");
-                    ccAddresses.Add("femi@harlowsolutions.co.uk");
-                    ccAddresses.Add("jackh@harlowsolutions.co.uk");
-                    ccAddresses.Add("pauls@harlowsolutions.co.uk");
-                    ccAddresses.Add("ITdept@harlowsolutions.co.uk");
-                    ccAddresses.Add("gordonb@harlowsolutions.co.uk");
-                }
+                    toAddresses.Add("andrewp@harlowsolutions.co.uk");
+                    toAddresses.Add("kirstym@harlowsolutions.co.uk");
+                    toAddresses.Add("stuartm@harlowsolutions.co.uk");
+                    ccAddresses.Add("emmanuel@harlowsolutions.co.uk");
+                    ccAddresses.Add("femi@harlowsolutions.co.uk");
+                    ccAddresses.Add("jackh@harlowsolutions.co.uk");
+                    ccAddresses.Add("pauls@harlowsolutions.co.uk");
+                    ccAddresses.Add("ITdept@harlowsolutions.co.uk");
+                    ccAddresses.Add("gordonb@harlowsolutions.co.uk");
+                }
 #endif
 
                 string subject;
@@ -360,6 +361,16 @@ namespace QuoteConversionReportAutomation
                 {
                     subject = "Weekly Estimate Success Rate Report";
                     body = "Hi All,\r\n\r\nPlease see the \"Estimates Success Rate\" file attached with the list of quotes in the last two weeks for the entire team; please review them ahead of your respective check-ins for follow-ups required.\r\n\r\nThank you.\r\n";
+                }
+                else if (checkBox1.Checked && (today == specificDate1))
+                {
+                    subject = "Monthly Estimate Success Rate Report";
+                    body = $"Hi Femi,\r\n\r\nPlease see the \"Estimates Success Rate\" file attached with the list of quotes in for: {datepickFrom.Value.ToString("MMMMM yyyy")} for the entire team; I'll re-compile the report again on the 11th for you to compare.\r\n\r\nThank you.\r\n";
+                }
+                else if (checkBox1.Checked && (today == specificDate2))
+                {
+                    subject = "Monthly Estimate Success Rate Report";
+                    body = $"Hi Femi,\r\n\r\nPlease see the \"Estimates Success Rate\" file attached the re-compiled report with the list of quotes in for: {datepickFrom.Value.ToString("MMMMM yyyy")} for the entire team.\r\n\r\nThank you.\r\n";
                 }
                 else
                 {
