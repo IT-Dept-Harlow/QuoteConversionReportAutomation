@@ -322,6 +322,9 @@ namespace QuoteConversionReportAutomation
 
                 List<string> toAddresses = new List<string>();
                 List<string> ccAddresses = new List<string>();
+                //this bit is just untill I get approval to send to directors from femi and only for the monthly one, on those 2 dates when femi asked me to run them.
+                DateTime specificDate1 = new DateTime(2025, 4, 4);
+                DateTime specificDate2 = new DateTime(2025, 4, 11);
 
 #if DEBUG
                 // Debug configuration: send emails to the me for testing.
@@ -330,9 +333,7 @@ namespace QuoteConversionReportAutomation
 #else
                 // Release configuration: send emails to the team.
 
-                //this bit is just untill I get approval to send to directors from femi and only for the monthly one, on those 2 dates when femi asked me to run them.
-                DateTime specificDate1 = new DateTime(2025, 4, 4);
-                DateTime specificDate2 = new DateTime(2025, 4, 11);
+
 
                 if (checkBox1.Checked && (today == specificDate1 || today == specificDate2))
                 {
