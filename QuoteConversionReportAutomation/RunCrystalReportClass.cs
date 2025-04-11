@@ -11,7 +11,7 @@ namespace QuoteConversionReportAutomation
     /// </summary>
     public class RunCrystalReportClass
     {
-        private bool _useWeekly; // Store the checkbox value
+        private bool _useWeekly; // Store the checkbox // value not used anymore see useMonthly
 
         /// <summary>
         /// Gets the bool for check box value

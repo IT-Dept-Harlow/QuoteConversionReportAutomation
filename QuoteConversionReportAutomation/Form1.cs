@@ -12,7 +12,7 @@ namespace QuoteConversionReportAutomation
     /// </summary>
     public partial class Form1 : Form
     {
-        string Version = "1.0.4";
+        string Version = "1.0.5";
 
         // Private field to store the generated file path.
         private string _generatedFilePath;
@@ -322,9 +322,6 @@ namespace QuoteConversionReportAutomation
 
                 List<string> toAddresses = new List<string>();
                 List<string> ccAddresses = new List<string>();
-                //this bit is just untill I get approval to send to directors from femi and only for the monthly one, on those 2 dates when femi asked me to run them.
-                DateTime specificDate1 = new DateTime(2025, 4, 4);
-                DateTime specificDate2 = new DateTime(2025, 4, 11);
 
 #if DEBUG
                 // Debug configuration: send emails to the me for testing.
@@ -332,17 +329,6 @@ namespace QuoteConversionReportAutomation
                 ccAddresses.Add("chrisp@harlowsolutions.co.uk");
 #else
                 // Release configuration: send emails to the team.
-
-
-
-                if (checkBox1.Checked && (today == specificDate1 || today == specificDate2))
-                {
-                    Logger.LogInfo($"Using Femi only email list as date is {specificDate1} or {specificDate2} and is Monthly is {checkBox1.Checked}");
-                    toAddresses.Add("femi@harlowsolutions.co.uk");
-                    toAddresses.Add("ITdept@harlowsolutions.co.uk");
-                }
-                else
-                {
                     toAddresses.Add("andrewp@harlowsolutions.co.uk");
                     toAddresses.Add("kirstym@harlowsolutions.co.uk");
                     toAddresses.Add("stuartm@harlowsolutions.co.uk");
@@ -352,7 +338,6 @@ namespace QuoteConversionReportAutomation
                     ccAddresses.Add("pauls@harlowsolutions.co.uk");
                     ccAddresses.Add("ITdept@harlowsolutions.co.uk");
                     ccAddresses.Add("gordonb@harlowsolutions.co.uk");
-                }
 #endif
 
                 string subject;
@@ -362,16 +347,6 @@ namespace QuoteConversionReportAutomation
                 {
                     subject = "Weekly Estimate Success Rate Report";
                     body = "Hi All,\r\n\r\nPlease see the \"Estimates Success Rate\" file attached with the list of quotes in the last two weeks for the entire team; please review them ahead of your respective check-ins for follow-ups required.\r\n\r\nThank you.\r\n";
-                }
-                else if (checkBox1.Checked && (today == specificDate1))
-                {
-                    subject = "Monthly Estimate Success Rate Report";
-                    body = $"Hi Femi,\r\n\r\nPlease see the \"Estimates Success Rate\" file attached with the list of quotes in for: {datepickFrom.Value.ToString("MMMMM yyyy")} for the entire team; I'll re-compile the report again on the 11th for you to compare.\r\n\r\nThank you.\r\n";
-                }
-                else if (checkBox1.Checked && (today == specificDate2))
-                {
-                    subject = "Monthly Estimate Success Rate Report";
-                    body = $"Hi Femi,\r\n\r\nPlease see the \"Estimates Success Rate\" file attached the re-compiled report with the list of quotes in for: {datepickFrom.Value.ToString("MMMMM yyyy")} for the entire team.\r\n\r\nThank you.\r\n";
                 }
                 else
                 {
