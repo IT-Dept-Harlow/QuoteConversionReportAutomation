@@ -191,7 +191,7 @@ public class ExcelCopyData
                 });
                 Logger.LogInfo($"Excel processing completed. File saved to: {result}");
 
-                //  Moved email sending into CopyDataBetweenExcelSheetsInternal, after the Excel package is disposed.
+                //  Moved email sending into SendEmail, runs after the Excel package is disposed.
                 string emailResult = CopyDataBetweenExcelSheetsInternal_PostProcess(result, parameters.UseMonthly, parameters.SendEmailAction);
                 if (emailResult != null)
                 {
@@ -437,8 +437,8 @@ public class ExcelCopyData
     /// </summary>
     private static void PopulateAnalysisSheetWithCustomers(ExcelPackage package, ExcelWorksheet analysisSheet, HashSet<string> uniqueCustomers, BackgroundWorker worker = null)
     {
-        int analysisRow = 6;
-        string calTime = DateTime.Today.ToString("dd/MM/yyyy");
+        int analysisRow = 6; //starts from row from row 6 as the 1st 5 rows are the headers
+        string calTime = DateTime.Today.ToString("dd/MM/yyyy"); //for filling out the date column
 
         foreach (string customer in uniqueCustomers)
         {
@@ -447,7 +447,7 @@ public class ExcelCopyData
                 return;
             }
 #if DEBUG
-            Logger.LogDebug($"{customer}");
+            Logger.LogDebug($"{customer}"); //outputs list of the customers in debug env to make sure it's working
 #endif
             analysisSheet.Cells[analysisRow, CustomerColumn + 1].Value = customer; // +1 for 1-based indexing
             analysisSheet.Cells[analysisRow, DateColumn + 1].Value = calTime;     // +1 for 1-based indexing
@@ -467,7 +467,7 @@ public class ExcelCopyData
         int startYear;
         int endYear;
 
-        // Determine the financial year.  Using May as the start month.
+        // Determine the financial year.  Using May as the start month (Harlow's FinYear).
         if (today.Month >= 5)
         {
             startYear = year;
@@ -479,7 +479,7 @@ public class ExcelCopyData
             endYear = year;
         }
 
-        return $"FY {startYear.ToString().Substring(2)}/{endYear.ToString().Substring(2)}";
+        return $"FY {startYear.ToString().Substring(2)}/{endYear.ToString().Substring(2)}"; //gets last 2 numbers of substring and returns the built string
     }
 
     /// <summary>
@@ -507,8 +507,10 @@ public class ExcelCopyData
         ExcelPackage.License.SetNonCommercialPersonal("Harlow");
         string username = Environment.UserName;
 #if DEBUG
+        //File for debugging
         string destinationFilePath = $@"C:\Users\{username}\Harlow Printing\IT - Documents\PowerBI\Quote Conversion Report\Quotes conversion data_wrangled\weekly report quotes conversion merged - copy.xlsx";
 #else
+        //Release File
         string destinationFilePath = $@"C:\Users\{username}\Harlow Printing\IT - Documents\PowerBI\Quote Conversion Report\Quotes conversion data_wrangled\weekly report quotes conversion merged.xlsx";
 #endif
 
@@ -522,6 +524,7 @@ public class ExcelCopyData
                 return;
             }
 
+            //force calculation to ensure correct data is copied
             sourceWorksheet.Calculate();
             sourcePackage.Workbook.Calculate();
 
@@ -532,12 +535,11 @@ public class ExcelCopyData
                 return;
             }
 
-            int nextFreeRow = GetNextFreeRow(destinationWorksheet);
+            int nextFreeRow = GetNextFreeRow(destinationWorksheet); //finds the next free row, to append data to file.
 
             string sourceFileName = Path.GetFileName(sourceFilePath);
             int sourceRowCount = sourceWorksheet.Dimension?.Rows ?? 0;
             int sourceColCount = destinationWorksheet.Dimension?.Columns ?? 0;
-            int processedRows = 0;
 
             if (sourceRowCount > 0 && sourceColCount > 0)
             {
@@ -587,6 +589,7 @@ public class ExcelCopyData
                 {
                     object cellValue = sourceWorksheet.Cells[sourceRow, col].Value;
 #if DEBUG
+                    Logger.LogDebug($"Copying from [{sourceRow},{col}]: Value = '{cellValue}'");
                     Debug.WriteLine($"Copying from [{sourceRow},{col}]: Value = '{cellValue}'");
 #endif
                     destinationWorksheet.Cells[nextFreeRow, col].Value = cellValue;
@@ -679,7 +682,7 @@ public class ExcelCopyData
     }
 
     /// <summary>
-    /// Refreshes pivot tables if the report is a monthly report.
+    /// Refreshes pivot tables if the report is a monthly report as only monthly has pivots for now.
     /// </summary>
     private static void RefreshPivotTablesIfNeeded(bool useMonthly, string filePath, StatusStrip statusBar = null, BackgroundWorker worker = null)
     {
@@ -728,7 +731,7 @@ public class ExcelCopyData
                         }
                     }
 
-                    // Refresh slicers only if the pivot table was refreshed
+                    // only if the pivot table was refreshed
                     if (pivotTableRefreshed)
                     {
                         package.SaveAsync();
