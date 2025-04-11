@@ -1,4 +1,4 @@
-# Quote conversion application, automates the running of the Weekly and Monthly reports, using a template to build the file.
+# Quote conversion application, automates the running of the Weekly and Monthly reports, 
 
 ## ChangeLog
 
@@ -14,8 +14,13 @@
 * Fixed bugs with the email logic.
 
 ### **Version 1.0.3**
-
 * Added options to run the report monthly.
+
+## **Version 1.0.2**
+*Fixed problems caused by making program async, issues with data copying.
+
+### **Version 1.0.1**
+* made async and added status tracking
 
 ### **Version 1.0.0**
 
