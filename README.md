@@ -16,7 +16,7 @@
 ### **Version 1.0.3**
 * Added options to run the report monthly.
 
-## **Version 1.0.2**
+### **Version 1.0.2**
 *Fixed problems caused by making program async, issues with data copying.
 
 ### **Version 1.0.1**
