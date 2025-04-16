@@ -123,9 +123,9 @@ namespace QuoteConversionReportAutomation
             finYearDropBox.BackColor = System.Drawing.Color.White; // Set background color to white
 
 #if DEBUG
-            Text = $"Quote Conversion Automation - Debug - {_version}";
+            Text = $"Quote Conversion Automation - Debug - v{_version}";
 #else
-            Text = $"Quote Conversion Automation - Release - {_version}";
+            Text = $"Quote Conversion Automation - Release - v{_version}";
 #endif
             // Centers the form on the screen.
             StartPosition = FormStartPosition.CenterScreen;
