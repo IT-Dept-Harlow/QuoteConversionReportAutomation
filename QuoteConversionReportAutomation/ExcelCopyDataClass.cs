@@ -189,8 +189,6 @@ namespace QuoteConversionReportAutomation
                 }
             }
 
-
-
             try
             {
 
@@ -278,15 +276,6 @@ namespace QuoteConversionReportAutomation
                     return false; // User cancelled, exit the method.
                 }
             } while (tryCount < maxTries);
-
-            if (tryCount >= maxTries)
-            {
-                Logger.LogError($"Failed to copy data after {maxTries} attempts: {ex.Message}");
-                MessageBox.Show($"Failed to copy data after {maxTries} attempts. Please check the logs.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                bw.CancelAsync();
-                return false;
-            }
-            return true;
         }
 
         /// <summary>
@@ -351,10 +340,10 @@ namespace QuoteConversionReportAutomation
                     parameters.SetButtonTextAction?.Invoke("Create Analysis &\r\nSend Email"); // Change button text
                     parameters.SetButtonTextAction2?.Invoke("Create Report");                                         // Change button text
                     parameters.SetFilePathAction?.Invoke(result);
-                    parameters.EnableButtonAction?.Invoke(false);
-                    parameters.EnableButtonAction2?.Invoke(true);
-                    parameters.ShowButtonAction?.Invoke(false);
-                    parameters.ShowViewAnalysisButtonAction?.Invoke(false); // Make sure this is called.
+                    parameters.EnableButtonAction?.Invoke(false); // create report button
+                    parameters.EnableButtonAction2?.Invoke(true);//report button 
+                    parameters.ShowButtonAction?.Invoke(true);
+                    parameters.ShowViewAnalysisButtonAction?.Invoke(true); // Make sure this is called.
                     parameters.EnableDatePickFromAction?.Invoke(true);
                     parameters.EnableDatePickToAction?.Invoke(true);
                     parameters.EnableFinYearDropBoxAction?.Invoke(true);
@@ -402,6 +391,46 @@ namespace QuoteConversionReportAutomation
             StatusStrip statusBar,
             string selectedFinYear)
         {
+            if (string.IsNullOrEmpty(sourceFilePath))
+            {
+                throw new ArgumentException($"'{nameof(sourceFilePath)}' cannot be null or empty.", nameof(sourceFilePath));
+            }
+
+            if (string.IsNullOrEmpty(sourceSheetName))
+            {
+                throw new ArgumentException($"'{nameof(sourceSheetName)}' cannot be null or empty.", nameof(sourceSheetName));
+            }
+
+            if (string.IsNullOrEmpty(fileSaveLocation))
+            {
+                throw new ArgumentException($"'{nameof(fileSaveLocation)}' cannot be null or empty.", nameof(fileSaveLocation));
+            }
+
+            if (string.IsNullOrEmpty(destinationFilePath))
+            {
+                throw new ArgumentException($"'{nameof(destinationFilePath)}' cannot be null or empty.", nameof(destinationFilePath));
+            }
+
+            if (string.IsNullOrEmpty(destinationSheetName))
+            {
+                throw new ArgumentException($"'{nameof(destinationSheetName)}' cannot be null or empty.", nameof(destinationSheetName));
+            }
+
+            if (worker is null)
+            {
+                throw new ArgumentNullException(nameof(worker));
+            }
+
+            if (statusBar is null)
+            {
+                throw new ArgumentNullException(nameof(statusBar));
+            }
+
+            if (string.IsNullOrEmpty(selectedFinYear))
+            {
+                throw new ArgumentException($"'{nameof(selectedFinYear)}' cannot be null or empty.", nameof(selectedFinYear));
+            }
+
             ExcelPackage.License.SetNonCommercialPersonal("Harlow");
             string result = null;
 
@@ -664,13 +693,16 @@ namespace QuoteConversionReportAutomation
         /// <summary>
         /// Calculates the Analysis sheet.  Added to ensure calculations are performed.
         /// </summary>
-        private static void CalculateAnalysisSheet(ExcelPackage package, string sheetName)
+        private static void CalculateAnalysisSheet(ExcelPackage package, string sheetName, StatusStrip statusBar = null)
         {
+            statusBar?.Invoke((MethodInvoker)delegate { statusBar.Items[0].Text = "Calculating... this will take a few minutes.";});
+
             ExcelWorksheet analysisSheet = package.Workbook.Worksheets[sheetName];
             if (analysisSheet != null)
             {
                 analysisSheet.Calculate();
                 Logger.LogInfo($"Analysis sheet '{sheetName}' calculations performed.");
+                statusBar?.Invoke((MethodInvoker)delegate { statusBar.Items[0].Text = "Calculations complete."; });
             }
             else
             {
@@ -678,22 +710,22 @@ namespace QuoteConversionReportAutomation
             }
         }
 
-        /// <summary>
-        /// Copies data from the Analysis sheet to the weekly report, appending it to the next free row.
-        /// </summary>
-        private static void CopyAnalysisDataToWeeklyReport(string sourceFilePath, StatusStrip statusBar = null, BackgroundWorker worker = null, string selectedFinYear = null)
+        /// <summary>
+        /// Copies data from the Analysis sheet to the weekly report, appending it to the next free row.
+        /// </summary>
+        private static void CopyAnalysisDataToWeeklyReport(string sourceFilePath, StatusStrip statusBar = null, BackgroundWorker worker = null, string selectedFinYear = null)
         {
             ExcelPackage.License.SetNonCommercialPersonal("Harlow");
             string username = Environment.UserName;
 #if DEBUG
-            //File for debugging
-            string destinationFilePath = $@"C:\Users\{username}\Harlow Printing\IT - Documents\PowerBI\Quote Conversion Report\Quotes conversion data_wrangled\weekly report quotes conversion merged - copy.xlsx";
+            //File for debugging
+            string destinationFilePath = $@"C:\Users\{username}\Harlow Printing\IT - Documents\PowerBI\Quote Conversion Report\Quotes conversion data_wrangled\weekly report quotes conversion merged - copy.xlsx";
 #else
-            //Release File
-            string destinationFilePath = $@"C:\Users\{username}\Harlow Printing\IT - Documents\PowerBI\Quote Conversion Report\Quotes conversion data_wrangled\weekly report quotes conversion merged.xlsx";
+            //Release File
+            string destinationFilePath = $@"C:\Users\{username}\Harlow Printing\IT - Documents\PowerBI\Quote Conversion Report\Quotes conversion data_wrangled\weekly report quotes conversion merged.xlsx";
 #endif
 
-            using (ExcelPackage sourcePackage = new ExcelPackage(new FileInfo(sourceFilePath)))
+            using (ExcelPackage sourcePackage = new ExcelPackage(new FileInfo(sourceFilePath)))
             using (ExcelPackage destinationPackage = new ExcelPackage(new FileInfo(destinationFilePath)))
             {
                 ExcelWorksheet sourceWorksheet = sourcePackage.Workbook.Worksheets["Analysis"];
@@ -703,37 +735,37 @@ namespace QuoteConversionReportAutomation
                     return;
                 }
 
-                //force calculation to ensure correct data is copied
-                sourceWorksheet.Calculate();
+                //force calculation to ensure correct data is copied
+                sourceWorksheet.Calculate();
                 sourcePackage.Workbook.Calculate();
 
-                // Get the financial year string
-                string financialYear = selectedFinYear ?? GetCurrentFinancialYear(true); // Use selectedFinYear if provided
+                // Get the financial year string
+                string financialYear = selectedFinYear ?? GetCurrentFinancialYear(true); // Use selectedFinYear if provided
 
-                // Check if the destination sheet exists, create it if it doesn't.
-                ExcelWorksheet destinationWorksheet = GetOrCreateDestinationWorksheet(destinationPackage, financialYear, destinationPackage, "Analysis");
+                // Check if the destination sheet exists, create it if it doesn't.
+                ExcelWorksheet destinationWorksheet = destinationPackage.Workbook.Worksheets[financialYear];
                 if (destinationWorksheet == null)
                 {
-                    // The sheet does not exist, so create it and copy headers.
-                    destinationWorksheet = destinationPackage.Workbook.Worksheets.Add(financialYear);
-                    ExcelWorksheet firstWorksheet = destinationPackage.Workbook.Worksheets.FirstOrDefault(); // Get the first worksheet
-
-                    if (firstWorksheet != null)
+                    // The sheet does not exist, so create it and copy headers.
+                    destinationWorksheet = destinationPackage.Workbook.Worksheets.Add(financialYear);
+                    ExcelWorksheet anySheet = destinationPackage.Workbook.Worksheets.FirstOrDefault();
+                    if (anySheet != null)
                     {
-                        CopyHeaders(firstWorksheet, destinationWorksheet);
-                        Logger.LogInfo($"Sheet '{financialYear}' created and headers copied from the first available sheet '{firstWorksheet.Name}'.");
+                        CopyHeaders(anySheet, destinationWorksheet);
+                        Logger.LogInfo($"Created sheet '{financialYear}' and copied headers from '{anySheet.Name}'");
                     }
                     else
                     {
-                        Logger.LogWarning($"No existing worksheet found to copy headers from.");
+                        destinationWorksheet.Cells[1, 1].Value = "Column1"; //add a default column
+                        Logger.LogWarning("No existing sheet to copy headers from. Created default headers.");
                     }
                 }
 
                 int nextFreeRow = GetNextFreeRow(destinationWorksheet); //finds the next free row, to append data to file.
 
-                string sourceFileName = Path.GetFileName(sourceFilePath);
+                string sourceFileName = Path.GetFileName(sourceFilePath);
                 int sourceRowCount = sourceWorksheet.Dimension?.Rows ?? 0;
-                int sourceColCount = destinationWorksheet.Dimension?.Columns ?? 0;
+                int sourceColCount = sourceWorksheet.Dimension?.Columns ?? 0;
 
                 if (sourceRowCount > 0 && sourceColCount > 0)
                 {
@@ -764,12 +796,17 @@ namespace QuoteConversionReportAutomation
             }
         }
 
+        /// <summary>
+        /// Copy's headers from source sheet to destination sheet
+        /// </summary>
+        /// <param name="sourceSheet">Sheet to copy headers from</param>
+        /// <param name="destinationSheet">Sheet to copy headers to</param>
         private static void CopyHeaders(ExcelWorksheet sourceSheet, ExcelWorksheet destinationSheet)
         {
             if (sourceSheet != null && sourceSheet.Dimension != null && sourceSheet.Dimension.Rows > 0)
             {
                 ExcelRange headerRow = sourceSheet.Cells[1, 1, 1, sourceSheet.Dimension.Columns];
-                destinationSheet.Cells[1, 1].LoadFromArrays(new object[][] { (object[])headerRow.Value });
+                headerRow.Copy(destinationSheet.Cells[1, 1]);
             }
             else
             {
@@ -1126,10 +1163,7 @@ namespace QuoteConversionReportAutomation
         /// </summary>
         private static void WaitForExcelToClose(Process process)
         {
-            if (process != null)
-            {
-                process.WaitForExit();
-            }
+            process?.WaitForExit(); // if not null wait for exit, else return.
         }
 
         /// <summary>
@@ -1147,10 +1181,7 @@ namespace QuoteConversionReportAutomation
         /// </summary>
         private static void DisposeExcelProcess(Process process)
         {
-            if (process != null)
-            {
-                process.Dispose();
-            }
+            process?.Dispose(); // if not null then dispose, else return
         }
 
         /// <summary>
@@ -1158,7 +1189,7 @@ namespace QuoteConversionReportAutomation
         /// </summary>
         private static void SendEmail(Action<string> sendEmailAction, string filePath)
         {
-            sendEmailAction?.Invoke(filePath);
+            sendEmailAction?.Invoke(filePath); //if not null invoke method with the file path
         }
 
         /// <summary>
@@ -1204,7 +1235,7 @@ namespace QuoteConversionReportAutomation
 
                     DateTime quarterStart = new DateTime(previousQuarterYear, (previousQuarter - 1) * 3 + 1, 1);
                     DateTime quarterEnd = quarterStart.AddMonths(3).AddDays(-1);
-                    currentDate = $"{quarterStart.ToString("MMM")} to {quarterEnd.ToString("MMM")} {today.Year}";
+                    currentDate = $"{quarterStart:MMM} to {quarterEnd:MMM} {today.Year}";
                     fileName = $"Estimate Success Rate {currentDate}.xlsx";
                     break;
                 case 3: // Annual
@@ -1284,7 +1315,7 @@ namespace QuoteConversionReportAutomation
         private static void ProcessPostCopyOperations(ExcelPackage package, string fileSaveLocation, int reportType, StatusStrip statusBar, BackgroundWorker worker, string selectedFinYear) // Added selectedFinYear
         {
             ExtractUniqueCustomers(package, DataSheetName, AnalysisSheetName, statusBar, worker);
-            CalculateAnalysisSheet(package, AnalysisSheetName);
+            CalculateAnalysisSheet(package, AnalysisSheetName, statusBar);
             DeleteEmptyRows(fileSaveLocation, AnalysisSheetName, statusBar, worker, reportType);
             if (reportType == 0) // not weekly
             {
