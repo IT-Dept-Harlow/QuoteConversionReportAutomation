@@ -2,7 +2,7 @@
 
 ## ChangeLog
 
-### **Version 1.1.1**
+# **Version 1.1.1**
 
 ## New Features
 *Added archiving for folders and old logs.
@@ -16,7 +16,7 @@
 * Refactored entire code base for more modularity and maintainability.
 * Moved the email client variables to App.config
 
-### **Version 1.1.0**
+# **Version 1.1.0**
 
 ## New Features
 * Added options allowing user to select either weekly, monthly, quaterly or annual reports.
@@ -34,7 +34,7 @@
 * Fixed bug where it starts on skips row 2.
 * Fixed logic in sendEmail where sometimes incorrect dates could be set.
 
-### **Version 1.0.5**
+# **Version 1.0.5**
 
 ## New Features
 * Added checks for excel being open and ways to kill the process, since excel must be closed.
@@ -43,7 +43,7 @@
 ## Performance Fixes
 * Refactored the code, to increase performance and modularity.
 
-### **Version 1.0.4**
+# **Version 1.0.4**
 
 ## Performance Fixes
 * Changed copying function to use range.copy to increase performance.
@@ -51,21 +51,21 @@
 ## Bug Fixes
 * Fixed bugs with the email logic.
 
-### **Version 1.0.3**
+# **Version 1.0.3**
 ## New Features
 * Added options to run the report monthly.
 
-### **Version 1.0.2**
+# **Version 1.0.2**
 ## Bug Fixes
 * Fixed problems caused by making program async, issues with data copying.
 
-### **Version 1.0.1**
+# **Version 1.0.1**
 ## New Features
 * Added status tracking via status bar
 
 ## Performance Fixes
 * made async for performance
 
-### **Version 1.0.0**
+# **Version 1.0.0**
 
 * 1st release version of the program, automates the creation of the weekly estimates report, using templates, then sends email to directors.
