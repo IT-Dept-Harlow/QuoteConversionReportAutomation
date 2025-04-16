@@ -11,16 +11,16 @@ namespace QuoteConversionReportAutomation
     /// </summary>
     public class RunCrystalReportClass
     {
-        private bool _useWeekly; // Store the checkbox // value not used anymore see useMonthly
+        private int reportingPeriod; // Store the checkbox // value not used anymore see useMonthly
 
         /// <summary>
         /// Gets the bool for check box value
         /// </summary>
-        /// <param name="useMonthly"></param>
+        /// <param name="reportType">Indicates whether to use (0)weekly, (1)monthly, (2)quaterly or (3)annual report processing. </param>
         // Constructor to accept the checkbox value.
-        public RunCrystalReportClass(bool useMonthly)
+        public RunCrystalReportClass(int reportType)
         {
-            _useWeekly = useMonthly;
+            reportingPeriod = reportType;
         }
 
         /// <summary>

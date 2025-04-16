@@ -10,69 +10,86 @@ namespace QuoteConversionReportAutomation
     public class FolderCreation
     {
         /// <summary>
-        /// Creates a folder with a name based on the current month and week, or just the month.
+        /// Creates a folder with a name based on the report type.
         /// </summary>
-        /// <param name="useMonthly">
-        ///   <para>If <c>true</c>, creates a folder named "MMM YY" (e.g., "Mar 24").</para>
-        ///   <para>If <c>false</c>, creates a folder named "MMM Week W" (e.g., "Mar Week 2").</para>
+        /// <param name="reportType">
+        ///     <para>0 = Weekly: Creates a folder named "MMM Week W" (e.g., "Mar Week 2").</para>
+        ///     <para>1 = Monthly: Creates a folder named "MMM YY" (e.g., "Mar 24").</para>
+        ///     <para>2 = Quarterly: Creates a folder named "MMM to MMM" (e.g., "Jan to Mar").</para>
+        ///     <para>3 = Annual: Creates a folder named "YYYY" (e.g., "2025").</para>
         /// </param>
         /// <param name="basePath">
-        ///   The base path where the folder should be created.
-        ///   If <c>null</c>, the current directory is used.
+        ///     The base path where the folder should be created.
+        ///     If <c>null</c>, the current directory is used.
         /// </param>
         /// <returns>
-        ///   The full path of the created folder, or an error message if creation fails.
-        ///   Returns <c>null</c> if folder creation is successful, otherwise returns the error message.
+        ///     The full path of the created folder, or an error message if creation fails.
+        ///     Returns the full path of the created folder if successful.
         /// </returns>
-        public string CreateFolder(bool useMonthly, string basePath = null)
+        public string CreateFolder(int reportType, string basePath = null)
         {
-            DateTime now = DateTime.Now; // Get the current date and time.
-            string folderName; // Declare a variable to store the folder name.
-
-            if (useMonthly)
-            {
-                // Determine the month for the folder name.
-                DateTime folderDate;
-                if (now.Day <= 15) // Changed from now.Day < 15 to now.Day <=15
-                {
-                    folderDate = now.AddMonths(-1); // Go to the previous month.
-                }
-                else
-                {
-                    folderDate = now; // Use the current month.
-                }
-                folderName = folderDate.ToString("MMM yy", CultureInfo.InvariantCulture);
-            }
-            else
-            {
-                string monthAbbreviation = now.ToString("MMM", CultureInfo.InvariantCulture);
-                int weekInMonth = GetWeekOfMonth(now);
-                folderName = $"{monthAbbreviation} Week {weekInMonth}";
-            }
-
-            string currentDirectory = basePath ?? Directory.GetCurrentDirectory(); // Get the base path or current directory.
-            string folderPath = Path.Combine(currentDirectory, folderName); // Combine the base path and folder name.
+            DateTime now = DateTime.Now;
+            string folderName = "";
+            string currentDirectory = basePath ?? Directory.GetCurrentDirectory();
+            string folderPath = "";
 
             try
             {
-                // Attempt to create the directory.
-                if (!Directory.Exists(folderPath)) // Check if the directory already exists.
+                switch (reportType)
                 {
-                    Directory.CreateDirectory(folderPath); // Create the directory.
-                    Logger.LogInfo($"Folder created: {folderPath}"); // Log the creation.
-                    return folderPath; // Return the full path of the created folder.
+                    case 0: // Weekly
+                        string monthAbbreviation = now.ToString("MMM", CultureInfo.InvariantCulture);
+                        int weekInMonth = GetWeekOfMonth(now);
+                        folderName = $"{monthAbbreviation} Week {weekInMonth}";
+                        break;
+                    case 1: // Monthly
+                        DateTime folderDate = now.Day <= 15 ? now.AddMonths(-1) : now;
+                        folderName = folderDate.ToString("MMM yy", CultureInfo.InvariantCulture);
+                        break;
+                    case 2: // Quarterly
+                        DateTime today = DateTime.Today;
+                        int currentQuarter = (today.Month - 1) / 3 + 1;
+                        int previousQuarter = currentQuarter - 1;
+                        int previousQuarterYear = today.Year;
+
+                        if (previousQuarter < 1)
+                        {
+                            previousQuarter = 4; // Wrap around to the 4th quarter of the previous year
+                            previousQuarterYear--;
+                        }
+
+                        DateTime quarterStart = new DateTime(previousQuarterYear, (previousQuarter - 1) * 3 + 1, 1);
+                        DateTime quarterEnd = quarterStart.AddMonths(3).AddDays(-1);
+
+                        string startMonth = quarterStart.ToString("MMM");
+                        string endMonth = quarterEnd.ToString("MMM");
+                        folderName = $"{startMonth} to {endMonth}";
+                        break;
+                    case 3: // Annual
+                        folderName = now.Year.ToString();
+                        break;
+                    default:
+                        folderName = "Default";
+                        break;
+                }
+
+                folderPath = Path.Combine(currentDirectory, folderName);
+
+                if (!Directory.Exists(folderPath))
+                {
+                    Directory.CreateDirectory(folderPath);
+                    Logger.LogInfo($"Folder created: {folderPath}");
                 }
                 else
                 {
-                    Logger.LogInfo($"Folder already exists: {folderPath}"); // Log that the folder exists.
-                    return folderPath; // Return the existing path.
+                    Logger.LogInfo($"Folder already exists: {folderPath}");
                 }
+                return folderPath;
             }
             catch (Exception ex)
             {
-                // Handle any exceptions that occur during directory creation.
-                Logger.LogError($"Error: {ex.Message}"); // Log the error message.
-                return $"Error: {ex.Message}"; // Return the error message.  Consider returning null and throwing an exception.
+                Logger.LogError($"Error creating folder: {ex.Message}");
+                return $"Error: {ex.Message}";
             }
         }
 
@@ -83,23 +100,21 @@ namespace QuoteConversionReportAutomation
         /// <returns>The week number of the month (1-5).</returns>
         private int GetWeekOfMonth(DateTime date)
         {
-            CultureInfo culture = CultureInfo.CurrentCulture; // Get the current culture.
-            DayOfWeek firstDayOfWeek = DayOfWeek.Monday; // Explicitly set the first day of the week to Monday.
+            CultureInfo culture = CultureInfo.CurrentCulture;
+            DayOfWeek firstDayOfWeek = DayOfWeek.Monday;
 
-            DateTime firstDayOfMonth = new DateTime(date.Year, date.Month, 1); // Get the first day of the month.
-            int firstDayOfMonthDayOfWeek = (int)firstDayOfMonth.DayOfWeek; // Get the day of the week for the first day of the month.
+            DateTime firstDayOfMonth = new DateTime(date.Year, date.Month, 1);
+            int firstDayOfMonthDayOfWeek = (int)firstDayOfMonth.DayOfWeek;
 
-            // Adjust to Monday-based week.  This ensures that the week calculation is correct
-            // even if the system's default first day of the week is not Monday.
             int dayOfWeekAdjustment = (int)firstDayOfWeek - (int)culture.DateTimeFormat.FirstDayOfWeek;
             if (dayOfWeekAdjustment < 0)
             {
-                dayOfWeekAdjustment += 7; // Ensure the adjustment is positive.
+                dayOfWeekAdjustment += 7;
             }
-            firstDayOfMonthDayOfWeek = (firstDayOfMonthDayOfWeek + dayOfWeekAdjustment) % 7; // Calculate the adjusted day of week.
+            firstDayOfMonthDayOfWeek = (firstDayOfMonthDayOfWeek + dayOfWeekAdjustment) % 7;
 
-            int dayOfMonth = date.Day; // Get the day of the month.
-            int weekOfMonth = (dayOfMonth + firstDayOfMonthDayOfWeek - 1) / 7 + 1; // Calculate the week of the month.
+            int dayOfMonth = date.Day;
+            int weekOfMonth = (dayOfMonth + firstDayOfMonthDayOfWeek - 1) / 7 + 1;
 
             // Ensure weekInMonth does not exceed 5.
             int daysInMonth = DateTime.DaysInMonth(date.Year, date.Month);
@@ -116,7 +131,35 @@ namespace QuoteConversionReportAutomation
                     weekOfMonth = 5;
                 }
             }
-            return weekOfMonth; // Return the week of the month.
+            return weekOfMonth;
+        }
+
+        /// <summary>
+        /// Gets the first day of the quarter for a given date.
+        /// </summary>
+        /// <param name="date">The date for which to find the first day of the quarter.</param>
+        /// <returns>The first day of the quarter.</returns>
+        private DateTime GetFirstDayOfQuarter(DateTime date)
+        {
+            int month = date.Month;
+            int year = date.Year;
+
+            if (month >= 1 && month <= 3)
+            {
+                return new DateTime(year, 1, 1);
+            }
+            else if (month >= 4 && month <= 6)
+            {
+                return new DateTime(year, 4, 1);
+            }
+            else if (month >= 7 && month <= 9)
+            {
+                return new DateTime(year, 7, 1);
+            }
+            else
+            {
+                return new DateTime(year, 10, 1);
+            }
         }
     }
 }
