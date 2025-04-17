@@ -5,7 +5,7 @@
 ## **Version 1.1.1**
 
 ### New Features
-*Added archiving for folders and old logs.
+* Added archiving for folders and old logs.
 
 ### Bug Fixes
 * Fixed bug with creating new sheets in the weekly powerBI document
