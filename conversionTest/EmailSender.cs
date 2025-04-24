@@ -40,7 +40,7 @@ public class EmailUtility
         _smtpServer = configuration["settings:SmtpServer"]
             ?? throw new InvalidOperationException("Configuration key 'settings:SmtpServer' is missing or empty.");
 
-        string smtpPortStr = configuration["settings:SmtpPort"];
+        string? smtpPortStr = configuration["settings:SmtpPort"];
         if (string.IsNullOrEmpty(smtpPortStr) || !int.TryParse(smtpPortStr, out _smtpPort))
         {
             Logger.LogError($"Invalid or missing SMTP Port configured: {smtpPortStr}. Must be an integer."); // Use Logger

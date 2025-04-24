@@ -44,8 +44,10 @@
             typeDropBox = new ComboBox();
             label4 = new Label();
             groupBox1 = new GroupBox();
+            label6 = new Label();
             label5 = new Label();
             finYearDropBox = new ComboBox();
+            checkBox2DarkMode = new CheckBox();
             statusStrip1.SuspendLayout();
             groupBox1.SuspendLayout();
             SuspendLayout();
@@ -84,7 +86,7 @@
             // 
             // label3
             // 
-            label3.BackColor = SystemColors.Control;
+            label3.BackColor = SystemColors.ControlLightLight;
             label3.Font = new Font("Arial", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
             label3.Location = new Point(12, 10);
             label3.Name = "label3";
@@ -95,6 +97,9 @@
             // 
             // button1
             // 
+            button1.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
+            button1.FlatAppearance.MouseOverBackColor = Color.Gray;
+            button1.FlatStyle = FlatStyle.System;
             button1.Font = new Font("Arial", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
             button1.Location = new Point(45, 330);
             button1.Name = "button1";
@@ -106,6 +111,9 @@
             // 
             // button2
             // 
+            button2.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
+            button2.FlatAppearance.MouseOverBackColor = Color.Gray;
+            button2.FlatStyle = FlatStyle.System;
             button2.Font = new Font("Arial", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
             button2.Location = new Point(448, 330);
             button2.Name = "button2";
@@ -118,6 +126,9 @@
             // 
             // btnViewReport
             // 
+            btnViewReport.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
+            btnViewReport.FlatAppearance.MouseOverBackColor = Color.Gray;
+            btnViewReport.FlatStyle = FlatStyle.System;
             btnViewReport.Font = new Font("Arial", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
             btnViewReport.Location = new Point(76, 412);
             btnViewReport.Name = "btnViewReport";
@@ -129,6 +140,9 @@
             // 
             // btnViewAnalysis
             // 
+            btnViewAnalysis.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
+            btnViewAnalysis.FlatAppearance.MouseOverBackColor = Color.Gray;
+            btnViewAnalysis.FlatStyle = FlatStyle.System;
             btnViewAnalysis.Font = new Font("Arial", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
             btnViewAnalysis.Location = new Point(478, 415);
             btnViewAnalysis.Name = "btnViewAnalysis";
@@ -155,10 +169,11 @@
             // checkBox1
             // 
             checkBox1.AutoSize = true;
+            checkBox1.FlatStyle = FlatStyle.Flat;
             checkBox1.Font = new Font("Arial", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            checkBox1.Location = new Point(241, 295);
+            checkBox1.Location = new Point(119, 158);
             checkBox1.Name = "checkBox1";
-            checkBox1.Size = new Size(150, 20);
+            checkBox1.Size = new Size(147, 20);
             checkBox1.TabIndex = 11;
             checkBox1.Text = "Send to only Femi?";
             checkBox1.UseVisualStyleBackColor = true;
@@ -169,7 +184,7 @@
             typeDropBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
             typeDropBox.AutoCompleteSource = AutoCompleteSource.CustomSource;
             typeDropBox.FormattingEnabled = true;
-            typeDropBox.Items.AddRange(new object[] { "Weekly", "Monthly", "Quarterly (3 Months)", "Annual" });
+            typeDropBox.Items.AddRange(new object[] { "Daily", "Weekly", "Monthly", "Quarterly (3 Months)", "Annual" });
             typeDropBox.Location = new Point(241, 157);
             typeDropBox.Name = "typeDropBox";
             typeDropBox.Size = new Size(200, 22);
@@ -187,7 +202,9 @@
             // 
             // groupBox1
             // 
+            groupBox1.Controls.Add(label6);
             groupBox1.Controls.Add(label5);
+            groupBox1.Controls.Add(checkBox1);
             groupBox1.Controls.Add(finYearDropBox);
             groupBox1.Font = new Font("Arial", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             groupBox1.Location = new Point(122, 135);
@@ -196,6 +213,15 @@
             groupBox1.TabIndex = 14;
             groupBox1.TabStop = false;
             groupBox1.Text = "Report Settings";
+            // 
+            // label6
+            // 
+            label6.AutoSize = true;
+            label6.Font = new Font("Arial", 9.75F, FontStyle.Bold);
+            label6.Location = new Point(119, 158);
+            label6.Name = "label6";
+            label6.Size = new Size(0, 16);
+            label6.TabIndex = 17;
             // 
             // label5
             // 
@@ -217,14 +243,26 @@
             finYearDropBox.Size = new Size(200, 22);
             finYearDropBox.TabIndex = 15;
             // 
+            // checkBox2DarkMode
+            // 
+            checkBox2DarkMode.AutoSize = true;
+            checkBox2DarkMode.Location = new Point(0, 0);
+            checkBox2DarkMode.Name = "checkBox2DarkMode";
+            checkBox2DarkMode.Size = new Size(77, 18);
+            checkBox2DarkMode.TabIndex = 15;
+            checkBox2DarkMode.Text = "Dark Mode";
+            checkBox2DarkMode.UseVisualStyleBackColor = true;
+            checkBox2DarkMode.CheckedChanged += checkBox2DarkMode_CheckedChanged;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(6F, 14F);
             AutoScaleMode = AutoScaleMode.Font;
+            BackColor = SystemColors.ControlLightLight;
             ClientSize = new Size(635, 494);
+            Controls.Add(checkBox2DarkMode);
             Controls.Add(label4);
             Controls.Add(typeDropBox);
-            Controls.Add(checkBox1);
             Controls.Add(statusStrip1);
             Controls.Add(btnViewAnalysis);
             Controls.Add(btnViewReport);
@@ -238,6 +276,7 @@
             Controls.Add(groupBox1);
             Font = new Font("Arial", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             FormBorderStyle = FormBorderStyle.FixedSingle;
+            Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "Form1";
             Text = "Quote Conversion Automation";
             Load += Form1_Load;
@@ -269,6 +308,8 @@
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.ComboBox finYearDropBox;
+        private Label label6;
+        private CheckBox checkBox2DarkMode;
     }
 }
 

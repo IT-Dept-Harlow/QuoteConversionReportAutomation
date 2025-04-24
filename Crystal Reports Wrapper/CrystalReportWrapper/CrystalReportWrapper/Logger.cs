@@ -279,9 +279,8 @@ namespace CrystalReportWrapper // Use the namespace of your wrapper project
         private static string CreateLogMessage(LogLevel level, string message)
         {
             int processId = 0;
-            string userName = "UnknownUser";
-            try { processId = Process.GetCurrentProcess().Id; } catch { /* Ignore error getting process ID */ }
-            try { userName = Environment.UserName; } catch { /* Ignore error getting username */ }
+            string userName = "WRAPPER";
+            try { processId = Process.GetCurrentProcess().Id; } catch { /* Ignore error getting process ID */ }       
 
             // Using string interpolation for readability
             // Pad the level string to align messages visually
