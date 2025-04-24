@@ -1,15 +1,14 @@
 ﻿using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("CrystalReportWrapper")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("Quote Conversion Report Automation")]
+[assembly: AssemblyDescription("Automates the running of the weekly, Monthly, quaterly and annually quote conversion report and sending the email to the directors")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("CrystalReportWrapper")]
+[assembly: AssemblyProduct("QuoteConversionReportAutomation")]
 [assembly: AssemblyCopyright("Copyright ©  2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +19,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("0490b529-0b0e-4471-847d-f9fd004e80ac")]
+[assembly: Guid("6bc4f368-68ce-4521-928d-acf82fc649da")]
 
 // Version information for an assembly consists of the following four values:
 //
@@ -29,5 +28,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]

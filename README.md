@@ -2,12 +2,6 @@
 
 ## ChangeLog
 
-## **Version 1.2.5**
-
-### Other
-* Refactored entirely to use .net core 8 and latest c#
-* vastly improved performance by rewriting methods especially delete rows
-
 ## **Version 1.1.1**
 
 ### New Features

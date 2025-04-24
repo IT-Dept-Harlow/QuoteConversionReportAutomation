@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35931.197
+VisualStudioVersion = 17.12.35707.178
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuoteConversionReportAutomation", "conversionTest\QuoteConversionReportAutomation.csproj", "{7044E74D-0103-4DF3-AE71-06EE05170E74}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuoteConversionReportAutomation", "QuoteConversionReportAutomation\QuoteConversionReportAutomation.csproj", "{6BC4F368-68CE-4521-928D-ACF82FC649DA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +11,12 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{7044E74D-0103-4DF3-AE71-06EE05170E74}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7044E74D-0103-4DF3-AE71-06EE05170E74}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7044E74D-0103-4DF3-AE71-06EE05170E74}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7044E74D-0103-4DF3-AE71-06EE05170E74}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6BC4F368-68CE-4521-928D-ACF82FC649DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6BC4F368-68CE-4521-928D-ACF82FC649DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6BC4F368-68CE-4521-928D-ACF82FC649DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6BC4F368-68CE-4521-928D-ACF82FC649DA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {8A343F47-C378-4492-9710-20FE747A188E}
 	EndGlobalSection
 EndGlobal
