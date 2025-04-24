@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows.Forms;
 
-namespace QuoteConversionReportAutomation
+namespace conversionTest
 {
     /// <summary>
     /// Provides functionality to open a file using the default associated application.

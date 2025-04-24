@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace QuoteConversionReportAutomation.Properties
+namespace CrystalReportWrapper.Properties
 {
 
 
