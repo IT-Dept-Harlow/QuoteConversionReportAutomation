@@ -1,9 +1,10 @@
 ﻿using System;
+using System.Configuration;
 using System.Windows.Forms;
 
-namespace QuoteConversionReportAutomation
+namespace CrystalReportWrapper // Your wrapper's namespace
 {
-    internal static class Program
+    static class Program
     {
         /// <summary>
         /// The main entry point for the application.
@@ -11,9 +12,12 @@ namespace QuoteConversionReportAutomation
         [STAThread]
         static void Main()
         {
+            Logger.Initialize();
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
+            // Run the main form which handles the tray icon and pipe server
+            Application.Run(new TrayApplicationContext());
         }
     }
 }
