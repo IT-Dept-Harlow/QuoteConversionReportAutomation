@@ -15,7 +15,7 @@ using System.Threading;                   // Required for CancellationTokenSourc
 using System.Threading.Tasks;             // Required for Task, Task.Delay etc.
 using ReportWrapperCommon;              // Namespace for ReportRequest/Response
 using Newtonsoft.Json;                  // For JSON serialization
-using conversionTest; // For ProgressReport and ExcelCopyData
+using QuoteConversionReportAutomation;
 
 /// <summary>
 /// Represents the main form of the Quote Conversion Report Automation application.
@@ -529,8 +529,8 @@ public partial class Form1 : Form
         // Determine date range and FY visibility based on selection
         var (dateFrom, dateTo, showFinYear) = selectedIndex switch
         {
-            // 0: Weekly (Last 2 weeks including today, show FY for context) - Adjusted range logic slightly
-            0 => (todayValue.AddDays(-13), todayValue, true),
+            // 0: Weekly (Last 2 weeks including today, show FY for context)
+            0 => (todayValue.AddDays(-15), todayValue, true),
             // 1: Monthly (Previous full month if run <= 15th, else current month's period. Hide FY.)
             1 => CalculateMonthlyRange(todayValue),
             // 2: Quarterly (Previous full quarter. Hide FY.)
@@ -717,12 +717,12 @@ public partial class Form1 : Form
             MessageBox.Show(
                 "The processed report will now open in Excel.\n\n" +
                 "*** IMPORTANT ***\n" +
-                "1. Go to the 'Data' tab in Excel.\n" +
-                "2. Click 'Refresh All'.\n" +
+                "1. Go to the Pivot sheets in Excel.\n" +
+                "2. Right click 'Refresh' for all pivot tables and slicers.\n" +
                 "3. Wait for the refresh to complete.\n" +
-                "4. SAVE the file.\n" +
+                "4. SAVE the file!\n" +
                 "5. CLOSE Excel completely.\n\n" +
-                "The application will wait until Excel is closed.",
+                "The application will wait until Excel is closed and continue.",
                 "Manual Refresh Required",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);

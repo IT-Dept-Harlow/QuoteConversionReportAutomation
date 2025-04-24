@@ -8,9 +8,9 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using conversionTest; // For Logger and FolderCreation
+using conversionTest;
 
-namespace conversionTest; // File-scoped namespace
+namespace QuoteConversionReportAutomation; // File-scoped namespace
 
 /// <summary>
 /// Represents progress information for Excel operations.
@@ -233,7 +233,7 @@ public static class ExcelCopyData // Made static as methods were static
     {
         DateTime today = DateTime.Today;
         int year = today.Year;
-        int startYear = (today.Month >= 5) ? year : year - 1; // Financial year starts in May
+        int startYear = today.Month >= 5 ? year : year - 1; // Financial year starts in May
         int endYear = startYear + 1;
 
         return useUnderscoreFormat

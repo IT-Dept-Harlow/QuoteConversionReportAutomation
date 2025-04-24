@@ -14,7 +14,7 @@ static class Program
 
     // Define the specific path for appsettings.json
     // Use verbatim string literal @"" to avoid escaping backslashes
-    private const string SettingsDirectoryPath = @"\\harlow.local\DFS\IT Department\Applications\Development 2025\conversionTest\conversionTest";
+    private const string SettingsDirectoryPath = @"\\harlow.local\DFS\IT Department\Applications\Development 2025\QuoteConversionReportAutomation\conversionTest";
     private const string SettingsFileName = "appsettings.json";
 
     /// <summary>
@@ -31,7 +31,6 @@ static class Program
         try
         {
             // Uncomment the following block to perform encryption:
-
             /*
             Console.WriteLine($"Attempting to encrypt if necessary: {settingsFilePath}");
 
