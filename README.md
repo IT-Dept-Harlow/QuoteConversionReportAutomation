@@ -45,6 +45,7 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 ### Version 1.2.5
 * **Other**
     * Refactored entirely to use .NET 8 and latest C# features.
+    * Moved email client variables from `App.config` to `appsettings.json`.
     * Vastly improved performance by rewriting methods, especially row deletion in Excel processing.
 
 ### Version 1.1.1
@@ -56,22 +57,22 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
     * Fixed and re-enabled the "View Analysis" button.
 * **Other**
     * Refactored entire code base for more modularity and maintainability.
-    * Moved email client variables from `App.config` to `appsettings.json`. *(Assuming based on context)*
+    * Moved Email client variables to App.config
 
 ### Version 1.1.0
 * **New Features**
     * Added options allowing user to select Weekly, Monthly, Quarterly, or Annual reports.
     * Added code to allow picking financial year (current or previous) and select the corresponding sheet in the weekly Power BI source document.
     * Added logic to automatically create the files and folder structure for each report type.
-    * Added logic to automatically create folders for each year. *(Archiving mentioned in 1.1.1)*
-    * Added option to send the email only to Femi (for approval or custom date ranges).
+    * Added logic to automatically create folders for each year.
+    * Added option to send the email only to Femi (for approval & custom date ranges).
     * Added check to see if the final report file already exists, allowing sending of the existing file.
     * Added retry logic for accessing files that might be temporarily locked.
     * Added checks to add the financial year sheet into the Power BI source document if it doesn't exist (copying headers).
     * Added logic to change email text based on report type and "Send to Femi Only" option.
-    * Added option to skip sending the email after processing. *(Implied by confirmation prompts)*
+    * Added option to skip sending the email after processing.
 * **Bug Fixes**
-    * Fixed bug where processing might skip row 2 of source data. *(Assuming this was the issue)*
+    * Fixed bug where processing might skip row 2 of source data.
     * Fixed logic in `SendEmail` where sometimes incorrect dates could be set in the body/subject.
 
 ### Version 1.0.5
