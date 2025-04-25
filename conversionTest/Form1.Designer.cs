@@ -28,262 +28,305 @@
         /// </summary>
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
-            datepickFrom = new DateTimePicker();
-            datepickTo = new DateTimePicker();
-            label1 = new Label();
-            label2 = new Label();
-            label3 = new Label();
-            button1 = new Button();
-            button2 = new Button();
-            btnViewReport = new Button();
-            btnViewAnalysis = new Button();
-            toolStripProgressBar1 = new ToolStripStatusLabel();
-            statusStrip1 = new StatusStrip();
-            checkBox1 = new CheckBox();
-            typeDropBox = new ComboBox();
-            label4 = new Label();
-            groupBox1 = new GroupBox();
-            label6 = new Label();
-            label5 = new Label();
-            finYearDropBox = new ComboBox();
-            checkBox2DarkMode = new CheckBox();
-            statusStrip1.SuspendLayout();
-            groupBox1.SuspendLayout();
+            startDatePicker = new DateTimePicker();
+            endDatePicker = new DateTimePicker();
+            startDateLabel = new Label();
+            endDateLabel = new Label();
+            createReportButton = new Button();
+            processEmailButton = new Button();
+            viewReportButton = new Button();
+            viewAnalysisButton = new Button();
+            statusLabel = new ToolStripStatusLabel();
+            mainStatusStrip = new StatusStrip();
+            autoRunStatusLabel = new ToolStripStatusLabel();
+            sendToFemiOnlyCheckBox = new CheckBox();
+            reportTypeComboBox = new ComboBox();
+            reportTypeLabel = new Label();
+            reportSettingsGroupBox = new GroupBox();
+            emailRecipientLabel = new Label();
+            financialYearLabel = new Label();
+            financialYearComboBox = new ComboBox();
+            toggleAutoRunButton = new Button();
+            dailyCheckTimer = new System.Windows.Forms.Timer(components);
+            menuStrip1 = new MenuStrip();
+            optionsToolStripMenuItem = new ToolStripMenuItem();
+            darkModeToolStripMenuItem = new ToolStripMenuItem();
+            helpToolStripMenuItem = new ToolStripMenuItem();
+            mainStatusStrip.SuspendLayout();
+            reportSettingsGroupBox.SuspendLayout();
+            menuStrip1.SuspendLayout();
             SuspendLayout();
             // 
-            // datepickFrom
+            // startDatePicker
             // 
-            datepickFrom.Location = new Point(241, 191);
-            datepickFrom.Name = "datepickFrom";
-            datepickFrom.Size = new Size(200, 20);
-            datepickFrom.TabIndex = 0;
+            startDatePicker.Location = new Point(261, 103);
+            startDatePicker.Name = "startDatePicker";
+            startDatePicker.Size = new Size(200, 22);
+            startDatePicker.TabIndex = 0;
             // 
-            // datepickTo
+            // endDatePicker
             // 
-            datepickTo.Location = new Point(241, 225);
-            datepickTo.Name = "datepickTo";
-            datepickTo.Size = new Size(200, 20);
-            datepickTo.TabIndex = 1;
+            endDatePicker.Location = new Point(261, 135);
+            endDatePicker.Name = "endDatePicker";
+            endDatePicker.Size = new Size(200, 22);
+            endDatePicker.TabIndex = 1;
             // 
-            // label1
+            // startDateLabel
             // 
-            label1.AutoSize = true;
-            label1.Location = new Point(137, 197);
-            label1.Name = "label1";
-            label1.Size = new Size(87, 14);
-            label1.TabIndex = 2;
-            label1.Text = "Enter From Date:";
+            startDateLabel.AutoSize = true;
+            startDateLabel.Location = new Point(157, 109);
+            startDateLabel.Name = "startDateLabel";
+            startDateLabel.Size = new Size(93, 13);
+            startDateLabel.TabIndex = 2;
+            startDateLabel.Text = "Enter From Date:";
             // 
-            // label2
+            // endDateLabel
             // 
-            label2.AutoSize = true;
-            label2.Location = new Point(137, 232);
-            label2.Name = "label2";
-            label2.Size = new Size(74, 14);
-            label2.TabIndex = 3;
-            label2.Text = "Enter To Date:";
+            endDateLabel.AutoSize = true;
+            endDateLabel.Location = new Point(157, 141);
+            endDateLabel.Name = "endDateLabel";
+            endDateLabel.Size = new Size(79, 13);
+            endDateLabel.TabIndex = 3;
+            endDateLabel.Text = "Enter To Date:";
             // 
-            // label3
+            // createReportButton
             // 
-            label3.BackColor = SystemColors.ControlLightLight;
-            label3.Font = new Font("Arial", 12F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            label3.Location = new Point(12, 10);
-            label3.Name = "label3";
-            label3.Size = new Size(611, 110);
-            label3.TabIndex = 4;
-            label3.Text = resources.GetString("label3.Text");
-            label3.TextAlign = ContentAlignment.MiddleCenter;
+            createReportButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
+            createReportButton.FlatAppearance.MouseOverBackColor = Color.Gray;
+            createReportButton.FlatStyle = FlatStyle.System;
+            createReportButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            createReportButton.Location = new Point(187, 245);
+            createReportButton.Name = "createReportButton";
+            createReportButton.Size = new Size(134, 71);
+            createReportButton.TabIndex = 5;
+            createReportButton.Text = "Create Report";
+            createReportButton.UseVisualStyleBackColor = true;
+            createReportButton.Click += Button1_Click;
             // 
-            // button1
+            // processEmailButton
             // 
-            button1.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
-            button1.FlatAppearance.MouseOverBackColor = Color.Gray;
-            button1.FlatStyle = FlatStyle.System;
-            button1.Font = new Font("Arial", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            button1.Location = new Point(45, 330);
-            button1.Name = "button1";
-            button1.Size = new Size(134, 76);
-            button1.TabIndex = 5;
-            button1.Text = "Create Report";
-            button1.UseVisualStyleBackColor = true;
-            button1.Click += Button1_Click;
+            processEmailButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
+            processEmailButton.FlatAppearance.MouseOverBackColor = Color.Gray;
+            processEmailButton.FlatStyle = FlatStyle.System;
+            processEmailButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            processEmailButton.Location = new Point(327, 245);
+            processEmailButton.Name = "processEmailButton";
+            processEmailButton.Size = new Size(134, 71);
+            processEmailButton.TabIndex = 6;
+            processEmailButton.Text = "Create Analysis &\r\nSend Email";
+            processEmailButton.UseMnemonic = false;
+            processEmailButton.UseVisualStyleBackColor = true;
+            processEmailButton.Click += Button2_Click;
             // 
-            // button2
+            // viewReportButton
             // 
-            button2.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
-            button2.FlatAppearance.MouseOverBackColor = Color.Gray;
-            button2.FlatStyle = FlatStyle.System;
-            button2.Font = new Font("Arial", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            button2.Location = new Point(448, 330);
-            button2.Name = "button2";
-            button2.Size = new Size(134, 76);
-            button2.TabIndex = 6;
-            button2.Text = "Create Analysis &\r\nSend Email";
-            button2.UseMnemonic = false;
-            button2.UseVisualStyleBackColor = true;
-            button2.Click += Button2_Click;
+            viewReportButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
+            viewReportButton.FlatAppearance.MouseOverBackColor = Color.Gray;
+            viewReportButton.FlatStyle = FlatStyle.System;
+            viewReportButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            viewReportButton.Location = new Point(218, 322);
+            viewReportButton.Name = "viewReportButton";
+            viewReportButton.Size = new Size(75, 23);
+            viewReportButton.TabIndex = 8;
+            viewReportButton.Text = "View File";
+            viewReportButton.UseVisualStyleBackColor = true;
+            viewReportButton.Click += btnViewReport_Click;
             // 
-            // btnViewReport
+            // viewAnalysisButton
             // 
-            btnViewReport.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
-            btnViewReport.FlatAppearance.MouseOverBackColor = Color.Gray;
-            btnViewReport.FlatStyle = FlatStyle.System;
-            btnViewReport.Font = new Font("Arial", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            btnViewReport.Location = new Point(76, 412);
-            btnViewReport.Name = "btnViewReport";
-            btnViewReport.Size = new Size(75, 25);
-            btnViewReport.TabIndex = 8;
-            btnViewReport.Text = "View File";
-            btnViewReport.UseVisualStyleBackColor = true;
-            btnViewReport.Click += btnViewReport_Click;
+            viewAnalysisButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
+            viewAnalysisButton.FlatAppearance.MouseOverBackColor = Color.Gray;
+            viewAnalysisButton.FlatStyle = FlatStyle.System;
+            viewAnalysisButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            viewAnalysisButton.Location = new Point(357, 324);
+            viewAnalysisButton.Name = "viewAnalysisButton";
+            viewAnalysisButton.Size = new Size(75, 23);
+            viewAnalysisButton.TabIndex = 9;
+            viewAnalysisButton.Text = "View File";
+            viewAnalysisButton.UseVisualStyleBackColor = true;
+            viewAnalysisButton.Click += btnViewAnalysis_Click;
             // 
-            // btnViewAnalysis
+            // statusLabel
             // 
-            btnViewAnalysis.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
-            btnViewAnalysis.FlatAppearance.MouseOverBackColor = Color.Gray;
-            btnViewAnalysis.FlatStyle = FlatStyle.System;
-            btnViewAnalysis.Font = new Font("Arial", 8.25F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            btnViewAnalysis.Location = new Point(478, 415);
-            btnViewAnalysis.Name = "btnViewAnalysis";
-            btnViewAnalysis.Size = new Size(75, 25);
-            btnViewAnalysis.TabIndex = 9;
-            btnViewAnalysis.Text = "View File";
-            btnViewAnalysis.UseVisualStyleBackColor = true;
-            btnViewAnalysis.Click += btnViewAnalysis_Click;
+            statusLabel.Name = "statusLabel";
+            statusLabel.Size = new Size(0, 17);
             // 
-            // toolStripProgressBar1
+            // mainStatusStrip
             // 
-            toolStripProgressBar1.Name = "toolStripProgressBar1";
-            toolStripProgressBar1.Size = new Size(0, 17);
+            mainStatusStrip.Items.AddRange(new ToolStripItem[] { statusLabel, autoRunStatusLabel });
+            mainStatusStrip.Location = new Point(0, 437);
+            mainStatusStrip.Name = "mainStatusStrip";
+            mainStatusStrip.Size = new Size(635, 22);
+            mainStatusStrip.TabIndex = 10;
+            mainStatusStrip.Text = "mainStatusStrip";
             // 
-            // statusStrip1
+            // autoRunStatusLabel
             // 
-            statusStrip1.Items.AddRange(new ToolStripItem[] { toolStripProgressBar1 });
-            statusStrip1.Location = new Point(0, 472);
-            statusStrip1.Name = "statusStrip1";
-            statusStrip1.Size = new Size(635, 22);
-            statusStrip1.TabIndex = 10;
-            statusStrip1.Text = "statusStrip1";
+            autoRunStatusLabel.LiveSetting = System.Windows.Forms.Automation.AutomationLiveSetting.Assertive;
+            autoRunStatusLabel.Name = "autoRunStatusLabel";
+            autoRunStatusLabel.Size = new Size(589, 17);
+            autoRunStatusLabel.Spring = true;
+            autoRunStatusLabel.Text = "Auto Run: Disabled";
+            autoRunStatusLabel.TextAlign = ContentAlignment.MiddleRight;
             // 
-            // checkBox1
+            // sendToFemiOnlyCheckBox
             // 
-            checkBox1.AutoSize = true;
-            checkBox1.FlatStyle = FlatStyle.Flat;
-            checkBox1.Font = new Font("Arial", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            checkBox1.Location = new Point(119, 158);
-            checkBox1.Name = "checkBox1";
-            checkBox1.Size = new Size(147, 20);
-            checkBox1.TabIndex = 11;
-            checkBox1.Text = "Send to only Femi?";
-            checkBox1.UseVisualStyleBackColor = true;
+            sendToFemiOnlyCheckBox.AutoSize = true;
+            sendToFemiOnlyCheckBox.FlatStyle = FlatStyle.Flat;
+            sendToFemiOnlyCheckBox.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            sendToFemiOnlyCheckBox.Location = new Point(119, 147);
+            sendToFemiOnlyCheckBox.Name = "sendToFemiOnlyCheckBox";
+            sendToFemiOnlyCheckBox.Size = new Size(142, 21);
+            sendToFemiOnlyCheckBox.TabIndex = 11;
+            sendToFemiOnlyCheckBox.Text = "Send to only Femi?";
+            sendToFemiOnlyCheckBox.UseVisualStyleBackColor = true;
             // 
-            // typeDropBox
+            // reportTypeComboBox
             // 
-            typeDropBox.AutoCompleteCustomSource.AddRange(new string[] { "Weekly", "Monthly", "Quarterly (3 Months)", "Annual" });
-            typeDropBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
-            typeDropBox.AutoCompleteSource = AutoCompleteSource.CustomSource;
-            typeDropBox.FormattingEnabled = true;
-            typeDropBox.Items.AddRange(new object[] { "Daily", "Weekly", "Monthly", "Quarterly (3 Months)", "Annual" });
-            typeDropBox.Location = new Point(241, 157);
-            typeDropBox.Name = "typeDropBox";
-            typeDropBox.Size = new Size(200, 22);
-            typeDropBox.TabIndex = 12;
-            typeDropBox.SelectedIndexChanged += typeDropBox_SelectedIndexChanged;
+            reportTypeComboBox.AutoCompleteCustomSource.AddRange(new string[] { "Weekly", "Monthly", "Quarterly (3 Months)", "Annual" });
+            reportTypeComboBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            reportTypeComboBox.AutoCompleteSource = AutoCompleteSource.CustomSource;
+            reportTypeComboBox.FormattingEnabled = true;
+            reportTypeComboBox.Items.AddRange(new object[] { "Daily", "Weekly", "Monthly", "Quarterly (3 Months)", "Annual" });
+            reportTypeComboBox.Location = new Point(261, 72);
+            reportTypeComboBox.Name = "reportTypeComboBox";
+            reportTypeComboBox.Size = new Size(200, 21);
+            reportTypeComboBox.TabIndex = 12;
+            reportTypeComboBox.SelectedIndexChanged += typeDropBox_SelectedIndexChanged;
             // 
-            // label4
+            // reportTypeLabel
             // 
-            label4.AutoSize = true;
-            label4.Location = new Point(137, 160);
-            label4.Name = "label4";
-            label4.Size = new Size(68, 14);
-            label4.TabIndex = 13;
-            label4.Text = "Report Type:";
+            reportTypeLabel.AutoSize = true;
+            reportTypeLabel.Location = new Point(157, 75);
+            reportTypeLabel.Name = "reportTypeLabel";
+            reportTypeLabel.Size = new Size(71, 13);
+            reportTypeLabel.TabIndex = 13;
+            reportTypeLabel.Text = "Report Type:";
             // 
-            // groupBox1
+            // reportSettingsGroupBox
             // 
-            groupBox1.Controls.Add(label6);
-            groupBox1.Controls.Add(label5);
-            groupBox1.Controls.Add(checkBox1);
-            groupBox1.Controls.Add(finYearDropBox);
-            groupBox1.Font = new Font("Arial", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            groupBox1.Location = new Point(122, 135);
-            groupBox1.Name = "groupBox1";
-            groupBox1.Size = new Size(346, 189);
-            groupBox1.TabIndex = 14;
-            groupBox1.TabStop = false;
-            groupBox1.Text = "Report Settings";
+            reportSettingsGroupBox.Controls.Add(emailRecipientLabel);
+            reportSettingsGroupBox.Controls.Add(financialYearLabel);
+            reportSettingsGroupBox.Controls.Add(sendToFemiOnlyCheckBox);
+            reportSettingsGroupBox.Controls.Add(financialYearComboBox);
+            reportSettingsGroupBox.Font = new Font("Arial", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            reportSettingsGroupBox.Location = new Point(142, 50);
+            reportSettingsGroupBox.Name = "reportSettingsGroupBox";
+            reportSettingsGroupBox.Size = new Size(346, 176);
+            reportSettingsGroupBox.TabIndex = 14;
+            reportSettingsGroupBox.TabStop = false;
+            reportSettingsGroupBox.Text = "Report Settings";
             // 
-            // label6
+            // emailRecipientLabel
             // 
-            label6.AutoSize = true;
-            label6.Font = new Font("Arial", 9.75F, FontStyle.Bold);
-            label6.Location = new Point(119, 158);
-            label6.Name = "label6";
-            label6.Size = new Size(0, 16);
-            label6.TabIndex = 17;
+            emailRecipientLabel.AutoSize = true;
+            emailRecipientLabel.Font = new Font("Arial", 9.75F, FontStyle.Bold);
+            emailRecipientLabel.Location = new Point(119, 147);
+            emailRecipientLabel.Name = "emailRecipientLabel";
+            emailRecipientLabel.Size = new Size(0, 16);
+            emailRecipientLabel.TabIndex = 17;
             // 
-            // label5
+            // financialYearLabel
             // 
-            label5.AutoSize = true;
-            label5.Location = new Point(15, 126);
-            label5.Name = "label5";
-            label5.Size = new Size(78, 14);
-            label5.TabIndex = 16;
-            label5.Text = "Financial Year:";
+            financialYearLabel.AutoSize = true;
+            financialYearLabel.Location = new Point(15, 117);
+            financialYearLabel.Name = "financialYearLabel";
+            financialYearLabel.Size = new Size(78, 14);
+            financialYearLabel.TabIndex = 16;
+            financialYearLabel.Text = "Financial Year:";
             // 
-            // finYearDropBox
+            // financialYearComboBox
             // 
-            finYearDropBox.AutoCompleteCustomSource.AddRange(new string[] { "Weekly", "Monthly", "Quarterly (3 Months)", "Annual" });
-            finYearDropBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
-            finYearDropBox.AutoCompleteSource = AutoCompleteSource.CustomSource;
-            finYearDropBox.FormattingEnabled = true;
-            finYearDropBox.Location = new Point(119, 123);
-            finYearDropBox.Name = "finYearDropBox";
-            finYearDropBox.Size = new Size(200, 22);
-            finYearDropBox.TabIndex = 15;
+            financialYearComboBox.AutoCompleteCustomSource.AddRange(new string[] { "Daily", "Weekly", "Monthly", "Quarterly (3 Months)", "Annual" });
+            financialYearComboBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            financialYearComboBox.AutoCompleteSource = AutoCompleteSource.CustomSource;
+            financialYearComboBox.FormattingEnabled = true;
+            financialYearComboBox.Location = new Point(119, 114);
+            financialYearComboBox.Name = "financialYearComboBox";
+            financialYearComboBox.Size = new Size(200, 22);
+            financialYearComboBox.TabIndex = 15;
             // 
-            // checkBox2DarkMode
+            // toggleAutoRunButton
             // 
-            checkBox2DarkMode.AutoSize = true;
-            checkBox2DarkMode.Location = new Point(0, 0);
-            checkBox2DarkMode.Name = "checkBox2DarkMode";
-            checkBox2DarkMode.Size = new Size(77, 18);
-            checkBox2DarkMode.TabIndex = 15;
-            checkBox2DarkMode.Text = "Dark Mode";
-            checkBox2DarkMode.UseVisualStyleBackColor = true;
-            checkBox2DarkMode.CheckedChanged += checkBox2DarkMode_CheckedChanged;
+            toggleAutoRunButton.Location = new Point(12, 359);
+            toggleAutoRunButton.Name = "toggleAutoRunButton";
+            toggleAutoRunButton.Size = new Size(107, 54);
+            toggleAutoRunButton.TabIndex = 16;
+            toggleAutoRunButton.Text = "Enable Daily Auto Run @ 8 AM";
+            toggleAutoRunButton.UseVisualStyleBackColor = true;
+            toggleAutoRunButton.Click += btnToggleAutoRun_Click;
+            // 
+            // dailyCheckTimer
+            // 
+            dailyCheckTimer.Interval = 60000;
+            // 
+            // menuStrip1
+            // 
+            menuStrip1.Items.AddRange(new ToolStripItem[] { optionsToolStripMenuItem, helpToolStripMenuItem });
+            menuStrip1.Location = new Point(0, 0);
+            menuStrip1.Name = "menuStrip1";
+            menuStrip1.Size = new Size(635, 24);
+            menuStrip1.TabIndex = 18;
+            menuStrip1.Text = "menuStrip1";
+            // 
+            // optionsToolStripMenuItem
+            // 
+            optionsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem });
+            optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
+            optionsToolStripMenuItem.Size = new Size(61, 20);
+            optionsToolStripMenuItem.Text = "&Options";
+            // 
+            // darkModeToolStripMenuItem
+            // 
+            darkModeToolStripMenuItem.CheckOnClick = true;
+            darkModeToolStripMenuItem.Name = "darkModeToolStripMenuItem";
+            darkModeToolStripMenuItem.Size = new Size(132, 22);
+            darkModeToolStripMenuItem.Text = "&Dark Mode";
+            darkModeToolStripMenuItem.ToolTipText = "Enables/Disables Dark Mode";
+            darkModeToolStripMenuItem.Click += darkModeToolStripMenuItem_Click;
+            // 
+            // helpToolStripMenuItem
+            // 
+            helpToolStripMenuItem.Name = "helpToolStripMenuItem";
+            helpToolStripMenuItem.Size = new Size(44, 20);
+            helpToolStripMenuItem.Text = "&Help";
+            helpToolStripMenuItem.Click += helpToolStripMenuItem_Click;
             // 
             // Form1
             // 
-            AutoScaleDimensions = new SizeF(6F, 14F);
+            AutoScaleDimensions = new SizeF(6F, 13F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = SystemColors.ControlLightLight;
-            ClientSize = new Size(635, 494);
-            Controls.Add(checkBox2DarkMode);
-            Controls.Add(label4);
-            Controls.Add(typeDropBox);
-            Controls.Add(statusStrip1);
-            Controls.Add(btnViewAnalysis);
-            Controls.Add(btnViewReport);
-            Controls.Add(button2);
-            Controls.Add(button1);
-            Controls.Add(label3);
-            Controls.Add(label2);
-            Controls.Add(label1);
-            Controls.Add(datepickTo);
-            Controls.Add(datepickFrom);
-            Controls.Add(groupBox1);
-            Font = new Font("Arial", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            ClientSize = new Size(635, 459);
+            Controls.Add(toggleAutoRunButton);
+            Controls.Add(reportTypeLabel);
+            Controls.Add(reportTypeComboBox);
+            Controls.Add(mainStatusStrip);
+            Controls.Add(menuStrip1);
+            Controls.Add(viewAnalysisButton);
+            Controls.Add(viewReportButton);
+            Controls.Add(processEmailButton);
+            Controls.Add(createReportButton);
+            Controls.Add(endDateLabel);
+            Controls.Add(startDateLabel);
+            Controls.Add(endDatePicker);
+            Controls.Add(startDatePicker);
+            Controls.Add(reportSettingsGroupBox);
+            Font = new Font("Segoe UI", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             Icon = (Icon)resources.GetObject("$this.Icon");
+            MainMenuStrip = menuStrip1;
             Name = "Form1";
             Text = "Quote Conversion Automation";
             Load += Form1_Load;
-            statusStrip1.ResumeLayout(false);
-            statusStrip1.PerformLayout();
-            groupBox1.ResumeLayout(false);
-            groupBox1.PerformLayout();
+            mainStatusStrip.ResumeLayout(false);
+            mainStatusStrip.PerformLayout();
+            reportSettingsGroupBox.ResumeLayout(false);
+            reportSettingsGroupBox.PerformLayout();
+            menuStrip1.ResumeLayout(false);
+            menuStrip1.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
 
@@ -291,25 +334,30 @@
 
         #endregion
 
-        private System.Windows.Forms.DateTimePicker datepickFrom;
-        private System.Windows.Forms.DateTimePicker datepickTo;
-        private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.Label label3;
-        private System.Windows.Forms.Button button1;
-        private System.Windows.Forms.Button button2;
-        private System.Windows.Forms.Button btnViewReport;
-        private System.Windows.Forms.Button btnViewAnalysis;
-        private System.Windows.Forms.ToolStripStatusLabel toolStripProgressBar1;
-        private System.Windows.Forms.StatusStrip statusStrip1;
-        private System.Windows.Forms.CheckBox checkBox1;
-        private System.Windows.Forms.ComboBox typeDropBox;
-        private System.Windows.Forms.Label label4;
-        private System.Windows.Forms.GroupBox groupBox1;
-        private System.Windows.Forms.Label label5;
-        private System.Windows.Forms.ComboBox finYearDropBox;
-        private Label label6;
-        private CheckBox checkBox2DarkMode;
+        private System.Windows.Forms.DateTimePicker startDatePicker;
+        private System.Windows.Forms.DateTimePicker endDatePicker;
+        private System.Windows.Forms.Label startDateLabel;
+        private System.Windows.Forms.Label endDateLabel;
+        private System.Windows.Forms.Button createReportButton;
+        private System.Windows.Forms.Button processEmailButton;
+        private System.Windows.Forms.Button viewReportButton;
+        private System.Windows.Forms.Button viewAnalysisButton;
+        private System.Windows.Forms.ToolStripStatusLabel statusLabel;
+        private System.Windows.Forms.StatusStrip mainStatusStrip;
+        private System.Windows.Forms.CheckBox sendToFemiOnlyCheckBox;
+        private System.Windows.Forms.ComboBox reportTypeComboBox;
+        private System.Windows.Forms.Label reportTypeLabel;
+        private System.Windows.Forms.GroupBox reportSettingsGroupBox;
+        private System.Windows.Forms.Label financialYearLabel;
+        private System.Windows.Forms.ComboBox financialYearComboBox;
+        private Label emailRecipientLabel;
+        private Button toggleAutoRunButton;
+        private System.Windows.Forms.Timer dailyCheckTimer;
+        private MenuStrip menuStrip1;
+        private ToolStripMenuItem optionsToolStripMenuItem;
+        private ToolStripMenuItem darkModeToolStripMenuItem;
+        private ToolStripMenuItem helpToolStripMenuItem;
+        private ToolStripStatusLabel autoRunStatusLabel;
     }
 }
 

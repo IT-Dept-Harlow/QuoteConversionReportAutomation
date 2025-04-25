@@ -80,7 +80,7 @@ public static class ExcelCopyData // Made static as methods were static
     public static async Task<string?> ProcessExcelReportAsync(
         string selectedFinYear, // Still needed for weekly append and potentially daily context
         int reportType,
-        string sourceFilePath,
+        string sourceFilePath, // <<< Path to the ORIGINAL raw file
         string sourceSheetName,
         string baseFileSaveLocation, // e.g., ...\Estimates\
         string templateFilePath,
@@ -167,8 +167,8 @@ public static class ExcelCopyData // Made static as methods were static
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // 5. Post-Copy Processing (Unique Customers, Calculations, Cleaning)
-                // Pass selectedFinYear as it's needed for the Weekly append logic inside
-                await ProcessPostCopyOperationsAsync(destinationPackage, destinationDataSheetName, AnalysisSheetName, reportType, progress, cancellationToken, selectedFinYear);
+                // <<< Pass the ORIGINAL sourceFilePath for use in weekly append >>>
+                await ProcessPostCopyOperationsAsync(destinationPackage, destinationDataSheetName, AnalysisSheetName, reportType, progress, cancellationToken, selectedFinYear, sourceFilePath);
 
                 // 6. Save the destination package (temp file) before renaming
                 progress?.Report(new ProgressReport("Saving processed file...", 85));
@@ -347,6 +347,7 @@ public static class ExcelCopyData // Made static as methods were static
     /// <param name="progress">Progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="selectedFinYear">Selected financial year (YYYY_YY format). Required for Weekly append.</param>
+    /// <param name="originalSourceFilePath">The file path of the original raw data file (e.g., Crystal report output).</param>
     private static async Task ProcessPostCopyOperationsAsync(
         ExcelPackage package,
         string sourceDataSheetName,
@@ -354,11 +355,13 @@ public static class ExcelCopyData // Made static as methods were static
         int reportType,
         IProgress<ProgressReport>? progress,
         CancellationToken cancellationToken,
-        string selectedFinYear) // Pass FY here
+        string selectedFinYear,
+        string originalSourceFilePath) // <<< Parameter already exists
     {
         progress?.Report(new ProgressReport("Extracting unique customers...", 40));
         // Extract customers from the sourceDataSheetName and populate the targetAnalysisSheetName
-        await ExtractUniqueCustomersAsync(package, sourceDataSheetName, targetAnalysisSheetName, progress, cancellationToken);
+        // <<< Pass originalSourceFilePath to potentially add filename to Analysis sheet >>>
+        await ExtractUniqueCustomersAsync(package, sourceDataSheetName, targetAnalysisSheetName, progress, cancellationToken, originalSourceFilePath);
         cancellationToken.ThrowIfCancellationRequested();
 
         progress?.Report(new ProgressReport("Calculating analysis sheet...", 50));
@@ -377,11 +380,11 @@ public static class ExcelCopyData // Made static as methods were static
         // <<< Indices updated: 2=Monthly, 3=Quarterly, 4=Annual >>>
         if (reportType is MonthlyReportIndex or QuarterlyReportIndex or AnnualReportIndex)
         {
-            progress?.Report(new ProgressReport("Refreshing pivot tables...", 70));
-            // Refreshing pivots might also be better on a background thread
+            progress?.Report(new ProgressReport("Setting pivot tables to refresh on load...", 70));
+            // Run sequentially to avoid potential concurrency issues with EPPlus
             await Task.Run(() => RefreshPivotTable(package, MonthlyOrderPivotSheetName, MonthlyOrderPivotName), cancellationToken);
             await Task.Run(() => RefreshPivotTable(package, MonthlyEstimatePivotSheetName, MonthlyEstimatePivotName), cancellationToken);
-            Logger.LogInfo("Pivot tables refreshed.");
+            Logger.LogInfo("Pivot tables set to refresh on load.");
             cancellationToken.ThrowIfCancellationRequested();
         }
 
@@ -390,10 +393,8 @@ public static class ExcelCopyData // Made static as methods were static
         if (reportType == WeeklyReportIndex)
         {
             progress?.Report(new ProgressReport("Appending data to central weekly report...", 75));
-            // This involves opening another file, potentially slow I/O
-            // Pass the targetAnalysisSheetName as the source for copying to the weekly report
-            // Pass selectedFinYear as it's needed for the target sheet name
-            await CopyAnalysisDataToWeeklyReportAsync(package, targetAnalysisSheetName, progress, cancellationToken, selectedFinYear);
+            // <<< Pass reportType and originalSourceFilePath >>>
+            await CopyAnalysisDataToWeeklyReportAsync(package, targetAnalysisSheetName, progress, cancellationToken, selectedFinYear, reportType, originalSourceFilePath);
             Logger.LogInfo("Data appended to central weekly report.");
             cancellationToken.ThrowIfCancellationRequested();
         }
@@ -443,14 +444,21 @@ public static class ExcelCopyData // Made static as methods were static
 
     /// <summary>
     /// Extracts unique customers from the source data sheet and populates the target analysis sheet asynchronously.
-    /// **Does not clear existing data**, assumes the sheet is ready or cleared beforehand.
+    /// Also populates Date, Financial Year, and Source Filename (using original raw file path for non-weekly reports).
     /// </summary>
+    /// <param name="package">The Excel package containing source and target sheets.</param>
+    /// <param name="sourceDataSheetName">Name of the sheet with raw data (e.g., "DATA").</param>
+    /// <param name="targetAnalysisSheetName">Name of the sheet to populate (e.g., "Analysis").</param>
+    /// <param name="progress">Progress reporter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="originalSourceFilePath">Full path of the original source file (Crystal report output).</param> // <<< ADDED Parameter
     private static async Task ExtractUniqueCustomersAsync(
         ExcelPackage package,
-        string sourceDataSheetName, // e.g., "DATA" sheet where raw data was copied
-        string targetAnalysisSheetName, // e.g., "Analysis" sheet to populate
+        string sourceDataSheetName,
+        string targetAnalysisSheetName,
         IProgress<ProgressReport>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string originalSourceFilePath) // <<< ADDED Parameter
     {
         ExcelWorksheet? dataSheet = package.Workbook.Worksheets[sourceDataSheetName];
         if (dataSheet == null)
@@ -475,6 +483,12 @@ public static class ExcelCopyData // Made static as methods were static
             Logger.LogWarning($"Source data sheet '{sourceDataSheetName}' has insufficient rows ({dataRowCount}) for customer extraction starting at row {startDataRowInDataSheet}.");
             return;
         }
+
+        // --- Get the filename to populate ---
+        // We always populate the Analysis sheet with the original raw filename for reference.
+        // The weekly report copy logic will handle using the final weekly filename specifically for that output.
+        string sourceFileName = Path.GetFileName(originalSourceFilePath);
+        Logger.LogDebug($"Filename determined for Analysis sheet population: {sourceFileName}");
 
         // Extract unique customers first
         var uniqueCustomers = await Task.Run(() =>
@@ -503,15 +517,16 @@ public static class ExcelCopyData // Made static as methods were static
         {
             int analysisPopulateStartRow = 6; // Start populating customer names from row 6
             string todayDateString = DateTime.Today.ToString("dd/MM/yyyy");
-            string currentFY = GetCurrentFinancialYear(true); // E.g., 2023_24
+            string currentFY = GetCurrentFinancialYear(false); // E.g., FY 2024/25
 
             foreach (string customer in uniqueCustomers.OrderBy(c => c)) // Optionally order customers
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 analysisSheet.Cells[analysisPopulateStartRow, CustomerColumnIndex].Value = customer;
-                // Populate Date and FY columns
+                // Populate Date, FY, and Source Filename columns
                 analysisSheet.Cells[analysisPopulateStartRow, DateColumnIndex].Value = todayDateString;
                 analysisSheet.Cells[analysisPopulateStartRow, FinancialYearColumnIndex].Value = currentFY;
+                analysisSheet.Cells[analysisPopulateStartRow, SourceFileNameColumnIndex].Value = sourceFileName; // <<< ADDED Filename
                 analysisPopulateStartRow++;
             }
             Logger.LogInfo($"Populated '{targetAnalysisSheetName}' with {uniqueCustomers.Count} unique customers starting at row 6.");
@@ -612,14 +627,15 @@ public static class ExcelCopyData // Made static as methods were static
 
 
     /// <summary>
-    /// Refreshes a specific pivot table by name within a given sheet.
+    /// Sets a specific pivot table to refresh when the workbook is opened.
+    /// Avoids forcing refresh in code due to potential corruption issues.
     /// </summary>
     private static void RefreshPivotTable(ExcelPackage package, string sheetName, string pivotTableName)
     {
         ExcelWorksheet? worksheet = package.Workbook.Worksheets[sheetName];
         if (worksheet == null)
         {
-            Logger.LogWarning($"Sheet '{sheetName}' not found for pivot table refresh.");
+            Logger.LogWarning($"Sheet '{sheetName}' not found for pivot table refresh setting.");
             return;
         }
 
@@ -629,13 +645,13 @@ public static class ExcelCopyData // Made static as methods were static
         {
             try
             {
-                Logger.LogDebug($"Attempting to refresh pivot table '{pivotTableName}' in sheet '{sheetName}'.");
+                Logger.LogDebug($"Attempting to set Refresh for pivot table '{pivotTableName}' in sheet '{sheetName}'.");
                 pivotTable.CacheDefinition.Refresh();
-                Logger.LogInfo($"Set pivot table '{pivotTableName}' in sheet '{sheetName}' to refresh on load.");
+                Logger.LogInfo($"Set pivot table '{pivotTableName}' in sheet '{sheetName}' to refresh.");
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Error setting RefreshOnLoad for pivot table '{pivotTableName}' in '{sheetName}': {ex.Message}");
+                Logger.LogError($"Error setting Refresh for pivot table '{pivotTableName}' in '{sheetName}': {ex.Message}");
             }
         }
         else
@@ -645,16 +661,25 @@ public static class ExcelCopyData // Made static as methods were static
     }
 
     /// <summary>
-    /// Copies data from the processed Analysis sheet to the central weekly report file asynchronously.
+    /// Copies data VALUES from the processed Analysis sheet to the central weekly report file asynchronously.
     /// Appends data to the sheet corresponding to the selected financial year.
+    /// Sets the SourceFileName column based on the report type.
     /// </summary>
+    /// <param name="sourcePackage">The package containing the 'Analysis' sheet.</param>
+    /// <param name="sourceSheetName">The name of the source sheet (e.g., "Analysis").</param>
+    /// <param name="progress">Progress reporter.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="selectedFinYear">Financial year in format YYYY_YY. Used as the target sheet name.</param>
+    /// <param name="reportType">The type of report being processed (used to determine filename).</param> // <<< ADDED Parameter
+    /// <param name="originalSourceFilePath">The full path of the original raw data file.</param>
     private static async Task CopyAnalysisDataToWeeklyReportAsync(
-        ExcelPackage sourcePackage, // The package containing the 'Analysis' sheet
-        string sourceSheetName,     // Should be AnalysisSheetName
+        ExcelPackage sourcePackage,
+        string sourceSheetName,
         IProgress<ProgressReport>? progress,
         CancellationToken cancellationToken,
-        string selectedFinYear)     // Financial year in format YYYY_YY
+        string selectedFinYear,
+        int reportType, // <<< ADDED Parameter
+        string originalSourceFilePath)
     {
         string username = Environment.UserName;
         string destinationFilePath = GetWeeklyReportPath(username); // Get path based on Debug/Release
@@ -692,19 +717,37 @@ public static class ExcelCopyData // Made static as methods were static
             if (destinationWorksheet == null)
             {
                 destinationWorksheet = destinationPackage.Workbook.Worksheets.Add(targetSheetName);
-                CopyHeaders(sourceWorksheet, destinationWorksheet);
+                CopyHeaders(sourceWorksheet, destinationWorksheet); // Copy headers only if creating sheet
                 Logger.LogInfo($"Created sheet '{targetSheetName}' in weekly report and copied headers.");
             }
 
             int nextFreeRow = await Task.Run(() => GetNextFreeRow(destinationWorksheet), cancellationToken);
             Logger.LogDebug($"Next free row in weekly report sheet '{targetSheetName}' is {nextFreeRow}.");
 
+            // --- Determine the filename to write based on report type ---
+            string filenameToWrite;
+            if (reportType == WeeklyReportIndex)
+            {
+                // For weekly reports, use the *final* generated weekly filename
+                filenameToWrite = GenerateFinalFileName(reportType);
+                Logger.LogDebug($"Using FINAL weekly filename for weekly report append: {filenameToWrite}");
+            }
+            else
+            {
+                // This case shouldn't normally be hit as this method is only called for Weekly,
+                // but as a fallback, use the original raw filename.
+                filenameToWrite = Path.GetFileName(originalSourceFilePath);
+                Logger.LogWarning($"CopyAnalysisDataToWeeklyReportAsync called for non-weekly type ({reportType}). Using original raw filename: {filenameToWrite}");
+            }
+            // --- End filename determination ---
+
+
             await Task.Run(() =>
             {
                 int sourceRowCount = sourceWorksheet.Dimension.Rows;
-                int sourceColCount = sourceWorksheet.Dimension.Columns;
+                // Determine the actual last column with data/formulas in the source sheet reliably
+                int sourceColCount = sourceWorksheet.Dimension.End.Column; // Use Dimension.End.Column
                 int startDataRowInAnalysis = 6; // Assuming analysis data starts at row 6
-                string sourceFileName = Path.GetFileName(sourcePackage.File?.Name ?? "UnknownSourceFile.xlsx");
 
                 if (sourceRowCount < startDataRowInAnalysis)
                 {
@@ -713,26 +756,35 @@ public static class ExcelCopyData // Made static as methods were static
                 }
 
                 int copiedRowCount = 0;
+                // Iterate through relevant rows in the source sheet
                 for (int sourceRow = startDataRowInAnalysis; sourceRow <= sourceRowCount; sourceRow++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    // Check if the customer cell in the source row is non-empty
                     var firstCellVal = sourceWorksheet.Cells[sourceRow, CustomerColumnIndex].Value;
                     if (firstCellVal != null && !string.IsNullOrWhiteSpace(firstCellVal.ToString()))
                     {
-                        ExcelRange sourceRowRange = sourceWorksheet.Cells[sourceRow, 1, sourceRow, sourceColCount];
-                        ExcelRange destRowRange = destinationWorksheet.Cells[nextFreeRow, 1, nextFreeRow, sourceColCount];
-                        sourceRowRange.Copy(destRowRange);
-                        destinationWorksheet.Cells[nextFreeRow, SourceFileNameColumnIndex].Value = sourceFileName;
-                        nextFreeRow++;
+                        // Iterate through columns and copy VALUES
+                        for (int col = 1; col <= sourceColCount; col++)
+                        {
+                            // Copy the value from source cell to destination cell
+                            destinationWorksheet.Cells[nextFreeRow, col].Value = sourceWorksheet.Cells[sourceRow, col].Value;
+                        }
+                        // <<< Set the source file name using the determined filename >>>
+                        destinationWorksheet.Cells[nextFreeRow, SourceFileNameColumnIndex].Value = filenameToWrite;
+
+                        nextFreeRow++; // Move to the next row in the destination
                         copiedRowCount++;
                     }
+
+                    // Report progress periodically
                     if (sourceRow % 50 == 0)
                     {
                         int percent = (int)((double)(sourceRow - startDataRowInAnalysis + 1) / (sourceRowCount - startDataRowInAnalysis + 1) * 100);
                         progress?.Report(new ProgressReport($"Copying to weekly report... {percent}%", percent));
                     }
                 }
-                Logger.LogInfo($"Copied {copiedRowCount} rows from '{sourceSheetName}' to weekly report sheet '{targetSheetName}'.");
+                Logger.LogInfo($"Copied values for {copiedRowCount} rows from '{sourceSheetName}' to weekly report sheet '{targetSheetName}'.");
                 progress?.Report(new ProgressReport($"Copying to weekly report... 100%", 100));
             }, cancellationToken);
 
@@ -753,6 +805,7 @@ public static class ExcelCopyData // Made static as methods were static
             progress?.Report(new ProgressReport($"Error copying to weekly report: {ex.Message}"));
         }
     }
+
 
     /// <summary>
     /// Copies headers (Row 1) from a source worksheet to a destination worksheet.
@@ -859,7 +912,7 @@ public static class ExcelCopyData // Made static as methods were static
             case DailyReportIndex: // 0 = Daily
                 reportTypeFolder = "Daily Reports";
                 subFolder1 = now.ToString("MMM"); // e.g., "Apr"
-                int weekNum = GetWeekOfMonth(now);
+                int weekNum = GetWeekOfMonth(now); // Call the helper function
                 subFolder2 = $"{subFolder1} Week {weekNum}"; // e.g., "Apr Week 4"
                 break;
             case WeeklyReportIndex: // 1 = Weekly
@@ -977,7 +1030,7 @@ public static class ExcelCopyData // Made static as methods were static
 
     /// <summary>
     /// Calculates the week number of a given date within its month.
-    /// Assumes weeks start on Monday (adjust CultureInfo if needed).
+    /// Assumes weeks start on Monday.
     /// </summary>
     /// <param name="date">The date to check.</param>
     /// <returns>The week number (1-5/6).</returns>
@@ -986,21 +1039,17 @@ public static class ExcelCopyData // Made static as methods were static
         // Get the first day of the month
         DateTime firstOfMonth = new DateTime(date.Year, date.Month, 1);
 
-        // Get the day of the week for the first day (Monday = 0, Sunday = 6)
-        // Adjust Sunday to be 6, not 0, to align with Monday start logic
-        int firstDayOfWeek = (int)firstOfMonth.DayOfWeek;
-        if (firstDayOfWeek == (int)DayOfWeek.Sunday)
-        {
-            firstDayOfWeek = 6; // Treat Sunday as the 6th day after Monday
-        }
-        else
-        {
-            firstDayOfWeek -= 1; // Adjust Monday from 1 to 0, Tue from 2 to 1 etc.
-        }
+        // Get the day of the week for the first day (Monday = 1, Sunday = 7, using ISO 8601 standard)
+        // DayOfWeek enum: Sunday = 0, Monday = 1, ..., Saturday = 6
+        int firstDayOfWeekIso = ((int)firstOfMonth.DayOfWeek == 0) ? 7 : (int)firstOfMonth.DayOfWeek; // Convert Sunday to 7
 
-        // Calculate the week number
-        // Add the offset of the first day, subtract 1 (because day 1 is in week 1), divide by 7, add 1
-        int weekOfMonth = (date.Day + firstDayOfWeek - 1) / 7 + 1;
+        // Calculate the week number using integer division.
+        // Add the offset of the first day (1-based, where Monday is 1) minus 1.
+        // Add the day of the month (1-based).
+        // Subtract 1 because we want the result to be 0-based for the division.
+        // Divide by 7.
+        // Add 1 to make the final result 1-based (Week 1, Week 2, etc.).
+        int weekOfMonth = (date.Day + firstDayOfWeekIso - 1 - 1) / 7 + 1;
 
         return weekOfMonth;
     }
