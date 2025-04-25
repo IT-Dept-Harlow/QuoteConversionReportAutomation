@@ -103,7 +103,7 @@
             createReportButton.TabIndex = 5;
             createReportButton.Text = "Create Report";
             createReportButton.UseVisualStyleBackColor = true;
-            createReportButton.Click += Button1_Click;
+            createReportButton.Click += createReportButton_Click;
             // 
             // processEmailButton
             // 
@@ -118,7 +118,7 @@
             processEmailButton.Text = "Create Analysis &\r\nSend Email";
             processEmailButton.UseMnemonic = false;
             processEmailButton.UseVisualStyleBackColor = true;
-            processEmailButton.Click += Button2_Click;
+            processEmailButton.Click += processEmailButton_Click;
             // 
             // viewReportButton
             // 
@@ -132,7 +132,7 @@
             viewReportButton.TabIndex = 8;
             viewReportButton.Text = "View File";
             viewReportButton.UseVisualStyleBackColor = true;
-            viewReportButton.Click += btnViewReport_Click;
+            viewReportButton.Click += viewReportButton_Click;
             // 
             // viewAnalysisButton
             // 
@@ -146,7 +146,7 @@
             viewAnalysisButton.TabIndex = 9;
             viewAnalysisButton.Text = "View File";
             viewAnalysisButton.UseVisualStyleBackColor = true;
-            viewAnalysisButton.Click += btnViewAnalysis_Click;
+            viewAnalysisButton.Click += viewAnalysisButton_Click;
             // 
             // statusLabel
             // 
@@ -166,7 +166,7 @@
             // 
             autoRunStatusLabel.LiveSetting = System.Windows.Forms.Automation.AutomationLiveSetting.Assertive;
             autoRunStatusLabel.Name = "autoRunStatusLabel";
-            autoRunStatusLabel.Size = new Size(589, 17);
+            autoRunStatusLabel.Size = new Size(620, 17);
             autoRunStatusLabel.Spring = true;
             autoRunStatusLabel.Text = "Auto Run: Disabled";
             autoRunStatusLabel.TextAlign = ContentAlignment.MiddleRight;
@@ -194,7 +194,7 @@
             reportTypeComboBox.Name = "reportTypeComboBox";
             reportTypeComboBox.Size = new Size(200, 21);
             reportTypeComboBox.TabIndex = 12;
-            reportTypeComboBox.SelectedIndexChanged += typeDropBox_SelectedIndexChanged;
+            reportTypeComboBox.SelectedIndexChanged += reportTypeComboBox_SelectedIndexChanged;
             // 
             // reportTypeLabel
             // 
@@ -256,11 +256,12 @@
             toggleAutoRunButton.TabIndex = 16;
             toggleAutoRunButton.Text = "Enable Daily Auto Run @ 8 AM";
             toggleAutoRunButton.UseVisualStyleBackColor = true;
-            toggleAutoRunButton.Click += btnToggleAutoRun_Click;
+            toggleAutoRunButton.Click += toggleAutoRunButton_Click;
             // 
             // dailyCheckTimer
             // 
             dailyCheckTimer.Interval = 60000;
+            dailyCheckTimer.Tick += dailyCheckTimer_Tick;
             // 
             // menuStrip1
             // 

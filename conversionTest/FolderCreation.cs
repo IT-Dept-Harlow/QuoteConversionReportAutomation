@@ -29,7 +29,7 @@ namespace conversionTest
         {
             try
             {
-                string targetFolderPath = GetReportSpecificFolderPath(reportType, baseSaveLocation);
+                string? targetFolderPath = GetReportSpecificFolderPath(reportType, baseSaveLocation);
 
                 if (string.IsNullOrEmpty(targetFolderPath))
                 {
@@ -87,6 +87,9 @@ namespace conversionTest
         /// <summary>
         /// Determines the specific folder path based on the report type without creating it.
         /// Internal helper method.
+        /// Structure:
+        /// - Daily/Weekly: {Base}\{ReportType}\{Year}\{MonthName}\Week {Num}
+        /// - Monthly/Quarterly/Annual: {Base}\{ReportType}
         /// </summary>
         /// <param name="reportType">The report type index (0=Daily, 1=Weekly, etc.).</param>
         /// <param name="baseSaveLocation">The root directory (e.g., ...\Estimates\).</param>
@@ -102,26 +105,25 @@ namespace conversionTest
 
             DateTime now = DateTime.Now;
             string reportTypeFolder;
-            string subFolder1 = string.Empty;
-            string subFolder2 = string.Empty;
+            string yearFolder = string.Empty;     // e.g., "2025"
+            string monthFolder = string.Empty;    // e.g., "April"
+            string weekFolder = string.Empty;     // e.g., "Week 4"
 
             // Determine folder names based on report type
             switch (reportType)
             {
                 case DailyReportIndex: // 0 = Daily
-                    reportTypeFolder = "Daily Reports";
-                    subFolder1 = now.ToString("MMM"); // e.g., "Apr"
-                    int weekNum = GetWeekOfMonth(now); // Use helper
-                    subFolder2 = $"{subFolder1} Week {weekNum}"; // e.g., "Apr Week 4"
-                    break;
                 case WeeklyReportIndex: // 1 = Weekly
-                    reportTypeFolder = "Weekly Reports";
-                    // Weekly reports go into a month subfolder
-                    subFolder1 = now.ToString("MMM"); // e.g., "Apr"
+                    reportTypeFolder = (reportType == DailyReportIndex) ? "Daily Reports" : "Weekly Reports";
+                    yearFolder = now.ToString("yyyy");         // Full year "2025"
+                    monthFolder = now.ToString("MMMM");        // Full month name "April"
+                    int weekNum = GetWeekOfMonth(now);          // Use helper
+                    weekFolder = $"Week {weekNum}";             // "Week 4"
                     break;
+
                 case MonthlyReportIndex: // 2 = Monthly
                     reportTypeFolder = "Monthly Reports";
-                    // Monthly reports go directly into the Monthly Reports folder
+                    // Monthly reports go directly into the Monthly Reports folder (no year/month subfolders)
                     break;
                 case QuarterlyReportIndex: // 3 = Quarterly
                     reportTypeFolder = "Quarterly reports";
@@ -140,20 +142,29 @@ namespace conversionTest
             // Construct the full path safely
             try
             {
+                // Start with Base -> ReportType
                 string fullPath = Path.Combine(baseSaveLocation, reportTypeFolder);
-                if (!string.IsNullOrEmpty(subFolder1))
+
+                // Add Year for Daily/Weekly
+                if (!string.IsNullOrEmpty(yearFolder))
                 {
-                    fullPath = Path.Combine(fullPath, subFolder1);
+                    fullPath = Path.Combine(fullPath, yearFolder);
                 }
-                if (!string.IsNullOrEmpty(subFolder2))
+                // Add Month for Daily/Weekly
+                if (!string.IsNullOrEmpty(monthFolder))
                 {
-                    fullPath = Path.Combine(fullPath, subFolder2);
+                    fullPath = Path.Combine(fullPath, monthFolder);
+                }
+                // Add Week for Daily/Weekly
+                if (!string.IsNullOrEmpty(weekFolder))
+                {
+                    fullPath = Path.Combine(fullPath, weekFolder);
                 }
                 return fullPath;
             }
             catch (ArgumentException ex) // Catch errors during Path.Combine
             {
-                Logger.LogError($"Error combining path segments: {ex.Message}. Base='{baseSaveLocation}', Type='{reportTypeFolder}', Sub1='{subFolder1}', Sub2='{subFolder2}'");
+                Logger.LogError($"Error combining path segments: {ex.Message}. Base='{baseSaveLocation}', Type='{reportTypeFolder}', Year='{yearFolder}', Month='{monthFolder}', Week='{weekFolder}'");
                 return null;
             }
         }

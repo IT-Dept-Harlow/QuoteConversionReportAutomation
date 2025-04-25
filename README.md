@@ -4,6 +4,28 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ## ChangeLog
 
+### Version 1.4.1
+* **Bug Fixes**
+    * Corrected the logic in `dailyCheckTimer_Tick`'s `finally` block to ensure the timer restarts reliably after an automated run, allowing the "Enable Auto Run" setting to persist across runs. The user no longer needs to re-enable auto-run after it completes successfully.
+    * Ensured the `toggleAutoRunButton` is correctly re-enabled after an automated run completes or fails via the `ResetUIOnError` method.
+
+### Version 1.4.0
+* **Refactoring**
+    * Modified `Program.cs` to pass the full path of `appsettings.json` to the `Form1` constructor.
+    * Updated `Form1` constructor to accept and store the `appsettings.json` path.
+    * Changed `Form1` to read the `AutoReport:LastRunDate` value using the injected `IConfiguration` instance (`ReadLastRunDateFromConfig`).
+    * Modified `Form1` to save the `LastRunDate` back to the original `appsettings.json` file using the stored file path (`SaveLastRunDateToFile`), instead of relying solely on `IConfiguration` for writing.
+    * Updated dynamic path properties (`ReportOutputLocation`, `ExcelTemplateLocation`, `ExcelFinalSaveLocation`) and other configuration reads in `Form1` to consistently use the injected `IConfiguration`.
+
+### Version 1.3.9
+* **New Features**
+    * Implemented reading of `AutoReport:LastRunDate` from `appsettings.json` on startup to prevent the daily auto-run from executing if it already ran successfully on the current date.
+    * Implemented saving the current date to `AutoReport:LastRunDate` in `appsettings.json` (formatted as `yyyy-MM-dd`) after a successful automated daily run.
+    * Added logic to disable main UI controls (`createReportButton`, `processEmailButton`, input fields, view buttons, etc.) while the automated daily report is running and re-enable them afterward (`DisableControlsForAutoRun`, `EnableControlsAfterAutoRun`).
+* **Bug Fixes**
+    * Corrected the auto-run time check in `dailyCheckTimer_Tick` to only trigger between 8:00 AM and 8:05 AM.
+    * Improved error handling and logging for reading/writing `appsettings.json` during the save/load of `LastRunDate`.
+
 ### Version 1.3.8
 * **New Features**
     * Added `MenuStrip` with "Options" and "Help" menus.
@@ -12,9 +34,10 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 * **Bug Fixes**
     * Corrected `UpdateAutoRunUI` and `RunAutomatedDailyReportAsync` to update the correct `ToolStripStatusLabel` (`autoRunStatusLabel`) for auto-run status updates, resolving issues with updating the label text and color.
     * Corrected `SafeControlUpdate` calls targeting `ToolStripStatusLabel` to invoke on the parent `StatusStrip` control for thread safety.
-    * Corrected `RunAutomatedDailyReportAsync`'s progress reporting to update the main `statusLabel` (left side) instead of the `autoRunStatusLabel`.
+	* Corrected `RunAutomatedDailyReportAsync` progress reporting: Operational messages now correctly update the main status label (`statusLabel` on the left), while the final outcome (Completed/FAILED) is shown temporarily on the `autoRunStatusLabel` (right).
     * Updated various control names in `Form1.cs` code to match the provided `Form1.Designer.cs` names (e.g., `reportTypeComboBox`, `createReportButton`, `emailRecipientLabel`, etc.).
 * **UI Improvements**
+	* Main status label (`statusLabel`) now resets to "Ready" after an automated run attempt finishes.
     * Status updates are now split: General operations on the left (`statusLabel`), Auto-Run status on the right (`autoRunStatusLabel`).
     * Auto-Run button (`toggleAutoRunButton`) now correctly changes background color (LightGreen/LightCoral) when toggled, independent of the main theme.
 
@@ -22,11 +45,13 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 * **New Features**
     * Added Auto-Run feature with UI toggle button (`btnToggleAutoRun`) and status label (`lblAutoRunStatus` - later changed to ToolStripLabel), triggered by a Timer (`timerDailyCheck`) to run the Daily report automatically at 8 AM.
 	* Added logic to auto run the program, sending email to only Paul
+* **Bug Fixes**
+    * Resolved issue with auto-run status label updates. *(Superseded by 1.3.8 fixes)*
 
 ### Version 1.3.5
 * **New Features**
     * Added "Daily" report type option (uses Weekly template).
-    * Implemented specific folder structure for Daily reports (`<Base Path>\Daily Reports\<Month Name>\<Month Name> Week <Num>\`).
+    * Implemented specific folder structure for Daily reports (`<Base Path>\Daily Reports\<Month Name>\<Month Name> Week <Num>\`). *(Folder structure may be superseded by configuration settings)*
     * Added special email rule: Daily reports in Release mode are sent only to Paul S.
     * Added Dark Mode toggle (`checkBox2DarkMode` - later moved to MenuStrip) with theme application logic. Dark mode is now the default on startup.
 * **Bug Fixes**

@@ -96,6 +96,8 @@ static class Program
         Application.SetCompatibleTextRenderingDefault(false);
 
         // Configuration should not be null here due to earlier checks/returns
-        Application.Run(new Form1(Configuration!)); // Use null-forgiving operator
+        // Pass the configuration AND the settings file path to Form1
+        //Application.Run(new Form1(Configuration!, settingsFilePath)); // Use null-forgiving operator for Configuration
+        Application.Run(new Form1(Configuration!)); // Use null-forgiving operator for Configuration
     }
 }
