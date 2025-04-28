@@ -1,5 +1,7 @@
 // C# 10 File-Scoped Namespace
-namespace conversionTest;
+using conversionTest;
+
+namespace QuoteConversionReportAutomation;
 
 using Microsoft.Extensions.Configuration;
 using System;
@@ -29,7 +31,7 @@ static class Program
         // --- Load Configuration (Plain Text JSON) ---
         Debug.WriteLine($"Attempting to load configuration from: {settingsFilePath}");
 
-        IConfigurationBuilder builder = new ConfigurationBuilder();
+        ConfigurationBuilder builder = new();
 
         try
         {

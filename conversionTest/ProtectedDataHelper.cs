@@ -1,5 +1,7 @@
 ﻿// C# 10 File-Scoped Namespace
-namespace conversionTest; // Or a more general namespace like YourProject.Security
+using conversionTest;
+
+namespace QuoteConversionReportAutomation; // Or a more general namespace like YourProject.Security
 
 using System;
 using System.Diagnostics;
@@ -95,7 +97,7 @@ public static class ProtectedDataHelper
             string currentContentCheck = File.ReadAllText(filePath, Encoding.UTF8).Trim();
 
             // Basic heuristic: if not starting with { or [ (common JSON starts) AND reasonably long, assume encrypted
-            bool looksEncrypted = (!currentContentCheck.StartsWith('{') && !currentContentCheck.StartsWith('['))
+            bool looksEncrypted = !currentContentCheck.StartsWith('{') && !currentContentCheck.StartsWith('[')
                                    && currentContentCheck.Length > 50; // Adjust length threshold if needed
 
             if (looksEncrypted)

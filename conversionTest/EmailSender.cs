@@ -1,6 +1,7 @@
 ﻿// C# 10+ Features
-namespace EmailSender;
+namespace QuoteConversionReportAutomation;
 
+using conversionTest; // Added to access the static Logger class
 // Required using directives
 using Microsoft.Extensions.Configuration;
 using System;
@@ -10,7 +11,6 @@ using System.Net;
 using System.Net.Mail;
 using System.Threading;
 using System.Threading.Tasks;
-using conversionTest; // Added to access the static Logger class
 
 /// <summary>
 /// Provides utility methods for sending emails asynchronously using configuration settings.
@@ -90,7 +90,7 @@ public class EmailUtility
         CancellationToken cancellationToken = default)
     {
         // Basic validation
-        if (toAddresses == null || !toAddresses.Any())
+        if (toAddresses == null || toAddresses.Count == 0)
         {
             Logger.LogError("Email sending failed: No 'To' recipients provided."); // Use Logger
             progress?.Report("Error: No recipients specified.");
@@ -115,7 +115,7 @@ public class EmailUtility
             // Add recipients (validation happens inside AddRecipients)
             AddRecipients(mail, toAddresses, MailMessageRecipientType.To);
             AddRecipients(mail, ccAddresses, MailMessageRecipientType.CC); // Handles null/empty list
-            Logger.LogDebug($"Recipients added. To: {string.Join(";", toAddresses)}, CC: {string.Join(";", ccAddresses ?? new List<string>())}"); // Use Logger
+            Logger.LogDebug($"Recipients added. To: {string.Join(";", toAddresses)}, CC: {string.Join(";", ccAddresses ?? [])}"); // Use Logger
 
             // Add attachment if provided and valid (validation happens inside AddAttachment)
             using var attachment = AddAttachment(attachmentPath); // Returns IDisposable Attachment or null
@@ -210,7 +210,7 @@ public class EmailUtility
     /// <param name="addresses">List of email addresses.</param>
     /// <param name="recipientType">Type of recipient (To or CC).</param>
     /// <exception cref="FormatException">Thrown if an email address is invalid.</exception>
-    private void AddRecipients(MailMessage mail, List<string>? addresses, MailMessageRecipientType recipientType)
+    private static void AddRecipients(MailMessage mail, List<string>? addresses, MailMessageRecipientType recipientType)
     {
         if (addresses == null || addresses.Count == 0) return; // Nothing to add
 
@@ -247,7 +247,7 @@ public class EmailUtility
     /// <param name="attachmentPath">Path to the attachment file (can be null).</param>
     /// <returns>A disposable Attachment object or null.</returns>
     /// <exception cref="FileNotFoundException">Thrown if the attachment file does not exist.</exception>
-    private Attachment? AddAttachment(string? attachmentPath)
+    private static Attachment? AddAttachment(string? attachmentPath)
     {
         if (string.IsNullOrWhiteSpace(attachmentPath))
         {
@@ -278,7 +278,7 @@ public class EmailUtility
     /// </summary>
     /// <param name="email">The email address to validate.</param>
     /// <returns>True if the email address format is valid, false otherwise.</returns>
-    private bool IsValidEmail(string email)
+    private static bool IsValidEmail(string email)
     {
         if (string.IsNullOrWhiteSpace(email))
             return false;

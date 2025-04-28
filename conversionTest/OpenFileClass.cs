@@ -1,10 +1,7 @@
-﻿using System;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
-using System.Windows.Forms;
 
-namespace conversionTest
+namespace QuoteConversionReportAutomation
 {
     /// <summary>
     /// Provides functionality to open a file using the default associated application.
@@ -16,7 +13,7 @@ namespace conversionTest
         /// </summary>
         /// <param name="filePath">The path of the file to open.</param>
         /// <returns>True if the file was opened successfully; otherwise, false.</returns>
-        public bool OpenFile(string filePath)
+        public static bool OpenFile(string filePath)
         {
             if (string.IsNullOrEmpty(filePath))
             {

@@ -1,17 +1,9 @@
 ﻿// C# 10+ Features (using file-scoped namespace, global using directives if applicable elsewhere)
+using conversionTest;
 using OfficeOpenXml; // EPPlus library for Excel manipulation
-using OfficeOpenXml.Table.PivotTable; // For pivot table operations
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization; // Required for Calendar/CultureInfo in GetWeekOfMonth
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using conversionTest; // For Logger and FolderCreation (if used, otherwise remove)
+using OfficeOpenXml.Table.PivotTable;
 
-namespace conversionTest; // File-scoped namespace
+namespace QuoteConversionReportAutomation; // File-scoped namespace
 
 /// <summary>
 /// Represents progress information for Excel operations.
@@ -24,6 +16,7 @@ public record ProgressReport(string Message, int Percentage = -1);
 /// Provides methods for copying data between Excel sheets and performing related operations asynchronously using Tasks.
 /// Uses OfficeOpenXml (EPPlus). Ensure EPPlus license context is set in your application startup.
 /// Includes specific folder structure logic for different report types.
+/// Now uses a specific report date for filename generation.
 /// </summary>
 public static class ExcelCopyData // Made static as methods were static
 {
@@ -64,6 +57,7 @@ public static class ExcelCopyData // Made static as methods were static
     /// <summary>
     /// Asynchronously processes an Excel report: copies data, extracts unique customers, calculates, cleans,
     /// updates weekly summary (if applicable), and handles pivot tables. Saves the final file into a report-type specific folder.
+    /// Uses the provided report date for filename generation.
     /// </summary>
     /// <param name="selectedFinYear">User selected financial year (e.g., "2023_24"). Required for Weekly/Daily.</param>
     /// <param name="reportType">Indicates the report type: 0=Daily, 1=Weekly, 2=Monthly, 3=Quarterly, 4=Annual.</param>
@@ -76,6 +70,7 @@ public static class ExcelCopyData // Made static as methods were static
     /// <param name="startCol">The starting column for copying data from source (1-based).</param>
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">Optional cancellation token.</param>
+    /// <param name="reportDate">The specific date the report pertains to (used for filename generation).</param> // <<< ADDED Parameter
     /// <returns>The path to the final processed Excel file, or null if cancelled or an error occurs.</returns>
     public static async Task<string?> ProcessExcelReportAsync(
         string selectedFinYear, // Still needed for weekly append and potentially daily context
@@ -87,8 +82,9 @@ public static class ExcelCopyData // Made static as methods were static
         string destinationDataSheetName, // e.g., "DATA"
         int startRow = 1,
         int startCol = 1,
-        IProgress<ProgressReport>? progress = null,
-        CancellationToken cancellationToken = default)
+        IProgress<ProgressReport>? progress = null,    
+        DateTime reportDate = default,
+        CancellationToken cancellationToken = default) // <<< ADDED Parameter
     {
         ArgumentException.ThrowIfNullOrEmpty(sourceFilePath);
         ArgumentException.ThrowIfNullOrEmpty(sourceSheetName);
@@ -99,6 +95,13 @@ public static class ExcelCopyData // Made static as methods were static
         if (reportType == WeeklyReportIndex || reportType == DailyReportIndex) // Daily also needs FY context
         {
             ArgumentException.ThrowIfNullOrEmpty(selectedFinYear);
+        }
+
+        // Use Today if default date was passed (shouldn't happen from updated Form1)
+        if (reportDate == default)
+        {
+            reportDate = DateTime.Today;
+            Logger.LogWarning($"ProcessExcelReportAsync called without a specific reportDate. Defaulting to Today for filename generation: {reportDate:yyyy-MM-dd}");
         }
 
 
@@ -114,7 +117,8 @@ public static class ExcelCopyData // Made static as methods were static
             cancellationToken.ThrowIfCancellationRequested();
 
             // 1. Determine and Create Report-Specific Folder using local logic
-            fullOutputFolderPath = CreateReportSpecificFolder(reportType, baseFileSaveLocation); // <<< USE LOCAL METHOD
+            // Folder structure still based on *current* date/time when the process runs
+            fullOutputFolderPath = CreateReportSpecificFolder(reportType, baseFileSaveLocation, DateTime.Now);
             if (fullOutputFolderPath == null)
             {
                 throw new InvalidOperationException("Failed to create or determine the report output folder.");
@@ -136,12 +140,7 @@ public static class ExcelCopyData // Made static as methods were static
             using (var sourcePackage = new ExcelPackage(new FileInfo(sourceFilePath)))
             using (var destinationPackage = new ExcelPackage(new FileInfo(tempFilePath)))
             {
-                ExcelWorksheet? sourceWorksheet = sourcePackage.Workbook.Worksheets[sourceSheetName];
-                if (sourceWorksheet == null)
-                {
-                    throw new FileNotFoundException($"Source sheet '{sourceSheetName}' not found in '{sourceFilePath}'.");
-                }
-
+                ExcelWorksheet? sourceWorksheet = sourcePackage.Workbook.Worksheets[sourceSheetName] ?? throw new FileNotFoundException($"Source sheet '{sourceSheetName}' not found in '{sourceFilePath}'.");
                 ExcelWorksheet destinationWorksheet = GetOrCreateDestinationWorksheet(destinationPackage, destinationDataSheetName, sourceWorksheet);
 
                 int sourceRowCount = sourceWorksheet.Dimension?.Rows ?? 0;
@@ -167,8 +166,8 @@ public static class ExcelCopyData // Made static as methods were static
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // 5. Post-Copy Processing (Unique Customers, Calculations, Cleaning)
-                // <<< Pass the ORIGINAL sourceFilePath for use in weekly append >>>
-                await ProcessPostCopyOperationsAsync(destinationPackage, destinationDataSheetName, AnalysisSheetName, reportType, progress, cancellationToken, selectedFinYear, sourceFilePath);
+                // Pass the reportDate for potential use in post-copy steps if needed later
+                await ProcessPostCopyOperationsAsync(destinationPackage, destinationDataSheetName, AnalysisSheetName, reportType, progress, selectedFinYear, sourceFilePath, reportDate, cancellationToken);
 
                 // 6. Save the destination package (temp file) before renaming
                 progress?.Report(new ProgressReport("Saving processed file...", 85));
@@ -189,11 +188,11 @@ public static class ExcelCopyData // Made static as methods were static
             Logger.LogDebug("Brief delay completed after disposing destination package.");
 
 
-            // 7. Generate Final File Name
+            // 7. Generate Final File Name using the provided reportDate
             progress?.Report(new ProgressReport("Generating final filename...", 90));
-            string generatedFileName = await Task.Run(() => GenerateFinalFileName(reportType), cancellationToken);
+            string generatedFileName = await Task.Run(() => GenerateFinalFileName(reportType, reportDate), cancellationToken); // <<< Pass reportDate
             finalFilePath = Path.Combine(fullOutputFolderPath, generatedFileName);
-            Logger.LogDebug($"Generated final filename: {generatedFileName}");
+            Logger.LogDebug($"Generated final filename based on report date {reportDate:yyyy-MM-dd}: {generatedFileName}");
             Logger.LogDebug($"Full final file path: {finalFilePath}");
 
             Logger.LogInfo($"Attempting to rename file.");
@@ -247,7 +246,7 @@ public static class ExcelCopyData // Made static as methods were static
     {
         DateTime today = DateTime.Today;
         int year = today.Year;
-        int startYear = (today.Month >= 5) ? year : year - 1; // Financial year starts in May
+        int startYear = today.Month >= 5 ? year : year - 1; // Financial year starts in May
         int endYear = startYear + 1;
 
         return useUnderscoreFormat
@@ -291,8 +290,8 @@ public static class ExcelCopyData // Made static as methods were static
         {
             int endYear = startYear + 1;
             // Financial year starts May 1st of startYear and ends April 30th of endYear
-            DateTime fyStartDate = new DateTime(startYear, 5, 1);
-            DateTime fyEndDate = new DateTime(endYear, 4, 30);
+            DateTime fyStartDate = new(startYear, 5, 1);
+            DateTime fyEndDate = new(endYear, 4, 30);
 
             // Check if the entire range [fromDate, toDate] is within [fyStartDate, fyEndDate]
             bool isValid = fromDate >= fyStartDate && toDate <= fyEndDate;
@@ -309,19 +308,32 @@ public static class ExcelCopyData // Made static as methods were static
     /// <summary>
     /// Gets the expected final file path without creating directories or files.
     /// Used for checking if the file already exists before processing.
+    /// Uses the provided report date for filename generation.
     /// </summary>
     /// <param name="reportType">Indicates the report type (0=Daily, 1=Weekly, 2=Monthly, 3=Quarterly, 4=Annual).</param>
     /// <param name="baseFileSaveLocation">Base directory where the report structure will be created.</param>
+    /// <param name="reportDate">The specific date the report pertains to (used for filename generation).</param> // <<< ADDED Parameter
     /// <returns>The calculated full path for the final file, or null if an error occurs.</returns>
-    public static string? GetExpectedFinalFilePath(int reportType, string baseFileSaveLocation)
+    public static string? GetExpectedFinalFilePath(int reportType, string baseFileSaveLocation, DateTime reportDate) // <<< ADDED Parameter
     {
         try
         {
-            // Get the full folder path using the corrected local logic
-            string? folderPath = GetReportSpecificFolderPath(reportType, baseFileSaveLocation); // <<< USE LOCAL METHOD
+            // Use Today for folder structure, reportDate for filename
+            DateTime today = DateTime.Today;
+
+            // Use default date if not provided (shouldn't happen from updated Form1)
+            if (reportDate == default)
+            {
+                reportDate = today;
+                Logger.LogWarning($"GetExpectedFinalFilePath called without a specific reportDate. Defaulting to Today for filename generation: {reportDate:yyyy-MM-dd}");
+            }
+
+            // Get the full folder path using the corrected local logic (based on today's date)
+            string? folderPath = GetReportSpecificFolderPath(reportType, baseFileSaveLocation, today);
             if (folderPath == null) return null;
 
-            string fileName = GenerateFinalFileName(reportType);
+            // Generate filename based on the specific reportDate
+            string fileName = GenerateFinalFileName(reportType, reportDate); // <<< Pass reportDate
             return Path.Combine(folderPath, fileName);
         }
         catch (Exception ex)
@@ -348,20 +360,22 @@ public static class ExcelCopyData // Made static as methods were static
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="selectedFinYear">Selected financial year (YYYY_YY format). Required for Weekly append.</param>
     /// <param name="originalSourceFilePath">The file path of the original raw data file (e.g., Crystal report output).</param>
+    /// <param name="reportDate">The specific date the report pertains to.</param> // <<< ADDED Parameter
     private static async Task ProcessPostCopyOperationsAsync(
         ExcelPackage package,
         string sourceDataSheetName,
         string targetAnalysisSheetName,
         int reportType,
         IProgress<ProgressReport>? progress,
-        CancellationToken cancellationToken,
         string selectedFinYear,
-        string originalSourceFilePath) // <<< Parameter already exists
+        string originalSourceFilePath,
+        DateTime reportDate,
+        CancellationToken cancellationToken) // <<< ADDED Parameter
     {
         progress?.Report(new ProgressReport("Extracting unique customers...", 40));
         // Extract customers from the sourceDataSheetName and populate the targetAnalysisSheetName
-        // <<< Pass originalSourceFilePath to potentially add filename to Analysis sheet >>>
-        await ExtractUniqueCustomersAsync(package, sourceDataSheetName, targetAnalysisSheetName, progress, cancellationToken, originalSourceFilePath);
+        // Pass reportDate for potential use in populating analysis sheet date column
+        await ExtractUniqueCustomersAsync(package, sourceDataSheetName, targetAnalysisSheetName, progress, originalSourceFilePath, reportDate, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
 
         progress?.Report(new ProgressReport("Calculating analysis sheet...", 50));
@@ -377,7 +391,6 @@ public static class ExcelCopyData // Made static as methods were static
         cancellationToken.ThrowIfCancellationRequested();
 
         // Refresh Pivot Tables (if applicable, e.g., Monthly/Quarterly/Annual templates)
-        // <<< Indices updated: 2=Monthly, 3=Quarterly, 4=Annual >>>
         if (reportType is MonthlyReportIndex or QuarterlyReportIndex or AnnualReportIndex)
         {
             progress?.Report(new ProgressReport("Setting pivot tables to refresh on load...", 70));
@@ -389,12 +402,11 @@ public static class ExcelCopyData // Made static as methods were static
         }
 
         // Append to Central Weekly Report (only if processing a Weekly report type)
-        // <<< Index updated: 1 = Weekly >>>
         if (reportType == WeeklyReportIndex)
         {
             progress?.Report(new ProgressReport("Appending data to central weekly report...", 75));
-            // <<< Pass reportType and originalSourceFilePath >>>
-            await CopyAnalysisDataToWeeklyReportAsync(package, targetAnalysisSheetName, progress, cancellationToken, selectedFinYear, reportType, originalSourceFilePath);
+            // Pass reportDate to determine the filename for the weekly append
+            await CopyAnalysisDataToWeeklyReportAsync(package, targetAnalysisSheetName, progress, selectedFinYear, reportType, originalSourceFilePath, reportDate, cancellationToken);
             Logger.LogInfo("Data appended to central weekly report.");
             cancellationToken.ThrowIfCancellationRequested();
         }
@@ -444,21 +456,23 @@ public static class ExcelCopyData // Made static as methods were static
 
     /// <summary>
     /// Extracts unique customers from the source data sheet and populates the target analysis sheet asynchronously.
-    /// Also populates Date, Financial Year, and Source Filename (using original raw file path for non-weekly reports).
+    /// Also populates Date (using reportDate), Financial Year, and Source Filename.
     /// </summary>
     /// <param name="package">The Excel package containing source and target sheets.</param>
     /// <param name="sourceDataSheetName">Name of the sheet with raw data (e.g., "DATA").</param>
     /// <param name="targetAnalysisSheetName">Name of the sheet to populate (e.g., "Analysis").</param>
     /// <param name="progress">Progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <param name="originalSourceFilePath">Full path of the original source file (Crystal report output).</param> // <<< ADDED Parameter
+    /// <param name="originalSourceFilePath">Full path of the original source file (Crystal report output).</param>
+    /// <param name="reportDate">The specific date the report pertains to.</param> // <<< ADDED Parameter
     private static async Task ExtractUniqueCustomersAsync(
         ExcelPackage package,
         string sourceDataSheetName,
         string targetAnalysisSheetName,
-        IProgress<ProgressReport>? progress,
-        CancellationToken cancellationToken,
-        string originalSourceFilePath) // <<< ADDED Parameter
+        IProgress<ProgressReport>? progress,   
+        string originalSourceFilePath,
+        DateTime reportDate,
+        CancellationToken cancellationToken) // <<< ADDED Parameter
     {
         ExcelWorksheet? dataSheet = package.Workbook.Worksheets[sourceDataSheetName];
         if (dataSheet == null)
@@ -485,8 +499,7 @@ public static class ExcelCopyData // Made static as methods were static
         }
 
         // --- Get the filename to populate ---
-        // We always populate the Analysis sheet with the original raw filename for reference.
-        // The weekly report copy logic will handle using the final weekly filename specifically for that output.
+        // Use the original raw filename for reference in the Analysis sheet.
         string sourceFileName = Path.GetFileName(originalSourceFilePath);
         Logger.LogDebug($"Filename determined for Analysis sheet population: {sourceFileName}");
 
@@ -516,7 +529,8 @@ public static class ExcelCopyData // Made static as methods were static
         await Task.Run(() =>
         {
             int analysisPopulateStartRow = 6; // Start populating customer names from row 6
-            string todayDateString = DateTime.Today.ToString("dd/MM/yyyy");
+            // *** Use the passed reportDate for the Date column ***
+            string reportDateString = reportDate.ToString("dd/MM/yyyy");
             string currentFY = GetCurrentFinancialYear(false); // E.g., FY 2024/25
 
             foreach (string customer in uniqueCustomers.OrderBy(c => c)) // Optionally order customers
@@ -524,12 +538,13 @@ public static class ExcelCopyData // Made static as methods were static
                 cancellationToken.ThrowIfCancellationRequested();
                 analysisSheet.Cells[analysisPopulateStartRow, CustomerColumnIndex].Value = customer;
                 // Populate Date, FY, and Source Filename columns
-                analysisSheet.Cells[analysisPopulateStartRow, DateColumnIndex].Value = todayDateString;
+                // *** Use reportDateString ***
+                analysisSheet.Cells[analysisPopulateStartRow, DateColumnIndex].Value = reportDateString;
                 analysisSheet.Cells[analysisPopulateStartRow, FinancialYearColumnIndex].Value = currentFY;
-                analysisSheet.Cells[analysisPopulateStartRow, SourceFileNameColumnIndex].Value = sourceFileName; // <<< ADDED Filename
+                analysisSheet.Cells[analysisPopulateStartRow, SourceFileNameColumnIndex].Value = sourceFileName;
                 analysisPopulateStartRow++;
             }
-            Logger.LogInfo($"Populated '{targetAnalysisSheetName}' with {uniqueCustomers.Count} unique customers starting at row 6.");
+            Logger.LogInfo($"Populated '{targetAnalysisSheetName}' with {uniqueCustomers.Count} unique customers starting at row 6, using report date {reportDateString}.");
         }, cancellationToken);
     }
 
@@ -646,12 +661,12 @@ public static class ExcelCopyData // Made static as methods were static
             try
             {
                 Logger.LogDebug($"Attempting to set Refresh for pivot table '{pivotTableName}' in sheet '{sheetName}'.");
-                pivotTable.CacheDefinition.Refresh();
+                pivotTable.CacheDefinition.Refresh(); // <<< call refresh
                 Logger.LogInfo($"Set pivot table '{pivotTableName}' in sheet '{sheetName}' to refresh.");
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Error setting Refresh for pivot table '{pivotTableName}' in '{sheetName}': {ex.Message}");
+                Logger.LogError($"Error setting RefreshOnLoad for pivot table '{pivotTableName}' in '{sheetName}': {ex.Message}");
             }
         }
         else
@@ -663,23 +678,25 @@ public static class ExcelCopyData // Made static as methods were static
     /// <summary>
     /// Copies data VALUES from the processed Analysis sheet to the central weekly report file asynchronously.
     /// Appends data to the sheet corresponding to the selected financial year.
-    /// Sets the SourceFileName column based on the report type.
+    /// Sets the SourceFileName column based on the report type and report date.
     /// </summary>
     /// <param name="sourcePackage">The package containing the 'Analysis' sheet.</param>
     /// <param name="sourceSheetName">The name of the source sheet (e.g., "Analysis").</param>
     /// <param name="progress">Progress reporter.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
     /// <param name="selectedFinYear">Financial year in format YYYY_YY. Used as the target sheet name.</param>
-    /// <param name="reportType">The type of report being processed (used to determine filename).</param> // <<< ADDED Parameter
+    /// <param name="reportType">The type of report being processed (used to determine filename).</param>
     /// <param name="originalSourceFilePath">The full path of the original raw data file.</param>
+    /// <param name="reportDate">The specific date the report pertains to.</param> 
+    ///     /// <param name="cancellationToken">Cancellation token.</param>
     private static async Task CopyAnalysisDataToWeeklyReportAsync(
         ExcelPackage sourcePackage,
         string sourceSheetName,
         IProgress<ProgressReport>? progress,
-        CancellationToken cancellationToken,
         string selectedFinYear,
-        int reportType, // <<< ADDED Parameter
-        string originalSourceFilePath)
+        int reportType,
+        string originalSourceFilePath,
+        DateTime reportDate,
+        CancellationToken cancellationToken)
     {
         string username = Environment.UserName;
         string destinationFilePath = GetWeeklyReportPath(username); // Get path based on Debug/Release
@@ -724,21 +741,9 @@ public static class ExcelCopyData // Made static as methods were static
             int nextFreeRow = await Task.Run(() => GetNextFreeRow(destinationWorksheet), cancellationToken);
             Logger.LogDebug($"Next free row in weekly report sheet '{targetSheetName}' is {nextFreeRow}.");
 
-            // --- Determine the filename to write based on report type ---
-            string filenameToWrite;
-            if (reportType == WeeklyReportIndex)
-            {
-                // For weekly reports, use the *final* generated weekly filename
-                filenameToWrite = GenerateFinalFileName(reportType);
-                Logger.LogDebug($"Using FINAL weekly filename for weekly report append: {filenameToWrite}");
-            }
-            else
-            {
-                // This case shouldn't normally be hit as this method is only called for Weekly,
-                // but as a fallback, use the original raw filename.
-                filenameToWrite = Path.GetFileName(originalSourceFilePath);
-                Logger.LogWarning($"CopyAnalysisDataToWeeklyReportAsync called for non-weekly type ({reportType}). Using original raw filename: {filenameToWrite}");
-            }
+            // --- Determine the filename to write based on report type and date ---
+            string filenameToWrite = GenerateFinalFileName(reportType, reportDate); // <<< Use reportDate
+            Logger.LogDebug($"Using filename for weekly report append: {filenameToWrite}");
             // --- End filename determination ---
 
 
@@ -864,16 +869,17 @@ public static class ExcelCopyData // Made static as methods were static
 
     /// <summary>
     /// Creates the specific folder structure for the report type and returns the full path.
-    /// Moved from external class into here for direct use.
+    /// Folder structure is based on the date the process is run.
     /// </summary>
     /// <param name="reportType">The report type index (0=Daily, 1=Weekly, etc.).</param>
     /// <param name="baseSaveLocation">The root directory (e.g., ...\Estimates\).</param>
+    /// <param name="runDate">The date the process is run (used for folder naming).</param> // <<< ADDED Parameter
     /// <returns>The full path to the target folder, or null on error.</returns>
-    private static string? CreateReportSpecificFolder(int reportType, string baseSaveLocation)
+    private static string? CreateReportSpecificFolder(int reportType, string baseSaveLocation, DateTime runDate)
     {
         try
         {
-            string targetFolderPath = GetReportSpecificFolderPath(reportType, baseSaveLocation);
+            string targetFolderPath = GetReportSpecificFolderPath(reportType, baseSaveLocation, runDate); // <<< Pass runDate
 
             if (string.IsNullOrEmpty(targetFolderPath))
             {
@@ -894,43 +900,45 @@ public static class ExcelCopyData // Made static as methods were static
     }
 
     /// <summary>
-    /// Determines the specific folder path based on the report type without creating it.
+    /// Determines the specific folder path based on the report type and run date, without creating it.
     /// </summary>
     /// <param name="reportType">The report type index (0=Daily, 1=Weekly, etc.).</param>
     /// <param name="baseSaveLocation">The root directory (e.g., ...\Estimates\).</param>
+    /// <param name="runDate">The date the process is run (used for folder naming).</param> // <<< ADDED Parameter
     /// <returns>The full path to the target folder, or null if type is invalid.</returns>
-    private static string? GetReportSpecificFolderPath(int reportType, string baseSaveLocation)
+    private static string? GetReportSpecificFolderPath(int reportType, string baseSaveLocation, DateTime runDate) // <<< ADDED Parameter
     {
-        DateTime now = DateTime.Now;
-        string reportTypeFolder;
-        string subFolder1 = string.Empty;
-        string subFolder2 = string.Empty;
+        // Validate base location first
+        if (string.IsNullOrWhiteSpace(baseSaveLocation))
+        {
+            Logger.LogError("Base save location provided to GetReportSpecificFolderPath is null or empty.");
+            return null; // Cannot proceed without a base path
+        }
 
-        // <<< UPDATED Switch for new indices and Daily structure >>>
+        // Use the provided runDate for folder structure calculations
+        string reportTypeFolder;
+        string yearFolder = string.Empty;     // e.g., "2025"
+        string monthFolder = string.Empty;    // e.g., "April"
+        string weekFolder = string.Empty;     // e.g., "Week 4"
+
         switch (reportType)
         {
             case DailyReportIndex: // 0 = Daily
-                reportTypeFolder = "Daily Reports";
-                subFolder1 = now.ToString("MMM"); // e.g., "Apr"
-                int weekNum = GetWeekOfMonth(now); // Call the helper function
-                subFolder2 = $"{subFolder1} Week {weekNum}"; // e.g., "Apr Week 4"
-                break;
             case WeeklyReportIndex: // 1 = Weekly
-                reportTypeFolder = "Weekly Reports";
-                // Assuming weekly folders are named by month like "Apr"
-                subFolder1 = now.ToString("MMM");
+                reportTypeFolder = reportType == DailyReportIndex ? "Daily Reports" : "Weekly Reports";
+                yearFolder = runDate.ToString("yyyy");       // Full year "2025"
+                monthFolder = runDate.ToString("MMMM");      // Full month name "April"
+                int weekNum = GetWeekOfMonth(runDate);       // Use helper
+                weekFolder = $"Week {weekNum}";              // "Week 4"
                 break;
             case MonthlyReportIndex: // 2 = Monthly
                 reportTypeFolder = "Monthly Reports";
-                // Monthly reports go directly into the Monthly Reports folder (no subfolder needed here)
                 break;
             case QuarterlyReportIndex: // 3 = Quarterly
                 reportTypeFolder = "Quarterly reports";
-                // Quarterly reports go directly into the Quarterly reports folder
                 break;
             case AnnualReportIndex: // 4 = Annual
                 reportTypeFolder = "Annual Reports";
-                // Annual reports go directly into the Annual Reports folder
                 break;
             default:
                 Logger.LogWarning($"Invalid report type '{reportType}' for folder creation. Using 'Other Reports'.");
@@ -938,59 +946,78 @@ public static class ExcelCopyData // Made static as methods were static
                 break;
         }
 
-        // Construct the full path, including subfolders if they exist
-        string fullPath = Path.Combine(baseSaveLocation, reportTypeFolder);
-        if (!string.IsNullOrEmpty(subFolder1))
+        // Construct the full path safely
+        try
         {
-            fullPath = Path.Combine(fullPath, subFolder1);
-        }
-        if (!string.IsNullOrEmpty(subFolder2))
-        {
-            fullPath = Path.Combine(fullPath, subFolder2);
-        }
+            // Start with Base -> ReportType
+            string fullPath = Path.Combine(baseSaveLocation, reportTypeFolder);
 
-        return fullPath;
+            // Add Year for Daily/Weekly
+            if (!string.IsNullOrEmpty(yearFolder))
+            {
+                fullPath = Path.Combine(fullPath, yearFolder);
+            }
+            // Add Month for Daily/Weekly
+            if (!string.IsNullOrEmpty(monthFolder))
+            {
+                fullPath = Path.Combine(fullPath, monthFolder);
+            }
+            // *** FIXED: Add Week for Daily/Weekly ***
+            if (!string.IsNullOrEmpty(weekFolder))
+            {
+                fullPath = Path.Combine(fullPath, weekFolder);
+            }
+            return fullPath;
+        }
+        catch (ArgumentException ex) // Catch errors during Path.Combine
+        {
+            Logger.LogError($"Error combining path segments: {ex.Message}. Base='{baseSaveLocation}', Type='{reportTypeFolder}', Year='{yearFolder}', Month='{monthFolder}', Week='{weekFolder}'");
+            return null;
+        }
     }
 
 
     /// <summary>
-    /// Generates the final file name based on the report type and current date/period.
+    /// Generates the final file name based on the report type and the specific report date.
     /// </summary>
+    /// <param name="reportType">The report type index.</param>
+    /// <param name="reportDate">The date the report pertains to.</param> // <<< ADDED Parameter
     /// <returns>The file name string (not the full path).</returns>
-    private static string GenerateFinalFileName(int reportType)
+    private static string GenerateFinalFileName(int reportType, DateTime reportDate) // <<< ADDED Parameter
     {
         string fileName;
-        DateTime now = DateTime.Now;
+        // Use the provided reportDate for filename generation
 
-        // <<< UPDATED Switch for new indices and Daily filename >>>
         switch (reportType)
         {
             case DailyReportIndex: // 0 = Daily
-                fileName = $"{now:yyyyMMdd}_Estimate_Success_Rate_Daily.xlsx"; // Specific daily name
+                // Use the specific reportDate (e.g., previous workday)
+                fileName = $"{reportDate:yyyyMMdd}_Estimate_Success_Rate_Daily.xlsx";
                 break;
             case WeeklyReportIndex: // 1 = Weekly
-                fileName = $"{now:yyyyMMdd} Estimate Success Rate.xlsx"; // Keep original weekly name
+                // Use the specific reportDate (end date of the weekly period)
+                fileName = $"{reportDate:yyyyMMdd} Estimate Success Rate.xlsx";
                 break;
             case MonthlyReportIndex: // 2 = Monthly
-                DateTime targetMonth = now.Day <= 15 ? now.AddMonths(-1) : now;
-                fileName = $"Estimate Success Rate {targetMonth:MMM yy}.xlsx";
+                // Monthly filename based on the month/year of the reportDate
+                fileName = $"Estimate Success Rate {reportDate:MMM yy}.xlsx";
                 break;
             case QuarterlyReportIndex: // 3 = Quarterly
-                int currentQuarter = (now.Month - 1) / 3 + 1;
-                // Use the end date of the *previous* quarter for naming
-                DateTime firstDayOfCurrentQuarter = new DateTime(now.Year, (currentQuarter - 1) * 3 + 1, 1);
-                DateTime quarterEndDate = firstDayOfCurrentQuarter.AddDays(-1);
-                DateTime quarterStartDate = quarterEndDate.AddMonths(-3).AddDays(1); // Corrected start date calculation
+                // Quarterly filename based on the quarter of the reportDate
+                int quarter = (reportDate.Month - 1) / 3 + 1;
+                // Use the start/end dates of the quarter the reportDate falls into
+                DateTime quarterStartDate = new(reportDate.Year, (quarter - 1) * 3 + 1, 1);
+                DateTime quarterEndDate = quarterStartDate.AddMonths(3).AddDays(-1);
                 string qtrFolderName = $"{quarterStartDate:MMM} to {quarterEndDate:MMM}{(quarterStartDate.Year != quarterEndDate.Year ? $" {quarterStartDate.Year}-{quarterEndDate.Year}" : $" {quarterStartDate.Year}")}";
                 fileName = $"Estimate Success Rate {qtrFolderName}.xlsx";
                 break;
             case AnnualReportIndex: // 4 = Annual
-                // Use previous calendar year for Annual report name
-                fileName = $"Estimate Success Rate {now.Year - 1}.xlsx";
+                // Annual filename based on the year of the reportDate
+                fileName = $"Estimate Success Rate {reportDate.Year}.xlsx";
                 break;
             default:
-                Logger.LogWarning($"Invalid report type '{reportType}' for filename generation, defaulting to generic format.");
-                fileName = $"{now:yyyyMMdd}_Estimate_Success_Rate_UnknownType.xlsx";
+                Logger.LogWarning($"Invalid report type '{reportType}' for filename generation, defaulting to generic format using report date.");
+                fileName = $"{reportDate:yyyyMMdd}_Estimate_Success_Rate_UnknownType.xlsx";
                 break;
         }
         return fileName;
@@ -1037,11 +1064,11 @@ public static class ExcelCopyData // Made static as methods were static
     public static int GetWeekOfMonth(DateTime date)
     {
         // Get the first day of the month
-        DateTime firstOfMonth = new DateTime(date.Year, date.Month, 1);
+        DateTime firstOfMonth = new(date.Year, date.Month, 1);
 
         // Get the day of the week for the first day (Monday = 1, Sunday = 7, using ISO 8601 standard)
         // DayOfWeek enum: Sunday = 0, Monday = 1, ..., Saturday = 6
-        int firstDayOfWeekIso = ((int)firstOfMonth.DayOfWeek == 0) ? 7 : (int)firstOfMonth.DayOfWeek; // Convert Sunday to 7
+        int firstDayOfWeekIso = firstOfMonth.DayOfWeek == 0 ? 7 : (int)firstOfMonth.DayOfWeek; // Convert Sunday to 7
 
         // Calculate the week number using integer division.
         // Add the offset of the first day (1-based, where Monday is 1) minus 1.

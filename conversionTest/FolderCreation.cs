@@ -1,10 +1,7 @@
 ﻿// C# 10+ Features
-using System;
-using System.Globalization; // Required for Calendar/CultureInfo
-using System.IO;
-using conversionTest; // Assuming Logger is in this namespace
+using conversionTest;
 
-namespace conversionTest
+namespace QuoteConversionReportAutomation
 {
     /// <summary>
     /// Utility class for creating report-specific folder structures.
@@ -114,7 +111,7 @@ namespace conversionTest
             {
                 case DailyReportIndex: // 0 = Daily
                 case WeeklyReportIndex: // 1 = Weekly
-                    reportTypeFolder = (reportType == DailyReportIndex) ? "Daily Reports" : "Weekly Reports";
+                    reportTypeFolder = reportType == DailyReportIndex ? "Daily Reports" : "Weekly Reports";
                     yearFolder = now.ToString("yyyy");         // Full year "2025"
                     monthFolder = now.ToString("MMMM");        // Full month name "April"
                     int weekNum = GetWeekOfMonth(now);          // Use helper
@@ -179,11 +176,11 @@ namespace conversionTest
         public static int GetWeekOfMonth(DateTime date)
         {
             // Get the first day of the month
-            DateTime firstOfMonth = new DateTime(date.Year, date.Month, 1);
+            DateTime firstOfMonth = new(date.Year, date.Month, 1);
 
             // Get the day of the week for the first day (Monday = 1, Sunday = 7, using ISO 8601 standard)
             // DayOfWeek enum: Sunday = 0, Monday = 1, ..., Saturday = 6
-            int firstDayOfWeekIso = ((int)firstOfMonth.DayOfWeek == 0) ? 7 : (int)firstOfMonth.DayOfWeek; // Convert Sunday to 7
+            int firstDayOfWeekIso = firstOfMonth.DayOfWeek == 0 ? 7 : (int)firstOfMonth.DayOfWeek; // Convert Sunday to 7
 
             // Calculate the week number using integer division.
             // Add the offset of the first day (1-based, where Monday is 1) minus 1.

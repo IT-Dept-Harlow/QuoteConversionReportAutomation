@@ -4,7 +4,6 @@ namespace conversionTest;
 using Microsoft.Extensions.Configuration; // Added for IConfiguration
 using System;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
