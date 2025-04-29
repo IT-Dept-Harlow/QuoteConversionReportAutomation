@@ -6,6 +6,36 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ## ChangeLog
 
+### Version 1.6.1
+
+* **New Features**
+    * Added "Custom" report type, automatically selected when date pickers are manually changed.
+    * Implemented specific folder structure (`Custom Reports\YYYY\YYYY-MM-DD_HHMMSS`) and filename format (`{EndDate}_{Timestamp}_Estimate_Success_Rate_Custom.xlsx`) for Custom reports.
+    * Added distinct email subject/body content for Custom reports.
+    * Added `Trace` logging level to `Logger` class (active only in DEBUG builds).
+* **Refactoring**
+    * Consolidated folder creation logic into the static `FolderCreation` class, removing duplication from `ExcelCopyData`.
+* **Bug Fixes & Improvements**
+    * Fixed issue where AutoRun could fail due to file lock when attaching the report to email (implemented reading attachment to memory stream).
+    * Corrected DEBUG mode email recipient logic for the "Send to Femi Only" checkbox based on user clarification.
+    * Fixed issue where manual refresh prompt (`FlexibleMessageBox`) could appear behind the main window and freeze the application (specified owner window).
+    * Corrected status messages after report creation and during manual Excel refresh wait to be more informative.
+    * Fixed folder creation logic for Monthly and Quarterly reports to include year/month or year/quarter subfolders.
+    * Restored missing help text content.
+
+---
+
+### Version 1.6.0
+
+* **Refactoring**
+    * Refactored large `Form1.cs` into smaller, focused classes: `UIManager`, `ReportProcessManager`, `NamedPipeCommunicator`, `AutoRunManager`.
+    * Created static `ReportHelper` class for utility functions (date calculations, file operations).
+    * Changed `ExcelCopyData` to be a non-static class requiring instantiation.
+* **Bug Fixes & Improvements**
+    * Resolved various initial bugs related to the refactoring, including non-static method calls, protection levels, and `IProgress<T>` type mismatches during status reporting.
+
+---
+
 ### Version 1.5.0
 
 * **Bug Fixes & Improvements**
@@ -66,7 +96,7 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ### Version 1.4.6
 
-* **UI Improvements & Configuration** *(Combined related items)*
+* **UI Improvements & Configuration** 
     * Changed dark mode `CheckBox` background color back to match the main dark mode background (`_darkModeCheckBoxBackColor = Color.FromArgb(45, 45, 48)`).
     * Adjusted the auto-run check hour in `dailyCheckTimer_Tick` from 8 AM to 9 AM. *(Reverted in 1.4.7)*
     * Added a troubleshooting tip about Slicer refresh to the Help text (`helpToolStripMenuItem_Click`).
@@ -277,4 +307,3 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 * **Initial Release**
     * Automates the creation of the weekly estimates report using templates and sends email to directors.
-

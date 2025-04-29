@@ -59,5 +59,15 @@ namespace QuoteConversionReportAutomation.Properties {
                 resourceCulture = value;
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] Custom_Icon_Design_Flatastic_5_Reports {
+            get {
+                object obj = ResourceManager.GetObject("Custom-Icon-Design-Flatastic-5-Reports", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
     }
 }

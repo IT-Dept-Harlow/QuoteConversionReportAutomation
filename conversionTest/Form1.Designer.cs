@@ -189,7 +189,7 @@
             reportTypeComboBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
             reportTypeComboBox.AutoCompleteSource = AutoCompleteSource.CustomSource;
             reportTypeComboBox.FormattingEnabled = true;
-            reportTypeComboBox.Items.AddRange(new object[] { "Daily", "Weekly", "Monthly", "Quarterly (3 Months)", "Annual" });
+            reportTypeComboBox.Items.AddRange(new object[] { "Daily", "Weekly", "Monthly", "Quarterly (3 Months)", "Annual", "Custom" });
             reportTypeComboBox.Location = new Point(261, 72);
             reportTypeComboBox.Name = "reportTypeComboBox";
             reportTypeComboBox.Size = new Size(200, 21);

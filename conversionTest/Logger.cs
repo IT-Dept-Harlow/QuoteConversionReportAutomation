@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 /// <summary>
 /// Provides static methods for logging messages to daily rolling log files,
 /// with user-specific directories and archiving of old logs. Reads base directory
-/// from configuration.
+/// from configuration. Includes Trace level logging, typically active only in DEBUG builds.
 /// </summary>
 public static class Logger
 {
@@ -54,16 +54,12 @@ public static class Logger
                 if (string.IsNullOrWhiteSpace(s_baseLogDirectory))
                 {
                     s_baseLogDirectory = s_defaultFallbackDirectory;
-                    Log(LogLevel.Warning, $"Configuration key '{ConfigKeyLogDirectory}' not found or empty. Using fallback directory: {s_baseLogDirectory}");
+                    // Use Debug.WriteLine for early logging before file path is confirmed
+                    Debug.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff zzz}] WARNING: Configuration key '{ConfigKeyLogDirectory}' not found or empty. Using fallback directory: {s_baseLogDirectory}");
                 }
                 else
                 {
-                    // Optional: Resolve relative paths based on application directory if needed
-                    // if (!Path.IsPathRooted(s_baseLogDirectory))
-                    // {
-                    //    s_baseLogDirectory = Path.Combine(AppContext.BaseDirectory, s_baseLogDirectory);
-                    // }
-                    Log(LogLevel.Info, $"Logger initialized. Base log directory set to: {s_baseLogDirectory}");
+                    Debug.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff zzz}] INFO: Logger initialized. Base log directory set to: {s_baseLogDirectory}");
                 }
 
                 // Ensure the initial log file path is set correctly
@@ -82,6 +78,7 @@ public static class Logger
                 }, TaskScheduler.Default);
 
                 s_isInitialized = true;
+                Log(LogLevel.Info, $"--- Logger Initialized (v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version}) ---"); // Log initialization success
             }
             catch (Exception ex)
             {
@@ -100,7 +97,21 @@ public static class Logger
     /// <summary>
     /// Enumerates the different levels of logging.
     /// </summary>
-    public enum LogLevel { Debug, Info, Warning, Error, Critical }
+    public enum LogLevel
+    {
+        /// <summary>Detailed diagnostic information, typically for developers during debugging.</summary>
+        Trace, 
+        /// <summary>Information useful for debugging but potentially too verbose for normal operation.</summary>
+        Debug,
+        /// <summary>Informational messages highlighting the progress of the application.</summary>
+        Info,
+        /// <summary>Indicates potentially harmful situations or non-critical errors.</summary>
+        Warning,
+        /// <summary>Indicates errors that might allow the application to continue running.</summary>
+        Error,
+        /// <summary>Indicates severe errors causing the application to terminate or function incorrectly.</summary>
+        Critical
+    }
 
     /// <summary>
     /// Ensures the log file path is set correctly for the current day.
@@ -198,7 +209,8 @@ public static class Logger
     /// </summary>
     private static string CreateLogMessage(LogLevel level, string message)
     {
-        return $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Environment.UserName}] [PID:{Environment.ProcessId}] [{level.ToString().ToUpperInvariant(),-8}] {message}";
+        // Added Thread ID for better async debugging
+        return $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff zzz}] [Usr:{Environment.UserName}] [PID:{Environment.ProcessId},TID:{Environment.CurrentManagedThreadId}] [{level.ToString().ToUpperInvariant(),-8}] {message}";
     }
 
     /// <summary>
@@ -214,9 +226,8 @@ public static class Logger
         try
         {
             File.AppendAllText(s_logFilePath, logMessage + Environment.NewLine);
-#if DEBUG
+            // Also write to Debug output for immediate visibility during debugging
             Debug.WriteLine(logMessage);
-#endif
         }
         catch (Exception ex) // Catch specific exceptions if needed (IO, UnauthorizedAccess)
         {
@@ -227,6 +238,7 @@ public static class Logger
 
     /// <summary>
     /// Logs a message with the specified log level. Handles file rolling and thread safety.
+    /// Conditionally skips writing Trace messages in non-DEBUG builds.
     /// </summary>
     public static void Log(LogLevel level, string message)
     {
@@ -236,6 +248,16 @@ public static class Logger
             return; // Do not log if not initialized
         }
         if (string.IsNullOrWhiteSpace(message)) return;
+
+        // --- Conditional Logging for Trace ---
+#if !DEBUG
+        // If this is NOT a DEBUG build, skip logging Trace debug messages entirely
+        if (level == LogLevel.Trace || level == LogLevel.Debug)
+        {
+            return;
+        }
+#endif
+        // --- End Conditional Logging ---
 
         try
         {
@@ -254,13 +276,22 @@ public static class Logger
     }
 
     // --- Helper methods for specific log levels ---
+    /// <summary>Logs a detailed diagnostic message, typically only written in DEBUG builds.</summary>
+    public static void LogTrace(string message) => Log(LogLevel.Trace, message); // Added LogTrace helper
+    /// <summary>Logs a message useful for debugging.</summary>
     public static void LogDebug(string message) => Log(LogLevel.Debug, message);
+    /// <summary>Logs an informational message about application progress.</summary>
     public static void LogInfo(string message) => Log(LogLevel.Info, message);
+    /// <summary>Logs a warning about a potentially harmful situation.</summary>
     public static void LogWarning(string message) => Log(LogLevel.Warning, message);
+    /// <summary>Logs an error message.</summary>
     public static void LogError(string message) => Log(LogLevel.Error, message);
-    public static void LogError(string message, Exception ex) => Log(LogLevel.Error, $"{message} Exception: {ex}");
+    /// <summary>Logs an error message along with exception details.</summary>
+    public static void LogError(string message, Exception ex) => Log(LogLevel.Error, $"{message} Exception: {ex}"); // Consider logging full exception details
+    /// <summary>Logs a critical error message.</summary>
     public static void LogCritical(string message) => Log(LogLevel.Critical, message);
-    public static void LogCritical(string message, Exception ex) => Log(LogLevel.Critical, $"{message} Exception: {ex}");
+    /// <summary>Logs a critical error message along with exception details.</summary>
+    public static void LogCritical(string message, Exception ex) => Log(LogLevel.Critical, $"{message} Exception: {ex}"); // Consider logging full exception details
 
     #region Log Archiving (Async)
 
@@ -296,17 +327,21 @@ public static class Logger
     {
         try
         {
-            DirectoryInfo userDirInfo = new DirectoryInfo(userDirectory);
+            DirectoryInfo userDirInfo = new(userDirectory);
             if (!userDirInfo.Exists) return;
 
             Log(LogLevel.Debug, $"Checking directory for archiving: {userDirectory}");
             int archivedCount = 0;
 
-            foreach (FileInfo file in userDirInfo.EnumerateFiles("*.log", SearchOption.TopDirectoryOnly)
-                                                .Where(f => f.LastWriteTime < cutoffDate))
+            // Ensure "Archive" directory itself is not enumerated if it exists at this level
+            string archiveBaseDirName = "Archive";
+            var filesToArchive = userDirInfo.EnumerateFiles("*.log", SearchOption.TopDirectoryOnly)
+                                            .Where(f => f.LastWriteTime < cutoffDate);
+
+            foreach (FileInfo file in filesToArchive)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await ArchiveLogFileAsync(file, userDirectory, cancellationToken);
+                await ArchiveLogFileAsync(file, userDirectory, archiveBaseDirName, cancellationToken);
                 archivedCount++;
             }
             if (archivedCount > 0) Log(LogLevel.Info, $"Archived {archivedCount} log file(s) from {userDirectory}.");
@@ -316,39 +351,45 @@ public static class Logger
         catch (Exception ex) { Log(LogLevel.Error, $"Error archiving logs in {userDirectory}: {ex}"); }
     }
 
-    private static async Task ArchiveLogFileAsync(FileInfo fileToArchive, string baseUserDirectory, CancellationToken cancellationToken)
+    private static async Task ArchiveLogFileAsync(FileInfo fileToArchive, string baseUserDirectory, string archiveBaseDirName, CancellationToken cancellationToken)
     {
         try
         {
             DateTime fileDate = fileToArchive.LastWriteTime;
             string year = fileDate.ToString("yyyy");
-            string month = fileDate.ToString("MM");
+            string month = fileDate.ToString("MM"); // Use MM for consistent sorting
             int weekOfMonth = GetWeekOfMonth(fileDate);
-            string archiveDir = Path.Combine(baseUserDirectory, "Archive", year, month, $"Week{weekOfMonth}");
-            Directory.CreateDirectory(archiveDir);
+            string archiveDir = Path.Combine(baseUserDirectory, archiveBaseDirName, year, month, $"Week{weekOfMonth}");
+            Directory.CreateDirectory(archiveDir); // Ensure target exists
             string archiveFilePath = Path.Combine(archiveDir, fileToArchive.Name);
 
             if (File.Exists(archiveFilePath))
             {
+                // Handle collision - rename the file being archived
                 string uniqueName = $"{Path.GetFileNameWithoutExtension(fileToArchive.Name)}_{DateTime.Now:yyyyMMddHHmmssfff}{fileToArchive.Extension}";
                 archiveFilePath = Path.Combine(archiveDir, uniqueName);
-                Log(LogLevel.Warning, $"Archive file '{fileToArchive.Name}' already exists. Saving as '{uniqueName}'.");
+                Log(LogLevel.Warning, $"Archive file '{fileToArchive.Name}' already exists in target. Archiving as '{uniqueName}'.");
             }
 
-            await Task.Run(() => File.Move(fileToArchive.FullName, archiveFilePath), cancellationToken);
+            await Task.Run(() => fileToArchive.MoveTo(archiveFilePath), cancellationToken); // Use MoveTo
             Log(LogLevel.Info, $"Archived log file: {fileToArchive.Name} to {archiveFilePath}");
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex) { Log(LogLevel.Error, $"Error archiving file {fileToArchive.FullName}: {ex}"); }
     }
 
+    // Using a simpler week of month calculation consistent with previous code
     private static int GetWeekOfMonth(DateTime date)
     {
-        DateTime firstDayOfMonth = new DateTime(date.Year, date.Month, 1);
-        int firstDayOfMonthDayOfWeek = ((int)firstDayOfMonth.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
-        int weekOfMonth = (date.Day + firstDayOfMonthDayOfWeek - 1) / 7 + 1;
+        DateTime firstDayOfMonth = new(date.Year, date.Month, 1);
+        // Adjust first day to be Monday-based (0=Mon, 6=Sun) for calculation
+        int firstDayOfWeekMondayBased = ((int)firstDayOfMonth.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
+        // Calculate week number
+        int weekOfMonth = (date.Day + firstDayOfWeekMondayBased - 1) / 7 + 1;
+        // Cap at 5 for folder naming consistency if desired, though some months have 6 partial weeks
         return Math.Min(weekOfMonth, 5);
     }
+
 
     #endregion
 }

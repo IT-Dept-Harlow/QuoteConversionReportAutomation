@@ -1,5 +1,8 @@
 ﻿// C# 10+ Features
 using conversionTest;
+using System;
+using System.Globalization; // Added for month formatting
+using System.IO;
 
 namespace QuoteConversionReportAutomation
 {
@@ -14,19 +17,23 @@ namespace QuoteConversionReportAutomation
         private const int MonthlyReportIndex = 2;
         private const int QuarterlyReportIndex = 3;
         private const int AnnualReportIndex = 4;
+        private const int CustomReportIndex = 5; // <<< ADDED Custom Index
 
         /// <summary>
-        /// Creates the specific folder structure for the report type and returns the full path.
-        /// Handles Daily, Weekly, Monthly, Quarterly, and Annual reports.
+        /// Creates the specific folder structure for the report type based on the provided date and returns the full path.
+        /// Handles Daily, Weekly, Monthly, Quarterly, Annual, and Custom reports.
         /// </summary>
         /// <param name="reportType">The report type index (0=Daily, 1=Weekly, etc.).</param>
         /// <param name="baseSaveLocation">The root directory (e.g., ...\Estimates\).</param>
+        /// <param name="folderDate">The date to use for determining year/month/week subfolders.</param>
         /// <returns>The full path to the target folder, or null on error.</returns>
-        public static string? CreateReportSpecificFolder(int reportType, string baseSaveLocation)
+        public static string? CreateReportSpecificFolder(int reportType, string baseSaveLocation, DateTime folderDate)
         {
+            Logger.LogDebug($"Entering FolderCreation.CreateReportSpecificFolder(reportType: {reportType}, base: {baseSaveLocation}, folderDate: {folderDate:d})");
             try
             {
-                string? targetFolderPath = GetReportSpecificFolderPath(reportType, baseSaveLocation);
+                // Get the path using the helper, passing the specific date
+                string? targetFolderPath = GetReportSpecificFolderPath(reportType, baseSaveLocation, folderDate);
 
                 if (string.IsNullOrEmpty(targetFolderPath))
                 {
@@ -79,20 +86,28 @@ namespace QuoteConversionReportAutomation
                 Logger.LogError($"Unexpected error creating report folder for type {reportType}: {ex.Message}");
                 return null;
             }
+            finally
+            {
+                Logger.LogDebug($"Exiting FolderCreation.CreateReportSpecificFolder");
+            }
         }
 
         /// <summary>
-        /// Determines the specific folder path based on the report type without creating it.
-        /// Internal helper method.
+        /// Determines the specific folder path based on the report type and date, without creating it.
         /// Structure:
         /// - Daily/Weekly: {Base}\{ReportType}\{Year}\{MonthName}\Week {Num}
-        /// - Monthly/Quarterly/Annual: {Base}\{ReportType}
+        /// - Monthly:      {Base}\{ReportType}\{Year}\{MMM yy}
+        /// - Quarterly:    {Base}\{ReportType}\{Year}\{Mmm to Mmm}
+        /// - Annual:       {Base}\{ReportType}\{Year}
+        /// - Custom:       {Base}\Custom Reports\{Year}\{YYYY-MM-DD_HHMMSS}
         /// </summary>
         /// <param name="reportType">The report type index (0=Daily, 1=Weekly, etc.).</param>
         /// <param name="baseSaveLocation">The root directory (e.g., ...\Estimates\).</param>
-        /// <returns>The full path to the target folder, or null if type is invalid.</returns>
-        private static string? GetReportSpecificFolderPath(int reportType, string baseSaveLocation)
+        /// <param name="folderDate">The date to use for determining year/month/week/timestamp subfolders.</param>
+        /// <returns>The full path to the target folder, or null if type is invalid or path error.</returns>
+        public static string? GetReportSpecificFolderPath(int reportType, string baseSaveLocation, DateTime folderDate) // Made public, added date param
         {
+            Logger.LogDebug($"Entering FolderCreation.GetReportSpecificFolderPath(reportType: {reportType}, base: {baseSaveLocation}, folderDate: {folderDate:d})");
             // Validate base location first
             if (string.IsNullOrWhiteSpace(baseSaveLocation))
             {
@@ -100,35 +115,44 @@ namespace QuoteConversionReportAutomation
                 return null; // Cannot proceed without a base path
             }
 
-            DateTime now = DateTime.Now;
             string reportTypeFolder;
             string yearFolder = string.Empty;     // e.g., "2025"
-            string monthFolder = string.Empty;    // e.g., "April"
-            string weekFolder = string.Empty;     // e.g., "Week 4"
+            string subFolder = string.Empty;    // e.g., "April" or "Apr 25" or "Jan to Mar" or "Week 4" or "2025-04-29_103055"
+            string weekFolder = string.Empty;     // Only used for Daily/Weekly for third level
 
-            // Determine folder names based on report type
+            // Determine folder names based on report type and folderDate
             switch (reportType)
             {
                 case DailyReportIndex: // 0 = Daily
                 case WeeklyReportIndex: // 1 = Weekly
                     reportTypeFolder = reportType == DailyReportIndex ? "Daily Reports" : "Weekly Reports";
-                    yearFolder = now.ToString("yyyy");         // Full year "2025"
-                    monthFolder = now.ToString("MMMM");        // Full month name "April"
-                    int weekNum = GetWeekOfMonth(now);          // Use helper
-                    weekFolder = $"Week {weekNum}";             // "Week 4"
+                    yearFolder = folderDate.ToString("yyyy");         // Full year "2025"
+                    subFolder = folderDate.ToString("MMMM");        // Full month name "April"
+                    int weekNum = GetWeekOfMonth(folderDate);         // Use helper
+                    weekFolder = $"Week {weekNum}";                   // "Week 4"
                     break;
 
                 case MonthlyReportIndex: // 2 = Monthly
                     reportTypeFolder = "Monthly Reports";
-                    // Monthly reports go directly into the Monthly Reports folder (no year/month subfolders)
+                    yearFolder = folderDate.ToString("yyyy");
+                    subFolder = folderDate.ToString("MMM yy", CultureInfo.InvariantCulture); // e.g., Apr 25
                     break;
                 case QuarterlyReportIndex: // 3 = Quarterly
                     reportTypeFolder = "Quarterly reports";
-                    // Quarterly reports go directly into the Quarterly reports folder
+                    yearFolder = folderDate.ToString("yyyy");
+                    int quarter = (folderDate.Month - 1) / 3 + 1;
+                    DateTime quarterStartDate = new(folderDate.Year, (quarter - 1) * 3 + 1, 1);
+                    DateTime quarterEndDate = quarterStartDate.AddMonths(3).AddDays(-1);
+                    subFolder = $"{quarterStartDate:MMM} to {quarterEndDate:MMM}"; // e.g., Jan to Mar
                     break;
                 case AnnualReportIndex: // 4 = Annual
                     reportTypeFolder = "Annual Reports";
-                    // Annual reports go directly into the Annual Reports folder
+                    yearFolder = folderDate.ToString("yyyy");
+                    break;
+                case CustomReportIndex: // 5 = Custom <<< ADDED CASE
+                    reportTypeFolder = "Custom Reports"; // Specific top-level folder
+                    yearFolder = folderDate.ToString("yyyy"); // Group by year
+                    subFolder = folderDate.ToString("yyyy-MM-dd_HHmmss"); // Unique timestamp folder
                     break;
                 default:
                     Logger.LogWarning($"Invalid report type '{reportType}' for folder creation. Using 'Other Reports'.");
@@ -137,33 +161,34 @@ namespace QuoteConversionReportAutomation
             }
 
             // Construct the full path safely
+            string? fullPath = null;
             try
             {
                 // Start with Base -> ReportType
-                string fullPath = Path.Combine(baseSaveLocation, reportTypeFolder);
+                fullPath = Path.Combine(baseSaveLocation, reportTypeFolder);
 
-                // Add Year for Daily/Weekly
+                // Add Year if applicable
                 if (!string.IsNullOrEmpty(yearFolder))
                 {
                     fullPath = Path.Combine(fullPath, yearFolder);
                 }
-                // Add Month for Daily/Weekly
-                if (!string.IsNullOrEmpty(monthFolder))
+                // Add Month/Quarter/Timestamp folder if applicable
+                if (!string.IsNullOrEmpty(subFolder))
                 {
-                    fullPath = Path.Combine(fullPath, monthFolder);
+                    fullPath = Path.Combine(fullPath, subFolder);
                 }
-                // Add Week for Daily/Weekly
+                // Add Week if applicable (only Daily/Weekly)
                 if (!string.IsNullOrEmpty(weekFolder))
                 {
                     fullPath = Path.Combine(fullPath, weekFolder);
                 }
-                return fullPath;
             }
             catch (ArgumentException ex) // Catch errors during Path.Combine
             {
-                Logger.LogError($"Error combining path segments: {ex.Message}. Base='{baseSaveLocation}', Type='{reportTypeFolder}', Year='{yearFolder}', Month='{monthFolder}', Week='{weekFolder}'");
-                return null;
+                Logger.LogError($"Error combining path segments: {ex.Message}. Base='{baseSaveLocation}', Type='{reportTypeFolder}', Year='{yearFolder}', Sub='{subFolder}', Week='{weekFolder}'");
             }
+            Logger.LogDebug($"Exiting FolderCreation.GetReportSpecificFolderPath. Result: {fullPath ?? "null"}");
+            return fullPath;
         }
 
 
@@ -177,23 +202,10 @@ namespace QuoteConversionReportAutomation
         {
             // Get the first day of the month
             DateTime firstOfMonth = new(date.Year, date.Month, 1);
-
-            // Get the day of the week for the first day (Monday = 1, Sunday = 7, using ISO 8601 standard)
-            // DayOfWeek enum: Sunday = 0, Monday = 1, ..., Saturday = 6
-            int firstDayOfWeekIso = firstOfMonth.DayOfWeek == 0 ? 7 : (int)firstOfMonth.DayOfWeek; // Convert Sunday to 7
-
-            // Calculate the week number using integer division.
-            // Add the offset of the first day (1-based, where Monday is 1) minus 1.
-            // Add the day of the month (1-based).
-            // Subtract 1 because we want the result to be 0-based for the division.
-            // Divide by 7.
-            // Add 1 to make the final result 1-based (Week 1, Week 2, etc.).
+            // Get the day of the week for the first day (Monday = 1, Sunday = 7)
+            int firstDayOfWeekIso = firstOfMonth.DayOfWeek == 0 ? 7 : (int)firstOfMonth.DayOfWeek;
+            // Calculate week number
             int weekOfMonth = (date.Day + firstDayOfWeekIso - 1 - 1) / 7 + 1;
-
-            // Alternative simpler calculation (often sufficient if exact ISO week definition isn't critical):
-            // int weekOfMonth = (date.Day + (int)firstOfMonth.DayOfWeek - (int)DayOfWeek.Monday -1) / 7 + 1;
-            // This might need adjustment based on whether DayOfWeek.Monday is 0 or 1 in your context.
-
             return weekOfMonth;
         }
     }
