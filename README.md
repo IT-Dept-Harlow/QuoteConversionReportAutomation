@@ -22,6 +22,7 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
     * Implemented specific folder structure (`Custom Reports\YYYY\YYYY-MM-DD_HHMMSS`) and filename format (`{EndDate}_{Timestamp}_Estimate_Success_Rate_Custom.xlsx`) for Custom reports.
     * Added distinct email subject/body content for Custom reports.
     * Added `Trace` logging level to `Logger` class (active only in DEBUG builds).
+      
 * **Refactoring**
     * Consolidated folder creation logic into the static `FolderCreation` class, removing duplication from `ExcelCopyData`.
 * **Bug Fixes & Improvements**
@@ -31,6 +32,7 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
     * Corrected status messages after report creation and during manual Excel refresh wait to be more informative.
     * Fixed folder creation logic for Monthly and Quarterly reports to include year/month or year/quarter subfolders.
     * Restored missing help text content.
+    * Changed `Debug` logging level in `Logger` class (active only in DEBUG builds).
 
 ---
 
