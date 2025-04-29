@@ -432,7 +432,7 @@ namespace QuoteConversionReportAutomation
                 _viewAnalysisButton.Visible = false;
                 _viewAnalysisButton.Enabled = false;
 
-                // Clear any stored paths associated with view buttons (using Tag property as an example)
+                // Clear any stored paths associated with view buttons
                 _viewReportButton.Tag = null;
                 _viewAnalysisButton.Tag = null;
 

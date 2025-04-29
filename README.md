@@ -6,6 +6,15 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ## ChangeLog
 
+### Version 1.6.2
+
+* **Logging Improvements**
+    * Added configurable minimum logging level via `appsettings.json` (`settings:LogLevel` for Release, `settings:LogLevelDebug` for Debug).
+    * Updated `Logger.cs` to read and apply the configured minimum log level.
+    * Refined logging levels used in `ExcelCopyData.cs` and `Logger.cs` for better granularity (using `LogTrace` for finer details, adjusting `LogDebug`, `LogError`, `LogCritical` usage).
+
+---
+
 ### Version 1.6.1
 
 * **New Features**

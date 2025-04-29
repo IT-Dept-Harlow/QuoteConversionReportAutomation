@@ -12,7 +12,7 @@ namespace conversionTest
     using System.Threading;
     using System.Threading.Tasks; // Keep for Task
     using ReportWrapperCommon; // For ReportRequest/Response
-    using JR.Utils.GUI.Forms; // Added for FlexibleMessageBox
+    using JR.Utils.GUI.Forms; // Added for MessageBox
 
     using QuoteConversionReportAutomation; // For EmailUtility, ExcelCopyData
 
@@ -37,7 +37,7 @@ namespace conversionTest
         private readonly ExcelCopyData _excelProcessor;
 
         // --- Application Info ---
-        private const string AppVersion = "1.6.1"; // Reflects custom report changes
+        private const string AppVersion = "1.6.2"; // Reflects Logger changes
 
         // --- State Variables (Remaining in Form1) ---
         /// <summary>Stores the file path of the raw Excel report generated (output of Button 1).</summary>
@@ -197,7 +197,7 @@ namespace conversionTest
             {
                 Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff zzz}] Form1 Constructor: CRITICAL ERROR during InitializeComponent or Manager Instantiation! Exception: {ex}");
                 Logger.LogCritical($"CRITICAL ERROR during Form Initialization: {ex.Message}", ex);
-                FlexibleMessageBox.Show($"A critical error occurred initializing the application:\n\n{ex.Message}\n\nThe application cannot continue.",
+                MessageBox.Show($"A critical error occurred initializing the application:\n\n{ex.Message}\n\nThe application cannot continue.",
                                         "Initialization Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 throw; // Re-throw to terminate
             }
@@ -234,14 +234,14 @@ namespace conversionTest
                 if (string.IsNullOrEmpty(crystalReportPath) || !File.Exists(crystalReportPath))
                 {
                     Logger.LogError($"Config 'settings:CrystalReportPath' missing or file not found: '{crystalReportPath}'. Report generation disabled.");
-                    FlexibleMessageBox.Show($"Warning: Crystal Report file path is missing or invalid ('{crystalReportPath}').\n\nReport generation (Button 1) will be disabled.",
+                    MessageBox.Show($"Warning: Crystal Report file path is missing or invalid ('{crystalReportPath}').\n\nReport generation (Button 1) will be disabled.",
                                             "Configuration Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     configValid = false;
                 }
                 if (string.IsNullOrEmpty(wrapperExePath) || !File.Exists(Path.GetFullPath(wrapperExePath)))
                 {
                     Logger.LogError($"Config 'settings:WrapperExePath' missing or file not found: '{wrapperExePath}'. Report generation disabled.");
-                    FlexibleMessageBox.Show($"Warning: Crystal Report Wrapper executable path is missing or invalid ('{wrapperExePath}').\n\nReport generation (Button 1) will be disabled.",
+                    MessageBox.Show($"Warning: Crystal Report Wrapper executable path is missing or invalid ('{wrapperExePath}').\n\nReport generation (Button 1) will be disabled.",
                                             "Configuration Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     configValid = false;
                 }
@@ -309,7 +309,7 @@ namespace conversionTest
             {
                 Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff zzz}] Form1_Load: CRITICAL ERROR! Exception: {ex}");
                 Logger.LogCritical($"CRITICAL ERROR during Form_Load: {ex.Message}", ex);
-                FlexibleMessageBox.Show($"A critical error occurred loading the application:\n\n{ex.Message}\n\nThe application may not function correctly.",
+                MessageBox.Show($"A critical error occurred loading the application:\n\n{ex.Message}\n\nThe application may not function correctly.",
                                         "Application Load Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 _uiManager.UpdateStatusMain("Error during load.");
             }
@@ -403,13 +403,13 @@ namespace conversionTest
             catch (OperationCanceledException)
             {
                 Logger.LogWarning("Report generation request cancelled or timed out.");
-                FlexibleMessageBox.Show("The report generation request timed out or was cancelled.", "Timeout / Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("The report generation request timed out or was cancelled.", "Timeout / Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 ResetUIStateOnError("Cancelled");
             }
             catch (Exception ex)
             {
                 Logger.LogError($"Error during Create Report operation: {ex}");
-                FlexibleMessageBox.Show($"An error occurred while requesting the report:\n\n{ex.Message}", "Report Request Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"An error occurred while requesting the report:\n\n{ex.Message}", "Report Request Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 ResetUIStateOnError("Error");
             }
         }
@@ -450,7 +450,7 @@ namespace conversionTest
                 if (expectedFinalPath != null && File.Exists(expectedFinalPath))
                 {
                     Logger.LogWarning($"Expected final file already exists: {expectedFinalPath}");
-                    DialogResult dr = FlexibleMessageBox.Show(
+                    DialogResult dr = MessageBox.Show(
                         $"The report file '{Path.GetFileName(expectedFinalPath)}' already exists for this period.\n\n" +
                         "Do you want to skip processing and send this existing file?",
                         "File Already Exists", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
@@ -482,7 +482,7 @@ namespace conversionTest
                         catch (Exception delEx)
                         {
                             Logger.LogError($"Failed to delete existing file '{expectedFinalPath}': {delEx.Message}");
-                            FlexibleMessageBox.Show($"Could not delete the existing report file:\n{expectedFinalPath}\n\nPlease ensure the file is not open and try again.\n\nError: {delEx.Message}",
+                            MessageBox.Show($"Could not delete the existing report file:\n{expectedFinalPath}\n\nPlease ensure the file is not open and try again.\n\nError: {delEx.Message}",
                                             "File Deletion Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             ResetUIStateOnError("File Error"); return;
                         }
@@ -543,13 +543,13 @@ namespace conversionTest
             catch (FileNotFoundException fnfEx)
             {
                 Logger.LogError($"File not found during Process & Email operation: {fnfEx}");
-                FlexibleMessageBox.Show(fnfEx.Message, "File Not Found Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(fnfEx.Message, "File Not Found Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 ResetUIStateOnError("File Error");
             }
             catch (Exception ex)
             {
                 Logger.LogError($"Error during Process & Email operation: {ex}");
-                FlexibleMessageBox.Show($"An unexpected error occurred during processing:\n\n{ex.Message}", "Processing Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"An unexpected error occurred during processing:\n\n{ex.Message}", "Processing Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 ResetUIStateOnError("Error");
             }
         }
@@ -868,7 +868,7 @@ namespace conversionTest
             if (startDatePicker.Value.Date > endDatePicker.Value.Date)
             {
                 Logger.LogError("Validation Failed: 'From' date cannot be after 'To' date.");
-                FlexibleMessageBox.Show("The 'From' date cannot be after the 'To' date.", "Date Range Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("The 'From' date cannot be after the 'To' date.", "Date Range Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
             return true;
@@ -892,7 +892,7 @@ namespace conversionTest
                 if (!_excelProcessor.IsFinancialYearValid(selectedFinYear, startDatePicker.Value, endDatePicker.Value))
                 {
                     Logger.LogWarning($"Potential FY mismatch: Selected FY '{selectedFinYear}', Date Range '{startDatePicker.Value:d}' to '{endDatePicker.Value:d}'. Prompting user.");
-                    DialogResult dr = FlexibleMessageBox.Show($"The selected date range ({startDatePicker.Value:d} - {endDatePicker.Value:d}) does not fall entirely within the selected Financial Year ({selectedFinYear}).\n\nDo you want to continue anyway?", "Financial Year Mismatch Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                    DialogResult dr = MessageBox.Show($"The selected date range ({startDatePicker.Value:d} - {endDatePicker.Value:d}) does not fall entirely within the selected Financial Year ({selectedFinYear}).\n\nDo you want to continue anyway?", "Financial Year Mismatch Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
                     if (dr == DialogResult.No) { Logger.LogInfo("User chose not to proceed due to FY mismatch."); return false; }
                     Logger.LogWarning("User chose to proceed despite FY mismatch warning.");
                 }
@@ -1009,7 +1009,7 @@ namespace conversionTest
             catch (Exception ex)
             {
                 Logger.LogError($"Error sending completion email: {ex}");
-                FlexibleMessageBox.Show($"Failed to send the completion email:\n\n{ex.Message}", "Email Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Failed to send the completion email:\n\n{ex.Message}", "Email Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 throw; // Re-throw for the main catch block to reset UI
             }
         }
@@ -1185,7 +1185,7 @@ namespace conversionTest
             {
                 Logger.LogDebug("HandleManualExcelRefreshAsync: Found running Excel instances.");
                 // *** FIX: Specify owner window 'this' ***
-                DialogResult closeResult = FlexibleMessageBox.Show(this,
+                DialogResult closeResult = MessageBox.Show(this,
                    "Other Excel instances are running. Close them before proceeding?",
                    "Close Other Excel Instances?", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
 
@@ -1209,7 +1209,7 @@ namespace conversionTest
             }
 
             // *** FIX: Specify owner window 'this' ***
-            FlexibleMessageBox.Show(this,
+            MessageBox.Show(this,
                "The report will open in Excel.\n\n*** IMPORTANT ***\n1. Refresh All Pivots/Slicers.\n2. SAVE the file.\n3. CLOSE Excel.\n\nThe application will wait.",
                "Manual Refresh Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
@@ -1233,7 +1233,7 @@ namespace conversionTest
                 _uiManager.UpdateStatusMain("Excel closed.");
 
                 // *** FIX: Specify owner window 'this' ***
-                DialogResult sendResult = FlexibleMessageBox.Show(this,
+                DialogResult sendResult = MessageBox.Show(this,
                    "Excel closed.\n\nProceed with sending the email?",
                    "Confirm Email Send", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
@@ -1250,7 +1250,7 @@ namespace conversionTest
             catch (Exception ex)
             {
                 Logger.LogError($"Error during manual Excel handling: {ex}");
-                FlexibleMessageBox.Show($"An error occurred managing Excel refresh:\n\n{ex.Message}", "Excel Interaction Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"An error occurred managing Excel refresh:\n\n{ex.Message}", "Excel Interaction Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 Logger.LogDebug($"Exiting HandleManualExcelRefreshAsync due to error.");
                 return false;
             }
