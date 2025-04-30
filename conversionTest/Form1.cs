@@ -14,6 +14,7 @@ namespace conversionTest
     using ReportWrapperCommon; // For ReportRequest/Response
     using QuoteConversionReportAutomation; // For EmailUtility, ExcelCopyData, ReportArchiver, HelpForm
     using JR.Utils.GUI.Forms;
+    using static System.Windows.Forms.VisualStyles.VisualStyleElement.ListView;
 
     /// <summary>
     /// Represents the main form of the Quote Conversion Report Automation application.
@@ -815,59 +816,61 @@ namespace conversionTest
 
             // Build the RTF content
             helpMessageBuilder.AppendLine("{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Segoe UI;}}");
-            helpMessageBuilder.AppendLine("{\\colortbl ;\\red0\\green0\\blue0;}");
-            helpMessageBuilder.AppendLine("\\pard\\sa200\\sl276\\slmult1\\b\\fs24 Quote Conversion Automation Tool\\b0\\fs20\\par");
-            helpMessageBuilder.AppendLine("\\par");
+            helpMessageBuilder.AppendLine("{\\colortbl ;\\red0\\green0\\blue0;}"); // Standard black color
+            helpMessageBuilder.AppendLine("\\pard\\sa200\\sl276\\slmult1\\b\\fs24 Quote Conversion Automation Tool\\b0\\fs20\\par"); // Title
+            helpMessageBuilder.AppendLine("\\par"); // Paragraph break
             helpMessageBuilder.AppendLine("This tool automates the process of generating and processing Estimate Success Rate reports.\\par");
             helpMessageBuilder.AppendLine("\\par");
             helpMessageBuilder.AppendLine("\\b How to Use: \\b0\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("1.  \\b Select Report Type: \\b0  Choose Daily, Weekly, Monthly, Quarterly, Annual, or Custom from the dropdown. Dates will adjust automatically for standard types based on the \\i current date\\i0 .\\par"); // Updated help text
-            helpMessageBuilder.AppendLine("    * \\b Daily:\\b0  Dates will be set to the \\i previous working day\\i0  (Friday if today is Monday, otherwise yesterday).\\par");
-            helpMessageBuilder.AppendLine("    * \\b Weekly/Daily: \\b0  Ensure the correct Financial Year is selected if visible (it will default based on the current date).\\par"); // Updated help text
-            helpMessageBuilder.AppendLine("    * \\b Custom:\\b0 Select this or manually change the dates in the date pickers.\\par");
+            helpMessageBuilder.AppendLine("1.  \\b Select Report Type: \\b0 Choose Daily, Weekly, Monthly, Quarterly, Annual, or Custom from the dropdown. The 'From' and 'To' dates, along with the Financial Year (if applicable), will adjust automatically based on the {\\i current date} when you select a standard report type.\\par");
+            helpMessageBuilder.AppendLine("    * \\b Daily: \\b0 Dates will be set to the {\\i previous working day} (e.g., Friday if today is Monday, otherwise yesterday).\\par");
+            helpMessageBuilder.AppendLine("    * \\b Weekly/Daily: \\b0 Ensure the correct Financial Year is selected if visible (it defaults based on the {\\i current date}).\\par");
+            helpMessageBuilder.AppendLine("    * \\b Custom: \\b0 Select this type, or simply change the 'From' or 'To' dates manually.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("2.  \\b Adjust Dates (Optional/Custom report): \\b0  You can manually change the 'From' and 'To' dates. Doing so will automatically select the 'Custom' report type.\\par");
+            helpMessageBuilder.AppendLine("2.  \\b Adjust Dates (Optional/Custom report): \\b0 You can manually change the 'From' and 'To' dates. Doing so will automatically select the 'Custom' report type.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("3.  \\b Create Raw Report: \\b0  Click the \\\"Create Report\\\" button. This contacts a background service to generate the raw data export from Crystal Reports. Wait for the status to show \\\"Report Created\\\". The filename will reflect the 'To' date.\\par");
+            helpMessageBuilder.AppendLine("3.  \\b Create Raw Report: \\b0 Click the \\\"Create Report\\\" button. This contacts a background service to generate the raw data export from Crystal Reports. Wait for the status to show \\\"Report Created\\\". The filename will reflect the 'To' date.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("4.  \\b Process & Email: \\b0  Once the raw report is created, click the \\\"Process and Email\\\" button. This will perform the necessary data processing and email the final report.\\par");
-            helpMessageBuilder.AppendLine("    * (For Weekly reports) Data is also appended to the central Power BI source file.\\par");
+            helpMessageBuilder.AppendLine("4.  \\b Process & Email: \\b0 Once the raw report is created, click the \\\"Process and Email\\\" button. This performs data processing (including appending to the central weekly file for Weekly reports) and emails the final report.\\par");
             helpMessageBuilder.AppendLine("    * (For Monthly/Quarterly/Annual/Custom) You will be prompted to open the file in Excel to Refresh All pivot tables, Save, and Close before the email is sent.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("5.  \\b View Files (Optional): \\b0  Use the \\\"View Report\\\" and \\\"View Analysis\\\" buttons after the corresponding steps are complete to open the generated files.\\par");
+            helpMessageBuilder.AppendLine("5.  \\b View Files (Optional): \\b0 Use the \\\"View Report\\\" and \\\"View Analysis\\\" buttons after the corresponding steps are complete to open the generated files.\\par");
             helpMessageBuilder.AppendLine("\\par");
             helpMessageBuilder.AppendLine("6.  \\b Options Menu: \\b0\\par");
-            helpMessageBuilder.AppendLine("    * \\b Dark Mode: \\b0  Toggle the visual theme.\\par");
+            helpMessageBuilder.AppendLine("    * \\b Dark Mode: \\b0 Toggle the visual theme.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("7.  \\b Auto Run Button: \\b0  Enable/Disable the automated daily report generation (runs around 8 AM for the \\i previous working day\\i0 ). The status is shown on the right of the status bar.\\par");
+            helpMessageBuilder.AppendLine("7.  \\b Auto Run Button: \\b0 Enable/Disable the automated daily report generation. When enabled, the application checks around 8 AM each day. If the report for the {\\i previous working day} hasn't run yet for the current date, it will generate and email it automatically. The status is shown on the right of the status bar.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            // --- ADDED: Automated Features Section ---
             helpMessageBuilder.AppendLine("\\b Automated Features: \\b0\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("* \\b Folder Creation: \\b0 The application automatically creates the necessary folder structure (e.g., `..\\Estimates\\Weekly Reports\\2025\\April\\Week 2`) based on the report type and date when processing reports.\\par");
+            helpMessageBuilder.AppendLine("* \\b Folder Creation: \\b0 The application automatically creates the necessary folder structure within the configured base directories (e.g., `ExcelFinalSaveLocation`, `RawReportExportBaseDir`) when generating or processing reports. The structure depends on the report type:\\par");
+            helpMessageBuilder.AppendLine("    * \\b Daily/Weekly: \\b0 `..\\\\[Report Type Folder]\\[Year]\\[Month Name]\\Week [Week Number]\\` (e.g., `..\\\\Estimates\\\\Weekly Reports\\\\2025\\\\April\\\\Week 2\\\\`)\\par");
+            helpMessageBuilder.AppendLine("    * \\b Monthly: \\b0 `..\\\\[Report Type Folder]\\[Year]\\[MMM yy]\\` (e.g., `..\\\\Estimates\\\\Monthly Reports\\\\2025\\\\Apr 25\\\\`)\\par");
+            helpMessageBuilder.AppendLine("    * \\b Quarterly: \\b0 `..\\\\[Report Type Folder]\\[Year]\\[Mmm to Mmm]\\` (e.g., `..\\\\Estimates\\\\Quarterly reports\\\\2025\\\\Jan to Mar\\\\`)\\par");
+            helpMessageBuilder.AppendLine("    * \\b Annual: \\b0 `..\\\\[Report Type Folder]\\[Year]\\` (e.g., `..\\\\Estimates\\\\Annual Reports\\\\2025\\\\`)\\par");
+            helpMessageBuilder.AppendLine("    * \\b Custom: \\b0 `..\\\\Custom Reports\\[Year]\\[yyyy-MM-dd_HHmmss]\\` (e.g., `..\\\\Estimates\\\\Custom Reports\\\\2025\\\\2025-04-30_101500\\\\`)\\par");
             helpMessageBuilder.AppendLine("* \\b Log Archiving: \\b0 Old log files (older than 30 days) are automatically moved to an 'Archive' subfolder within your user's log directory during application startup to keep the main log folder clean.\\par");
-            helpMessageBuilder.AppendLine("* \\b Report Archiving: \\b0 On startup, older report files/folders are archived: Final reports from previous years (e.g., `..\\Estimates\\Weekly Reports\\2024`) are moved into an `Archive` folder (`..\\Estimates\\Archive\\Weekly Reports\\2024`), merging if the destination exists. Raw report files older than 30 days (configurable) are moved into an `Archive\\YYYY-MM` subfolder within their report type folder (e.g., `..\\Exports\\Daily Reports\\Archive\\2025-03`).\\par"); // Updated
+            helpMessageBuilder.AppendLine("* \\b Report Archiving: \\b0 On startup, older report files/folders are archived: Final reports from previous years (e.g., `..\\\\Estimates\\\\Weekly Reports\\\\2024`) are moved into an `Archive` folder (`..\\\\Estimates\\\\Archive\\\\Weekly Reports\\\\2024`), merging if the destination exists. Raw report files older than 30 days (configurable) are moved into an `Archive\\\\YYYY-MM` subfolder within their report type folder (e.g., `..\\\\Exports\\\\Daily Reports\\\\Archive\\\\2025-03`).\\par");
             helpMessageBuilder.AppendLine("* \\b Weekly Sheet Creation: \\b0 When processing a Weekly report, if the sheet for the corresponding Financial Year (e.g., '2024_25') doesn't exist in the central Power BI source file (`weekly report quotes conversion merged.xlsx`), the application will create it automatically, copying headers from the 'Analysis' sheet of the template.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            // --- End Added Section ---
             helpMessageBuilder.AppendLine("\\b Troubleshooting: \\b0\\par");
             helpMessageBuilder.AppendLine("\\par");
             helpMessageBuilder.AppendLine("* Ensure the Crystal Report Wrapper service is running (the app tries to start it).\\par");
             helpMessageBuilder.AppendLine("* Check file paths in `appsettings.json` if errors occur finding reports or templates.\\par");
             helpMessageBuilder.AppendLine("* Ensure the central weekly report file is accessible and not locked if appending fails.\\par");
-            helpMessageBuilder.AppendLine("* Check the application logs located in the 'Logs' subfolder (within the configured LogDirectory, specific to your username) for detailed error information.\\par"); // Updated log path description
+            helpMessageBuilder.AppendLine("* Check the application logs located in the 'Logs' subfolder (within the configured LogDirectory, specific to your username) for detailed error information.\\par");
             helpMessageBuilder.AppendLine("* If auto-run fails to update `appsettings.json`, check file permissions for the application directory.\\par");
             helpMessageBuilder.AppendLine("* If you get an error refreshing a Slicer, remove it, then click into the Pivot table, in the PivotTable Fields on the right, Right Click customers and select add as slicer, move it back to where it was.\\par");
+            helpMessageBuilder.Append("}");
 
-            helpMessageBuilder.Append('}'); // Append the final closing brace without a newline
 
             string helpMessage = helpMessageBuilder.ToString();
 
-            // Use HelpForm instead of FlexibleMessageBox
+            
             try
             {
-                // *** FIX: Pass the current dark mode state ***
+                // *** Pass the current dark mode state ***
                 bool isDarkMode = darkModeToolStripMenuItem.Checked;
                 // Create and show the HelpForm modally, passing the RTF content and theme state
                 using var helpForm = new HelpForm(helpTitle, helpMessage, isDarkMode);

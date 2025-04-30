@@ -14,6 +14,8 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
     * Updated `reportTypeComboBox_SelectedIndexChanged` and `PopulateFinancialYearDropdown` to always use `DateTime.Today` for calculating default date ranges and the current financial year, ensuring the UI reflects the actual current date.
     * Ensured `processEmailButton_Click` gets the correct financial year dynamically before processing.
     * Updated Help text slightly to reflect that default dates/FY are based on the current date.
+	* Removed Financial Year dropdown from daily reports as it's not used.
+	* Updated and reformatted help text.
 
 ---
 
