@@ -12,9 +12,8 @@ namespace conversionTest
     using System.Threading;
     using System.Threading.Tasks; // Keep for Task
     using ReportWrapperCommon; // For ReportRequest/Response
-    using JR.Utils.GUI.Forms; // Added for MessageBox
-
-    using QuoteConversionReportAutomation; // For EmailUtility, ExcelCopyData
+    using QuoteConversionReportAutomation; // For EmailUtility, ExcelCopyData, ReportArchiver, HelpForm
+    using JR.Utils.GUI.Forms;
 
     /// <summary>
     /// Represents the main form of the Quote Conversion Report Automation application.
@@ -22,6 +21,7 @@ namespace conversionTest
     /// Handles UI events and delegates UI updates to UIManager.
     /// Manages the Auto-Run timer, delegating the check logic to AutoRunManager.
     /// Includes handling for a "Custom" report type triggered by manual date changes.
+    /// Includes background archiving of old report files on startup.
     /// </summary>
     public partial class Form1 : Form
     {
@@ -37,17 +37,14 @@ namespace conversionTest
         private readonly ExcelCopyData _excelProcessor;
 
         // --- Application Info ---
-        private const string AppVersion = "1.6.2"; // Reflects Logger changes
+        private const string AppVersion = "1.6.5"; // Reflects date handling change
 
         // --- State Variables (Remaining in Form1) ---
         /// <summary>Stores the file path of the raw Excel report generated (output of Button 1).</summary>
         private string _generatedReportPath = string.Empty;
         /// <summary>Stores the file path of the final processed Excel analysis file (output of Button 2).</summary>
         private string _generatedAnalysisFilePath = string.Empty;
-        /// <summary>Stores the date the application was loaded, used for default date calculations.</summary>
-        private DateTime _today;
-        /// <summary>Stores the current financial year string (e.g., "2023_24"), initialized in Form1_Load.</summary>
-        private string _financialYear = string.Empty;
+
         /// <summary>Flag to prevent date change events from triggering combo box change when code is setting dates.</summary>
         private bool _programmaticallyChangingDates = false;
 
@@ -74,44 +71,89 @@ namespace conversionTest
 #endif
 
         // --- Configuration Properties (Read from _configuration) ---
-        /// <summary>Gets the path to the Crystal Report file (.rpt) from configuration.</summary>
+
+        /// <summary>Gets the user's profile directory path.</summary>
+        private string UserProfilePath => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        /// <summary>Gets the base directory for raw report exports from configuration, combined with user profile.</summary>
+        private string RawReportExportBaseDir
+        {
+            get
+            {
+                // Read relative path, trim leading slashes, provide fallback
+                string relativePath = _configuration["settings:RawReportExportBaseDir"]
+                                          ?.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                                      ?? @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimate Reports Exports";
+                // Combine with user profile path
+                return Path.Combine(UserProfilePath, relativePath);
+            }
+        }
+
+        /// <summary>Gets the base directory where the final processed analysis file will be saved, combined with user profile.</summary>
+        public string ExcelFinalSaveLocation
+        {
+            get
+            {
+                // Read relative path, trim leading slashes, provide fallback
+                string relativePath = _configuration["settings:ExcelFinalSaveLocation"]
+                                          ?.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                                      ?? @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimates";
+                // Combine with user profile path
+                return Path.Combine(UserProfilePath, relativePath);
+            }
+        }
+
+        /// <summary>Gets the path to the Crystal Report file (.rpt) from configuration. (Assuming this is an absolute UNC path)</summary>
         private string CrystalReportLocation => _configuration["settings:CrystalReportPath"] ?? string.Empty;
 
+        /// <summary>Gets the base directory for templates from configuration, combined with user profile.</summary>
+        public string ExcelTemplateBaseDir
+        {
+            get
+            {
+                // Read relative path, trim leading slashes, provide fallback
+                string relativePath = _configuration["settings:TemplateBaseDir"]
+                                          ?.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                                      ?? @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\TEMPLATE";
+                // Combine with user profile path
+                return Path.Combine(UserProfilePath, relativePath);
+            }
+        }
+
         // --- Dynamic Path Properties (Depend on UI state or config) ---
+
         /// <summary>Gets the calculated output path for the raw Crystal Report export file.</summary>
         public string ReportOutputLocation
         {
             get
             {
-                // Consider moving base dir to config
-                string baseDir = _configuration["settings:RawReportExportBaseDir"]
-                    ?? $@"C:\Users\{Environment.UserName}\Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimate Reports Exports";
+                string baseDir = RawReportExportBaseDir; // Use property that combines with user profile
                 string fileName = $"{endDatePicker.Value:yyyyMMdd}_EstimateSuccessReport_Raw.xlsx";
-                string subFolder = reportTypeComboBox.SelectedIndex switch
+
+                // Use FolderCreation to get the full specific path including subfolders
+                // Use DateTime.Now for Custom report folder timestamp, otherwise use the picker's end date
+                DateTime folderTimestampDate = (reportTypeComboBox.SelectedIndex == CustomReportIndex) ? DateTime.Now : endDatePicker.Value;
+                string? specificFolder = FolderCreation.GetReportSpecificFolderPath(reportTypeComboBox.SelectedIndex, baseDir, folderTimestampDate);
+
+                if (string.IsNullOrEmpty(specificFolder))
                 {
-                    DailyReportIndex => "Daily Reports",
-                    WeeklyReportIndex => "Weekly Reports",
-                    MonthlyReportIndex => "Monthly Reports",
-                    QuarterlyReportIndex => "Quarterly reports",
-                    AnnualReportIndex => "Annual Reports",
-                    CustomReportIndex => "Custom Reports", // <<< ADDED Custom Folder
-                    _ => "Other Reports",
-                };
-                string fullPath = Path.Combine(baseDir, subFolder, fileName);
-                try
-                {
-                    // Folder structure for Custom reports is handled by FolderCreation utility
-                    // Only create top-level folder here if needed, subfolders handled later
-                    if (reportTypeComboBox.SelectedIndex != CustomReportIndex)
+                    Logger.LogError($"Could not determine specific folder path for ReportOutputLocation. ReportType: {reportTypeComboBox.SelectedIndex}, Base: {baseDir}");
+                    // Fallback to just the base directory + report type? Needs careful consideration.
+                    string reportTypeSubFolder = reportTypeComboBox.SelectedIndex switch
                     {
-                        string? directoryPath = Path.GetDirectoryName(fullPath);
-                        if (!string.IsNullOrEmpty(directoryPath)) { Directory.CreateDirectory(directoryPath); }
-                        else { Logger.LogWarning($"Could not determine directory path from '{fullPath}' for raw report output."); }
-                    }
-                    // For Custom, the timestamped folder will be created by FolderCreation later
+                        DailyReportIndex => "Daily Reports",
+                        WeeklyReportIndex => "Weekly Reports",
+                        MonthlyReportIndex => "Monthly Reports",
+                        QuarterlyReportIndex => "Quarterly reports",
+                        AnnualReportIndex => "Annual Reports",
+                        CustomReportIndex => "Custom Reports",
+                        _ => "Other Reports"
+                    };
+                    specificFolder = Path.Combine(baseDir, reportTypeSubFolder); // Fallback path
+                    try { Directory.CreateDirectory(specificFolder); } catch (Exception ex) { Logger.LogError($"Failed to create fallback directory '{specificFolder}': {ex.Message}"); }
                 }
-                catch (Exception ex) { Logger.LogError($"Failed to create directory '{Path.GetDirectoryName(fullPath)}': {ex.Message}"); }
-                return fullPath;
+
+                return Path.Combine(specificFolder, fileName);
             }
         }
         /// <summary>Gets the calculated path to the appropriate Excel template file.</summary>
@@ -119,20 +161,16 @@ namespace conversionTest
         {
             get
             {
-                string baseDir = _configuration["settings:TemplateBaseDir"]
-                   ?? $@"C:\Users\{Environment.UserName}\Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\TEMPLATE\";
+                string baseDir = ExcelTemplateBaseDir; // Use the property that combines with user profile
                 string templateName = reportTypeComboBox.SelectedIndex switch
                 {
                     MonthlyReportIndex or QuarterlyReportIndex or AnnualReportIndex => "TEMPLATE_Estimate Success Rate_Monthly.xlsx",
-                    CustomReportIndex => "TEMPLATE_Estimate Success Rate_Monthly.xlsx", // <<< Use Monthly template for Custom? Adjust if needed
+                    CustomReportIndex => "TEMPLATE_Estimate Success Rate_Monthly.xlsx", // Custom uses Monthly template
                     _ => "TEMPLATE_Estimate Success Rate.xlsx" // Daily and Weekly use the same template
                 };
                 return Path.Combine(baseDir, templateName);
             }
         }
-        /// <summary>Gets the base directory where the final processed analysis file will be saved.</summary>
-        public string ExcelFinalSaveLocation => _configuration["settings:ExcelFinalSaveLocation"]
-            ?? $@"C:\Users\{Environment.UserName}\Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimates\";
 
 
         #endregion
@@ -149,11 +187,11 @@ namespace conversionTest
         {
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 
-            Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff zzz}] Form1 Constructor: Initializing components...");
+            Logger.LogTrace("Entering Form1 Constructor"); // Example Trace
             try
             {
                 InitializeComponent(); // Initialize controls defined in the designer
-                Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff zzz}] Form1 Constructor: InitializeComponent() completed.");
+                Logger.LogDebug("InitializeComponent completed.");
 
                 // --- Instantiate Dependencies and Managers ---
                 _emailUtility = new EmailUtility(_configuration);
@@ -187,7 +225,7 @@ namespace conversionTest
                     _appSettingsPath
                 );
 
-                // *** ADDED: Wire up date picker events AFTER managers are created ***
+                // Wire up date picker events AFTER managers are created
                 this.startDatePicker.ValueChanged += new System.EventHandler(this.DatePicker_ValueChanged);
                 this.endDatePicker.ValueChanged += new System.EventHandler(this.DatePicker_ValueChanged);
                 Logger.LogDebug("Date picker event handlers wired up.");
@@ -195,13 +233,12 @@ namespace conversionTest
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff zzz}] Form1 Constructor: CRITICAL ERROR during InitializeComponent or Manager Instantiation! Exception: {ex}");
                 Logger.LogCritical($"CRITICAL ERROR during Form Initialization: {ex.Message}", ex);
                 MessageBox.Show($"A critical error occurred initializing the application:\n\n{ex.Message}\n\nThe application cannot continue.",
                                         "Initialization Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 throw; // Re-throw to terminate
             }
-            Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff zzz}] Form1 Constructor: Exiting.");
+            Logger.LogTrace("Exiting Form1 Constructor");
         }
 
         #endregion
@@ -211,18 +248,18 @@ namespace conversionTest
         /// <summary>
         /// Handles the Load event of the form. Initializes UI state via UIManager,
         /// validates configuration paths, ensures the wrapper service is running,
-        /// and sets up the initial form state.
+        /// sets up the initial form state, and triggers background archiving.
         /// </summary>
         private async void Form1_Load(object sender, EventArgs e)
         {
-            Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff zzz}] Form1_Load: Entered.");
+            Logger.LogTrace("Entering Form1_Load");
             _uiManager.UpdateStatusMain("Loading application...");
             try
             {
-                // Initialize date/year fields
-                _today = DateTime.Today;
-                _financialYear = _excelProcessor.GetCurrentFinancialYear(true); // Use instance
-                Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff zzz}] Form1_Load: Date='{_today:yyyy-MM-dd}', FY='{_financialYear}'");
+                // --- REMOVED: Initialization of _today and _financialYear ---
+                // _today = DateTime.Today;
+                // _financialYear = _excelProcessor.GetCurrentFinancialYear(true);
+                // Logger.LogDebug($"Form1_Load: Date='{_today:yyyy-MM-dd}', FY='{_financialYear}'"); // Removed
 
                 Logger.LogInfo("Form Loading...");
 
@@ -250,9 +287,6 @@ namespace conversionTest
                 Text = $"Quote Conversion Automation - {(IsDebug ? "DEBUG" : "RELEASE")} - v{AppVersion}";
                 StartPosition = FormStartPosition.CenterScreen;
 
-                // Populate Dropdowns
-                PopulateFinancialYearDropdown(); // Keep this simple logic here or move if complex
-                if (financialYearComboBox.Items.Count > 0) financialYearComboBox.SelectedIndex = 0;
                 financialYearComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
 
                 // Add "Custom" to ComboBox if not already present (ensure Designer has items 0-4)
@@ -285,11 +319,11 @@ namespace conversionTest
                 _uiManager.UpdateAutoRunUI(dailyCheckTimer.Enabled, false, useDarkMode); // Initial UI update
 
                 // Trigger SelectedIndexChanged AFTER setting up theme and auto-run UI
+                // This will now correctly calculate initial dates based on DateTime.Today
                 reportTypeComboBox_SelectedIndexChanged(reportTypeComboBox, EventArgs.Empty);
 
                 // Initial button states reset
                 _uiManager.ResetButtonStatesAfterTypeChange(configValid);
-
 
                 // --- Ensure Wrapper Service is Running ---
                 _uiManager.UpdateStatusMain("Checking report service...");
@@ -301,18 +335,30 @@ namespace conversionTest
                     _uiManager.ResetUIOnError("Config Error", false, false, false, IsDailySelected(), dailyCheckTimer.Enabled, useDarkMode, false, string.Empty);
                 }
 
+                // --- Trigger Background Archiving ---
+                // Read necessary paths and settings from configuration
+                string? finalDir = ExcelFinalSaveLocation; // Use property
+                string? rawDir = RawReportExportBaseDir;   // Use property
+                int? archiveDays = _configuration.GetValue<int?>("settings:ArchiveRawOlderThanDays"); // Read nullable int
+
+                // Run archiving in the background, don't await it here
+                _ = Task.Run(async () => await ReportArchiver.ArchiveOldReportsAsync(finalDir, rawDir, archiveDays))
+                        .ContinueWith(t => {
+                            if (t.IsFaulted) Logger.LogError($"Background report archiving task failed: {t.Exception?.Flatten().InnerException?.Message}");
+                        }, TaskScheduler.Default);
+
 
                 Logger.LogInfo("Form Load Initialisation Complete.");
                 _uiManager.UpdateStatusMain("Ready");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[{DateTime.Now:HH:mm:ss.fff zzz}] Form1_Load: CRITICAL ERROR! Exception: {ex}");
                 Logger.LogCritical($"CRITICAL ERROR during Form_Load: {ex.Message}", ex);
                 MessageBox.Show($"A critical error occurred loading the application:\n\n{ex.Message}\n\nThe application may not function correctly.",
                                         "Application Load Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 _uiManager.UpdateStatusMain("Error during load.");
             }
+            Logger.LogTrace("Exiting Form1_Load");
         }
 
         /// <summary>
@@ -321,6 +367,7 @@ namespace conversionTest
         /// </summary>
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
+            Logger.LogInfo("Form closing. Stopping timer and terminating wrapper process.");
             dailyCheckTimer.Stop(); // Stop the timer
             _processManager.TerminateWrapperProcess(); // Terminate background service via manager
         }
@@ -403,17 +450,16 @@ namespace conversionTest
             catch (OperationCanceledException)
             {
                 Logger.LogWarning("Report generation request cancelled or timed out.");
-                MessageBox.Show("The report generation request timed out or was cancelled.", "Timeout / Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                FlexibleMessageBox.Show("The report generation request timed out or was cancelled.", "Timeout / Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 ResetUIStateOnError("Cancelled");
             }
             catch (Exception ex)
             {
                 Logger.LogError($"Error during Create Report operation: {ex}");
-                MessageBox.Show($"An error occurred while requesting the report:\n\n{ex.Message}", "Report Request Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                FlexibleMessageBox.Show($"An error occurred while requesting the report:\n\n{ex.Message}", "Report Request Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 ResetUIStateOnError("Error");
             }
         }
-
 
         /// <summary>
         /// Handles the Click event for Button 2 (Process & Email).
@@ -422,6 +468,7 @@ namespace conversionTest
         /// </summary>
         private async void processEmailButton_Click(object sender, EventArgs e)
         {
+            Logger.LogTrace("Entering processEmailButton_Click");
             // Disable buttons and update status via UIManager
             _uiManager.SetActionButtonsEnabled(false);
             _uiManager.SetOtherControlsEnabled(false, financialYearComboBox.Visible);
@@ -499,7 +546,8 @@ namespace conversionTest
                 if (string.IsNullOrEmpty(baseSaveLocation))
                 { throw new InvalidOperationException("The base save location for the final report is not configured correctly."); }
 
-                string financialYear = financialYearComboBox.SelectedItem?.ToString() ?? _financialYear;
+                // Get the currently selected financial year, or calculate if needed
+                string financialYear = financialYearComboBox.SelectedItem?.ToString() ?? _excelProcessor.GetCurrentFinancialYear(true);
                 string sourceSheet = "Sheet1"; // Consider making configurable
                 string destSheet = "DATA";     // Consider making configurable
 
@@ -540,18 +588,19 @@ namespace conversionTest
                 Logger.LogWarning("Excel processing or subsequent step cancelled.");
                 ResetUIStateOnError("Cancelled");
             }
-            catch (FileNotFoundException fnfEx)
+            catch (FileNotFoundException fnfEx) // Specific exception first
             {
-                Logger.LogError($"File not found during Process & Email operation: {fnfEx}");
+                Logger.LogError($"File not found during Process & Email operation: {fnfEx}", fnfEx); // Log exception details
                 MessageBox.Show(fnfEx.Message, "File Not Found Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 ResetUIStateOnError("File Error");
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Error during Process & Email operation: {ex}");
+                Logger.LogError($"Error during Process & Email operation: {ex}", ex); // Log exception details
                 MessageBox.Show($"An unexpected error occurred during processing:\n\n{ex.Message}", "Processing Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 ResetUIStateOnError("Error");
             }
+            Logger.LogTrace("Exiting processEmailButton_Click");
         }
 
         /// <summary>
@@ -559,7 +608,9 @@ namespace conversionTest
         /// </summary>
         private void viewReportButton_Click(object sender, EventArgs e)
         {
+            Logger.LogTrace("Entering viewReportButton_Click");
             ReportHelper.OpenFileWithDefaultApp(_generatedReportPath, "raw report output");
+            Logger.LogTrace("Exiting viewReportButton_Click");
         }
 
         /// <summary>
@@ -567,15 +618,20 @@ namespace conversionTest
         /// </summary>
         private void viewAnalysisButton_Click(object sender, EventArgs e)
         {
+            Logger.LogTrace("Entering viewAnalysisButton_Click");
             ReportHelper.OpenFileWithDefaultApp(_generatedAnalysisFilePath, "processed analysis file");
+            Logger.LogTrace("Exiting viewAnalysisButton_Click");
         }
 
         /// <summary>
         /// Handles changes in the Report Type dropdown. Updates date pickers and UI visibility via UIManager.
         /// Sets a flag to prevent date picker events from re-triggering changes.
+        /// Uses DateTime.Today to calculate default dates.
+        /// Recalculates Financial Year when needed.
         /// </summary>
         private void reportTypeComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
+            Logger.LogTrace("Entering reportTypeComboBox_SelectedIndexChanged");
             if (sender is not ComboBox comboBox || comboBox.SelectedItem == null) return;
 
             int selectedIndex = comboBox.SelectedIndex;
@@ -589,11 +645,12 @@ namespace conversionTest
                 // Reset buttons for the new type
                 bool configValid = CheckConfigValidity();
                 _uiManager.ResetButtonStatesAfterTypeChange(configValid);
+                Logger.LogTrace("Exiting reportTypeComboBox_SelectedIndexChanged (Custom selected)");
                 return;
             }
 
-
-            DateTime todayValue = _today; // Use the stored load date
+            // *** UPDATED: Use DateTime.Today directly for calculations ***
+            DateTime todayValue = DateTime.Today; // Get the *current* date
             bool showFinYear = true; // Default
             DateTime dateFrom = todayValue;
             DateTime dateTo = todayValue;
@@ -604,29 +661,34 @@ namespace conversionTest
 
             try
             {
-                // Calculate date range using ReportHelper or local logic
+                // Calculate date range using ReportHelper or local logic, using the current date
                 (dateFrom, dateTo, showFinYear) = selectedIndex switch
                 {
-                    DailyReportIndex => (ReportHelper.GetPreviousWorkday(todayValue), ReportHelper.GetPreviousWorkday(todayValue), true),
-                    WeeklyReportIndex => (todayValue.AddDays(-13), todayValue, true),
+                    DailyReportIndex => (ReportHelper.GetPreviousWorkday(todayValue), ReportHelper.GetPreviousWorkday(todayValue), false),
+                    WeeklyReportIndex => (todayValue.AddDays(-15), todayValue, true), // Note: Weekly still uses todayValue as end date
                     MonthlyReportIndex => (ReportHelper.CalculateMonthlyRange(todayValue).DateFrom, ReportHelper.CalculateMonthlyRange(todayValue).DateTo, false),
                     QuarterlyReportIndex => (ReportHelper.CalculateQuarterlyRange(todayValue).DateFrom, ReportHelper.CalculateQuarterlyRange(todayValue).DateTo, false),
                     AnnualReportIndex => (new DateTime(todayValue.Year - 1, 1, 1), new DateTime(todayValue.Year - 1, 12, 31), false),
                     _ => (todayValue, todayValue, true) // Default fallback (shouldn't hit if Custom is handled above)
                 };
 
-                Logger.LogInfo($"Report Type changed (Index {selectedIndex}). Range: {dateFrom:d} to {dateTo:d}. ShowFinYear: {showFinYear}");
+                Logger.LogInfo($"Report Type changed (Index {selectedIndex}). Using Current Date: {todayValue:d}. Range: {dateFrom:d} to {dateTo:d}. ShowFinYear: {showFinYear}");
 
                 // Safely update UI controls via UIManager
                 UIManager.SafeControlUpdate(startDatePicker, () => { startDatePicker.Value = dateFrom; });
                 UIManager.SafeControlUpdate(endDatePicker, () => { endDatePicker.Value = dateTo; });
                 UIManager.SafeControlUpdate(financialYearLabel, () => { financialYearLabel.Visible = showFinYear; });
+
+                // *** UPDATED: Handle Financial Year dynamically ***
                 UIManager.SafeControlUpdate(financialYearComboBox, () =>
                 {
                     financialYearComboBox.Visible = showFinYear;
                     financialYearComboBox.Enabled = showFinYear; // Enable based on visibility
-                    if (showFinYear && financialYearComboBox.Items.Count == 0)
-                    { PopulateFinancialYearDropdown(); } // Repopulate if needed
+                    if (showFinYear)
+                    {
+                        // Recalculate and repopulate based on the *current* date's FY
+                        PopulateFinancialYearDropdown(); // This helper now uses DateTime.Today
+                    }
                 });
 
                 // Update visibility of Femi checkbox vs Paul label via UIManager
@@ -655,6 +717,7 @@ namespace conversionTest
                 _programmaticallyChangingDates = false;
                 Logger.LogTrace("reportTypeComboBox_SelectedIndexChanged: Setting _programmaticallyChangingDates = false");
             }
+            Logger.LogTrace("Exiting reportTypeComboBox_SelectedIndexChanged");
         }
 
 
@@ -687,12 +750,13 @@ namespace conversionTest
             {
                 // Delegate the check and execution logic to the AutoRunManager
                 // Pass the original timer state so AutoRunManager knows if it was user-enabled
+                // AutoRunManager uses DateTime.Today internally, so it should use the correct date.
                 await _autoRunManager.PerformDailyCheckAsync(originallyEnabled);
             }
             catch (Exception ex)
             {
                 // Catch unexpected errors from the manager itself (should be rare if manager handles errors)
-                Logger.LogCritical($"CRITICAL ERROR during AutoRunManager.PerformDailyCheckAsync: {ex}");
+                Logger.LogCritical($"CRITICAL ERROR during AutoRunManager.PerformDailyCheckAsync: {ex}", ex); // Log exception
                 _uiManager.UpdateStatusMain("Critical AutoRun Error!");
                 // Consider permanently disabling timer or showing critical error message
                 originallyEnabled = false; // Prevent restart after critical failure
@@ -724,76 +788,99 @@ namespace conversionTest
             }
         }
 
-
         /// <summary>
         /// Handles the Click event for the Dark Mode menu item. Toggles theme via UIManager.
         /// </summary>
         private void darkModeToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            Logger.LogTrace("Entering darkModeToolStripMenuItem_Click");
             // CheckOnClick property handles toggling the checked state automatically.
             _uiManager.ApplyTheme(darkModeToolStripMenuItem.Checked);
             // Re-apply auto-run UI colors based on the new theme
             _uiManager.UpdateAutoRunUI(dailyCheckTimer.Enabled, false, darkModeToolStripMenuItem.Checked); // Need to get actual 'isFinalStatus' if possible
+            Logger.LogTrace("Exiting darkModeToolStripMenuItem_Click");
         }
 
         /// <summary>
-        /// Handles the Click event for the Help menu item. Displays help information.
+        /// Handles the Click event for the Help menu item. Displays help information
+        /// using the dedicated HelpForm.
         /// </summary>
         private void helpToolStripMenuItem_Click(object sender, EventArgs e)
         {
+            Logger.LogTrace("Entering helpToolStripMenuItem_Click");
             string helpTitle = $"Help - Quote Conversion v{AppVersion}";
 
             // Use StringBuilder to build the RTF string
             var helpMessageBuilder = new System.Text.StringBuilder();
 
-            // --- FIX: Restore the full help text generation ---
+            // Build the RTF content
             helpMessageBuilder.AppendLine("{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Segoe UI;}}");
             helpMessageBuilder.AppendLine("{\\colortbl ;\\red0\\green0\\blue0;}");
             helpMessageBuilder.AppendLine("\\pard\\sa200\\sl276\\slmult1\\b\\fs24 Quote Conversion Automation Tool\\b0\\fs20\\par");
             helpMessageBuilder.AppendLine("\\par");
             helpMessageBuilder.AppendLine("This tool automates the process of generating and processing Estimate Success Rate reports.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("\\b How to Use:\\b0\\par");
+            helpMessageBuilder.AppendLine("\\b How to Use: \\b0\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("1.  \\b Select Report Type:\\b0  Choose Daily, Weekly, Monthly, Quarterly, Annual, or Custom from the dropdown. Dates will adjust automatically for standard types.\\par"); // Updated
+            helpMessageBuilder.AppendLine("1.  \\b Select Report Type: \\b0  Choose Daily, Weekly, Monthly, Quarterly, Annual, or Custom from the dropdown. Dates will adjust automatically for standard types based on the \\i current date\\i0 .\\par"); // Updated help text
             helpMessageBuilder.AppendLine("    * \\b Daily:\\b0  Dates will be set to the \\i previous working day\\i0  (Friday if today is Monday, otherwise yesterday).\\par");
-            helpMessageBuilder.AppendLine("    * \\b Weekly/Daily:\\b0  Ensure the correct Financial Year is selected if visible.\\par");
-            helpMessageBuilder.AppendLine("    * \\b Custom:\\b0  Select this or manually change the dates in the date pickers.\\par"); // Added
+            helpMessageBuilder.AppendLine("    * \\b Weekly/Daily: \\b0  Ensure the correct Financial Year is selected if visible (it will default based on the current date).\\par"); // Updated help text
+            helpMessageBuilder.AppendLine("    * \\b Custom:\\b0 Select this or manually change the dates in the date pickers.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("2.  \\b Adjust Dates (Optional/Custom report):\\b0  You can manually change the 'From' and 'To' dates. Doing so will automatically select the 'Custom' report type.\\par"); // Updated
+            helpMessageBuilder.AppendLine("2.  \\b Adjust Dates (Optional/Custom report): \\b0  You can manually change the 'From' and 'To' dates. Doing so will automatically select the 'Custom' report type.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            // Escape the quotes within the string
-            helpMessageBuilder.AppendLine("3.  \\b Create Raw Report:\\b0  Click the \\\"Create Report\\\" button. This contacts a background service to generate the raw data export from Crystal Reports. Wait for the status to show \\\"Report Created\\\". The filename will reflect the 'To' date.\\par");
+            helpMessageBuilder.AppendLine("3.  \\b Create Raw Report: \\b0  Click the \\\"Create Report\\\" button. This contacts a background service to generate the raw data export from Crystal Reports. Wait for the status to show \\\"Report Created\\\". The filename will reflect the 'To' date.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("4.  \\b Process & Email:\\b0  Once the raw report is created, click the \\\"Process and Email\\\" button. This will:\\par");
-            helpMessageBuilder.AppendLine("    * Copy data into the appropriate template.\\par");
-            helpMessageBuilder.AppendLine("    * Extract unique customers.\\par");
-            helpMessageBuilder.AppendLine("    * Perform calculations.\\par");
-            helpMessageBuilder.AppendLine("    * Clean up unused rows.\\par");
-            helpMessageBuilder.AppendLine("    * (For Weekly reports) Append data to the central Power BI source file.\\par");
-            helpMessageBuilder.AppendLine("    * (For Monthly/Quarterly/Annual/Custom) Prompt you to open the file in Excel to Refresh All pivot tables, Save, and Close.\\par"); // Updated
-            helpMessageBuilder.AppendLine("    * Send the final report via email to the configured recipients (or just Paul S. for automated Daily reports). The final filename will reflect the 'To' date (and timestamp for Custom).\\par"); // Updated
+            helpMessageBuilder.AppendLine("4.  \\b Process & Email: \\b0  Once the raw report is created, click the \\\"Process and Email\\\" button. This will perform the necessary data processing and email the final report.\\par");
+            helpMessageBuilder.AppendLine("    * (For Weekly reports) Data is also appended to the central Power BI source file.\\par");
+            helpMessageBuilder.AppendLine("    * (For Monthly/Quarterly/Annual/Custom) You will be prompted to open the file in Excel to Refresh All pivot tables, Save, and Close before the email is sent.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("5.  \\b View Files (Optional):\\b0  Use the \\\"View Report\\\" and \\\"View Analysis\\\" buttons after the corresponding steps are complete to open the generated files.\\par");
+            helpMessageBuilder.AppendLine("5.  \\b View Files (Optional): \\b0  Use the \\\"View Report\\\" and \\\"View Analysis\\\" buttons after the corresponding steps are complete to open the generated files.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("6.  \\b Options Menu:\\b0\\par");
-            helpMessageBuilder.AppendLine("    * \\b Dark Mode:\\b0  Toggle the visual theme.\\par");
+            helpMessageBuilder.AppendLine("6.  \\b Options Menu: \\b0\\par");
+            helpMessageBuilder.AppendLine("    * \\b Dark Mode: \\b0  Toggle the visual theme.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("7.  \\b Auto Run Button:\\b0  Enable/Disable the automated daily report generation (runs around 8 AM for the \\i previous working day\\i0 ). The status is shown on the right of the status bar. The application checks the `appsettings.json` file to avoid running more than once per day. If the report has already run for the day, the timer stops checking until the next day/app restart.\\par");
+            helpMessageBuilder.AppendLine("7.  \\b Auto Run Button: \\b0  Enable/Disable the automated daily report generation (runs around 8 AM for the \\i previous working day\\i0 ). The status is shown on the right of the status bar.\\par");
             helpMessageBuilder.AppendLine("\\par");
-            helpMessageBuilder.AppendLine("\\b Troubleshooting:\\b0\\par");
+            // --- ADDED: Automated Features Section ---
+            helpMessageBuilder.AppendLine("\\b Automated Features: \\b0\\par");
+            helpMessageBuilder.AppendLine("\\par");
+            helpMessageBuilder.AppendLine("* \\b Folder Creation: \\b0 The application automatically creates the necessary folder structure (e.g., `..\\Estimates\\Weekly Reports\\2025\\April\\Week 2`) based on the report type and date when processing reports.\\par");
+            helpMessageBuilder.AppendLine("* \\b Log Archiving: \\b0 Old log files (older than 30 days) are automatically moved to an 'Archive' subfolder within your user's log directory during application startup to keep the main log folder clean.\\par");
+            helpMessageBuilder.AppendLine("* \\b Report Archiving: \\b0 On startup, older report files/folders are archived: Final reports from previous years (e.g., `..\\Estimates\\Weekly Reports\\2024`) are moved into an `Archive` folder (`..\\Estimates\\Archive\\Weekly Reports\\2024`), merging if the destination exists. Raw report files older than 30 days (configurable) are moved into an `Archive\\YYYY-MM` subfolder within their report type folder (e.g., `..\\Exports\\Daily Reports\\Archive\\2025-03`).\\par"); // Updated
+            helpMessageBuilder.AppendLine("* \\b Weekly Sheet Creation: \\b0 When processing a Weekly report, if the sheet for the corresponding Financial Year (e.g., '2024_25') doesn't exist in the central Power BI source file (`weekly report quotes conversion merged.xlsx`), the application will create it automatically, copying headers from the 'Analysis' sheet of the template.\\par");
+            helpMessageBuilder.AppendLine("\\par");
+            // --- End Added Section ---
+            helpMessageBuilder.AppendLine("\\b Troubleshooting: \\b0\\par");
             helpMessageBuilder.AppendLine("\\par");
             helpMessageBuilder.AppendLine("* Ensure the Crystal Report Wrapper service is running (the app tries to start it).\\par");
             helpMessageBuilder.AppendLine("* Check file paths in `appsettings.json` if errors occur finding reports or templates.\\par");
             helpMessageBuilder.AppendLine("* Ensure the central weekly report file is accessible and not locked if appending fails.\\par");
-            helpMessageBuilder.AppendLine("* Check the application logs located in the 'Logs' subfolder for detailed error information.\\par");
+            helpMessageBuilder.AppendLine("* Check the application logs located in the 'Logs' subfolder (within the configured LogDirectory, specific to your username) for detailed error information.\\par"); // Updated log path description
             helpMessageBuilder.AppendLine("* If auto-run fails to update `appsettings.json`, check file permissions for the application directory.\\par");
             helpMessageBuilder.AppendLine("* If you get an error refreshing a Slicer, remove it, then click into the Pivot table, in the PivotTable Fields on the right, Right Click customers and select add as slicer, move it back to where it was.\\par");
-            // --- End of restored help text ---
+
             helpMessageBuilder.Append('}'); // Append the final closing brace without a newline
 
             string helpMessage = helpMessageBuilder.ToString();
-            FlexibleMessageBox.ShowRtf(helpMessage, helpTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            // Use HelpForm instead of FlexibleMessageBox
+            try
+            {
+                // *** FIX: Pass the current dark mode state ***
+                bool isDarkMode = darkModeToolStripMenuItem.Checked;
+                // Create and show the HelpForm modally, passing the RTF content and theme state
+                using var helpForm = new HelpForm(helpTitle, helpMessage, isDarkMode);
+                helpForm.ShowDialog(this); // Show as a modal dialog owned by Form1
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"Failed to show HelpForm: {ex.Message}", ex);
+                // Fallback to simple message box if HelpForm fails
+                MessageBox.Show("Could not display help window.", "Help Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            Logger.LogTrace("Exiting helpToolStripMenuItem_Click");
         }
 
         /// <summary>
@@ -841,23 +928,44 @@ namespace conversionTest
         #region Helper Methods (Remaining in Form1 or Adapted)
 
         /// <summary>
-        /// Populates the Financial Year dropdown. Simple enough to keep here.
+        /// Populates the Financial Year dropdown based on the *current* date.
         /// </summary>
         private void PopulateFinancialYearDropdown()
         {
+            Logger.LogTrace("Entering PopulateFinancialYearDropdown");
             UIManager.SafeControlUpdate(financialYearComboBox, () =>
             {
+                string? previouslySelected = financialYearComboBox.SelectedItem?.ToString(); // Store current selection
                 financialYearComboBox.Items.Clear();
-                string currentFY = _financialYear; // Use the stored FY
+                // *** UPDATED: Get FY based on DateTime.Today ***
+                string currentFY = _excelProcessor.GetCurrentFinancialYear(true); // Use instance, gets current FY based on Today
+
                 if (!string.IsNullOrEmpty(currentFY))
                 {
                     financialYearComboBox.Items.Add(currentFY);
-                    string? previousFY = _excelProcessor.GetPreviousFinancialYear(currentFY);
+                    string? previousFY = _excelProcessor.GetPreviousFinancialYear(currentFY); // Use instance
                     if (!string.IsNullOrEmpty(previousFY)) { financialYearComboBox.Items.Add(previousFY); }
+                    Logger.LogDebug($"Populated Financial Year dropdown. Current: {currentFY}, Previous: {previousFY ?? "N/A"}");
                 }
-                else { Logger.LogWarning("Could not determine current financial year for dropdown population."); financialYearComboBox.Items.Add("FY Unknown"); }
-                if (financialYearComboBox.Items.Count > 0) { financialYearComboBox.SelectedIndex = 0; }
+                else
+                {
+                    Logger.LogWarning("Could not determine current financial year for dropdown population.");
+                    financialYearComboBox.Items.Add("FY Unknown");
+                }
+
+                // Try to re-select the previously selected item, otherwise default to index 0
+                if (!string.IsNullOrEmpty(previouslySelected) && financialYearComboBox.Items.Contains(previouslySelected))
+                {
+                    financialYearComboBox.SelectedItem = previouslySelected;
+                    Logger.LogDebug($"Restored previous FY selection: {previouslySelected}");
+                }
+                else if (financialYearComboBox.Items.Count > 0)
+                {
+                    financialYearComboBox.SelectedIndex = 0;
+                    Logger.LogDebug($"Defaulted FY selection to index 0: {financialYearComboBox.SelectedItem}");
+                }
             });
+            Logger.LogTrace("Exiting PopulateFinancialYearDropdown");
         }
 
         /// <summary>
@@ -865,12 +973,15 @@ namespace conversionTest
         /// </summary>
         private bool ValidateInputDates()
         {
+            Logger.LogTrace("Entering ValidateInputDates");
             if (startDatePicker.Value.Date > endDatePicker.Value.Date)
             {
                 Logger.LogError("Validation Failed: 'From' date cannot be after 'To' date.");
                 MessageBox.Show("The 'From' date cannot be after the 'To' date.", "Date Range Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Logger.LogTrace("Exiting ValidateInputDates. Result: false");
                 return false;
             }
+            Logger.LogTrace("Exiting ValidateInputDates. Result: true");
             return true;
         }
 
@@ -880,23 +991,37 @@ namespace conversionTest
         /// </summary>
         private bool ValidateFinancialYearSelection()
         {
+            Logger.LogTrace("Entering ValidateFinancialYearSelection");
             // Skip validation if Custom type is selected or if FY controls are hidden
             if (reportTypeComboBox.SelectedIndex == CustomReportIndex || !financialYearComboBox.Visible)
             {
+                Logger.LogDebug("Skipping Financial Year validation (Custom report or FY hidden).");
+                Logger.LogTrace("Exiting ValidateFinancialYearSelection. Result: true");
                 return true;
             }
 
             if (financialYearComboBox.SelectedItem != null)
             {
                 string selectedFinYear = financialYearComboBox.SelectedItem.ToString()!;
+                // *** UPDATED: Use ExcelProcessor instance method ***
                 if (!_excelProcessor.IsFinancialYearValid(selectedFinYear, startDatePicker.Value, endDatePicker.Value))
                 {
                     Logger.LogWarning($"Potential FY mismatch: Selected FY '{selectedFinYear}', Date Range '{startDatePicker.Value:d}' to '{endDatePicker.Value:d}'. Prompting user.");
                     DialogResult dr = MessageBox.Show($"The selected date range ({startDatePicker.Value:d} - {endDatePicker.Value:d}) does not fall entirely within the selected Financial Year ({selectedFinYear}).\n\nDo you want to continue anyway?", "Financial Year Mismatch Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-                    if (dr == DialogResult.No) { Logger.LogInfo("User chose not to proceed due to FY mismatch."); return false; }
+                    if (dr == DialogResult.No)
+                    {
+                        Logger.LogInfo("User chose not to proceed due to FY mismatch.");
+                        Logger.LogTrace("Exiting ValidateFinancialYearSelection. Result: false");
+                        return false;
+                    }
                     Logger.LogWarning("User chose to proceed despite FY mismatch warning.");
                 }
             }
+            else if (financialYearComboBox.Visible) // Only warn if visible and nothing selected
+            {
+                Logger.LogWarning("Financial Year combo box is visible but has no selection. Validation skipped.");
+            }
+            Logger.LogTrace("Exiting ValidateFinancialYearSelection. Result: true");
             return true;
         }
 
@@ -923,12 +1048,15 @@ namespace conversionTest
         /// </summary>
         private bool CheckConfigValidity()
         {
+            Logger.LogTrace("Entering CheckConfigValidity");
             string crystalReportPath = CrystalReportLocation;
             string wrapperExePath = _configuration["settings:WrapperExePath"] ?? string.Empty;
-            return !string.IsNullOrEmpty(crystalReportPath)
+            bool isValid = !string.IsNullOrEmpty(crystalReportPath)
                 && File.Exists(crystalReportPath)
                 && !string.IsNullOrEmpty(wrapperExePath)
                 && File.Exists(Path.GetFullPath(wrapperExePath));
+            Logger.LogTrace($"Exiting CheckConfigValidity. Result: {isValid}");
+            return isValid;
         }
 
         /// <summary>
@@ -946,6 +1074,7 @@ namespace conversionTest
         /// <param name="button1Text">Text for the create report button.</param>
         private void ResetUIStateOnError(string button1Text)
         {
+            Logger.LogTrace($"Entering ResetUIStateOnError with button1Text: {button1Text}");
             bool configValid = CheckConfigValidity();
             bool rawExists = !string.IsNullOrEmpty(_generatedReportPath) && File.Exists(_generatedReportPath);
             bool analysisExists = !string.IsNullOrEmpty(_generatedAnalysisFilePath) && File.Exists(_generatedAnalysisFilePath);
@@ -958,6 +1087,7 @@ namespace conversionTest
             string currentAutoRunStatus = autoRunStatusLabel.Text ?? string.Empty; // Get current text
 
             _uiManager.ResetUIOnError(button1Text, configValid, rawExists, analysisExists, isDaily, timerEnabled, isDark, isFinalStatus, currentAutoRunStatus);
+            Logger.LogTrace("Exiting ResetUIStateOnError");
         }
 
         /// <summary>
@@ -965,6 +1095,7 @@ namespace conversionTest
         /// </summary>
         private async Task SendCompletionEmailAsync(string attachmentPath, IProgress<string> progress, CancellationToken cancellationToken)
         {
+            Logger.LogTrace("Entering SendCompletionEmailAsync");
             Logger.LogInfo($"Preparing completion email with attachment: {attachmentPath}");
             progress?.Report("Preparing email...");
 
@@ -1008,10 +1139,11 @@ namespace conversionTest
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Error sending completion email: {ex}");
+                Logger.LogError($"Error sending completion email: {ex}", ex); // Log exception
                 MessageBox.Show($"Failed to send the completion email:\n\n{ex.Message}", "Email Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 throw; // Re-throw for the main catch block to reset UI
             }
+            Logger.LogTrace("Exiting SendCompletionEmailAsync");
         }
 
         /// <summary>
@@ -1036,7 +1168,7 @@ namespace conversionTest
             }
             else
             {
-                // Default Logic (Applies to DEBUG Mode OR Non-Daily/Non-Custom Reports in RELEASE Mode)
+                // Default Logic (Applies to DEBUG Mode OR Non-Daily Reports in RELEASE Mode)
 #if DEBUG
                 // --- DEBUG Build Recipients ---
                 Logger.LogInfo("DEBUG Build: Using debug email recipients.");
@@ -1063,20 +1195,20 @@ namespace conversionTest
                 // *** End UPDATED DEBUG CC Logic ***
 
 #else
-                    // --- RELEASE Build Recipients (for non-Daily reports) ---
-                     Logger.LogInfo($"RELEASE Build (Non-Daily/Custom): SendToFemiOnly = {sendToFemiOnly}");
-                    if (sendToFemiOnly)
-                    {
-                        toAddresses.Add(_configuration["settings:ProductionEmails:FemiTo"] ?? "femi@harlowsolutions.co.uk");
-                        ccAddresses = GetStringListFromConfig("settings:ProductionEmails:FemiCC") ?? ["itsystems@harlowsolutions.co.uk"];
-                        Logger.LogInfo("Sending to Femi (and FemiCC list).");
-                    }
-                    else
-                    {
-                        toAddresses = GetStringListFromConfig("settings:ProductionEmails:TeamTo") ?? ["andrewp@harlowsolutions.co.uk", "kirstym@harlowsolutions.co.uk", "stuartm@harlowsolutions.co.uk"];
-                        ccAddresses = GetStringListFromConfig("settings:ProductionEmails:TeamCC") ?? ["emmanuel@harlowsolutions.co.uk", "femi@harlowsolutions.co.uk", "jackh@harlowsolutions.co.uk", "pauls@harlowsolutions.co.uk", "itsystems@harlowsolutions.co.uk", "gordonb@harlowsolutions.co.uk"];
-                        Logger.LogInfo("Sending to Team list.");
-                    }
+                // --- RELEASE Build Recipients (for non-Daily reports) ---
+                Logger.LogInfo($"RELEASE Build (Non-Daily/Custom): SendToFemiOnly = {sendToFemiOnly}");
+                if (sendToFemiOnly)
+                {
+                    toAddresses.Add(_configuration["settings:ProductionEmails:FemiTo"] ?? "femi@harlowsolutions.co.uk");
+                    ccAddresses = GetStringListFromConfig("settings:ProductionEmails:FemiCC") ?? ["itsystems@harlowsolutions.co.uk"];
+                    Logger.LogInfo("Sending to Femi (and FemiCC list).");
+                }
+                else
+                {
+                    toAddresses = GetStringListFromConfig("settings:ProductionEmails:TeamTo") ?? ["andrewp@harlowsolutions.co.uk", "kirstym@harlowsolutions.co.uk", "stuartm@harlowsolutions.co.uk"];
+                    ccAddresses = GetStringListFromConfig("settings:ProductionEmails:TeamCC") ?? ["emmanuel@harlowsolutions.co.uk", "femi@harlowsolutions.co.uk", "jackh@harlowsolutions.co.uk", "pauls@harlowsolutions.co.uk", "itsystems@harlowsolutions.co.uk", "gordonb@harlowsolutions.co.uk"];
+                    Logger.LogInfo("Sending to Team list.");
+                }
 #endif
             }
             // Remove duplicates just in case To and CC overlap
@@ -1184,7 +1316,7 @@ namespace conversionTest
             if (excelRunning)
             {
                 Logger.LogDebug("HandleManualExcelRefreshAsync: Found running Excel instances.");
-                // *** FIX: Specify owner window 'this' ***
+                // Specify owner window 'this'
                 DialogResult closeResult = MessageBox.Show(this,
                    "Other Excel instances are running. Close them before proceeding?",
                    "Close Other Excel Instances?", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
@@ -1208,7 +1340,7 @@ namespace conversionTest
                 Logger.LogDebug("HandleManualExcelRefreshAsync: No other Excel instances found running.");
             }
 
-            // *** FIX: Specify owner window 'this' ***
+            // Specify owner window 'this'
             MessageBox.Show(this,
                "The report will open in Excel.\n\n*** IMPORTANT ***\n1. Refresh All Pivots/Slicers.\n2. SAVE the file.\n3. CLOSE Excel.\n\nThe application will wait.",
                "Manual Refresh Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1232,7 +1364,7 @@ namespace conversionTest
                 Logger.LogInfo("Excel process has exited.");
                 _uiManager.UpdateStatusMain("Excel closed.");
 
-                // *** FIX: Specify owner window 'this' ***
+                // Specify owner window 'this'
                 DialogResult sendResult = MessageBox.Show(this,
                    "Excel closed.\n\nProceed with sending the email?",
                    "Confirm Email Send", MessageBoxButtons.YesNo, MessageBoxIcon.Question);

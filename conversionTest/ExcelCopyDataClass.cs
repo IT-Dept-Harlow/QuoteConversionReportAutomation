@@ -27,7 +27,7 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
     /// Now uses a specific report date for filename generation.
     /// This is a non-static version requiring instantiation.
     /// </summary>
-    public class ExcelCopyData // Removed static keyword
+    public class ExcelCopyData 
     {
         #region Constants
 
@@ -67,7 +67,7 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
         /// </summary>
         public ExcelCopyData()
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // Set license context
+            ExcelPackage.License.SetNonCommercialPersonal("Harlow");
             Logger.LogTrace("ExcelCopyData instance created."); // Trace: Object creation
         }
         #endregion

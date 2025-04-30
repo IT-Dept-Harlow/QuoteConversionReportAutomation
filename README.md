@@ -6,12 +6,49 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ## ChangeLog
 
+### Version 1.6.5
+
+* **Bug Fixes & Improvements**
+    * Fixed issue where the application would use the date it was initially opened for UI calculations (like default date ranges and financial year) instead of the current date if left running over midnight.
+    * Modified `Form1` to remove the stored `_today` field and related `_financialYear` field.
+    * Updated `reportTypeComboBox_SelectedIndexChanged` and `PopulateFinancialYearDropdown` to always use `DateTime.Today` for calculating default date ranges and the current financial year, ensuring the UI reflects the actual current date.
+    * Ensured `processEmailButton_Click` gets the correct financial year dynamically before processing.
+    * Updated Help text slightly to reflect that default dates/FY are based on the current date.
+
+---
+
+### Version 1.6.4
+
+* **New Features**
+    * Replaced help message box with a dedicated, resizable `HelpForm` with RTF support and basic theme awareness (dark/light mode).
+    * Added automatic archiving for old report files on application startup:
+        * **Final Reports:** Archives entire previous year folders (e.g., `...\Estimates\Weekly Reports\2024`) into a central `Archive` folder (e.g., `...\Estimates\Archive\Weekly Reports\2024`), merging contents if the destination year folder already exists.
+        * **Raw Reports:** Archives files older than a configurable number of days (default 30, set via `settings:ArchiveRawOlderThanDays`) into an `Archive\YYYY-MM` subfolder within their respective report type folder (e.g., `...\Exports\Daily Reports\Archive\2025-03`).
+* **Refactoring**
+    * Removed redundant file cleanup/archiving logic from the `CrystalReportWrapper` project (`RunCrystalReportClass.cs`).
+* **Bug Fixes & Improvements**
+    * Passed dark mode theme setting to the new `HelpForm`.
+    * Updated help text to include information about automated features (folder creation, archiving, sheet creation).
+
+---
+
+### Version 1.6.3
+
+* **New Features**
+    * Added automatic archiving for old log files on application startup (moves files older than 30 days to `Logs\[User]\Archive\YYYY\MM\WeekN`). *(Note: This was previously documented under v1.1.1 but implemented more robustly here)*.
+* **Bug Fixes & Improvements**
+    * Fixed folder creation logic for Quarterly reports in `FolderCreation.cs` to include the quarter subfolder (e.g., "Jan to Mar").
+    * Ensured `FolderCreation.cs` and `ExcelCopyData.cs` use the `reportDate` for consistent folder path generation.
+
+---
+
 ### Version 1.6.2
 
 * **Logging Improvements**
     * Added configurable minimum logging level via `appsettings.json` (`settings:LogLevel` for Release, `settings:LogLevelDebug` for Debug).
     * Updated `Logger.cs` to read and apply the configured minimum log level.
     * Refined logging levels used in `ExcelCopyData.cs` and `Logger.cs` for better granularity (using `LogTrace` for finer details, adjusting `LogDebug`, `LogError`, `LogCritical` usage).
+    * Replaced most `Debug.WriteLine` calls in `Logger.cs` with appropriate level-based logging.
 
 ---
 
@@ -22,7 +59,6 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
     * Implemented specific folder structure (`Custom Reports\YYYY\YYYY-MM-DD_HHMMSS`) and filename format (`{EndDate}_{Timestamp}_Estimate_Success_Rate_Custom.xlsx`) for Custom reports.
     * Added distinct email subject/body content for Custom reports.
     * Added `Trace` logging level to `Logger` class (active only in DEBUG builds).
-      
 * **Refactoring**
     * Consolidated folder creation logic into the static `FolderCreation` class, removing duplication from `ExcelCopyData`.
 * **Bug Fixes & Improvements**
@@ -32,7 +68,6 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
     * Corrected status messages after report creation and during manual Excel refresh wait to be more informative.
     * Fixed folder creation logic for Monthly and Quarterly reports to include year/month or year/quarter subfolders.
     * Restored missing help text content.
-    * Changed `Debug` logging level in `Logger` class (active only in DEBUG builds).
 
 ---
 
@@ -107,7 +142,7 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ### Version 1.4.6
 
-* **UI Improvements & Configuration** 
+* **UI Improvements & Configuration**
     * Changed dark mode `CheckBox` background color back to match the main dark mode background (`_darkModeCheckBoxBackColor = Color.FromArgb(45, 45, 48)`).
     * Adjusted the auto-run check hour in `dailyCheckTimer_Tick` from 8 AM to 9 AM. *(Reverted in 1.4.7)*
     * Added a troubleshooting tip about Slicer refresh to the Help text (`helpToolStripMenuItem_Click`).

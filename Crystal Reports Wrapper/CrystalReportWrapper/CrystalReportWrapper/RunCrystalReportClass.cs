@@ -11,6 +11,7 @@ namespace CrystalReportWrapper // Use the namespace of your wrapper project
     /// <summary>
     /// Provides functionality to run and export Crystal Reports with progress updates.
     /// Targeted for .NET Framework 4.8.
+    /// Removed internal file cleanup/archiving logic.
     /// </summary>
     public class RunCrystalReportClass
     {
@@ -32,11 +33,10 @@ namespace CrystalReportWrapper // Use the namespace of your wrapper project
         /// <param name="reportOutputLocation">The file path where the exported Excel workbook should be saved.</param>
         /// <param name="reportDateFrom">The start date for the report.</param>
         /// <param name="reportDateTo">The end date for the report.</param>
-        /// <param name="statusStrip">The StatusStrip control (optional, likely null when called from wrapper).</param>
+        /// <param name="statusStrip">The StatusStrip control (optional, ignored in wrapper).</param>
         /// <exception cref="ArgumentException">Thrown if required paths are null or empty.</exception>
         /// <exception cref="ReportLoadingException">Thrown if the report fails to load.</exception>
         /// <exception cref="ReportExportException">Thrown if the report fails to export.</exception>
-        /// <exception cref="FileCleanupException">Thrown if cleaning old files fails.</exception>
         public void RunReport(string crystalReportLocation, string reportOutputLocation, DateTime reportDateFrom, DateTime reportDateTo, StatusStrip statusStrip = null)
         {
             // StatusStrip updates won't work when called from the wrapper process.
@@ -67,12 +67,12 @@ namespace CrystalReportWrapper // Use the namespace of your wrapper project
                 // Use standard using block for IDisposable
                 using (quoteReport = new ReportDocument())
                 {
-                    // Clean up old files (run before loading/exporting)
-                    string outputDir = Path.GetDirectoryName(reportOutputLocation);
-                    if (!string.IsNullOrEmpty(outputDir))
-                    {
-                        CleanupOldFiles(outputDir, statusStrip); // Pass null for statusStrip if unavailable
-                    }
+                    // *** REMOVED Call to CleanupOldFiles ***
+                    // string outputDir = Path.GetDirectoryName(reportOutputLocation);
+                    // if (!string.IsNullOrEmpty(outputDir))
+                    // {
+                    //     CleanupOldFiles(outputDir, statusStrip); // Pass null for statusStrip if unavailable
+                    // }
 
                     // Load the report.
                     LoadReport(quoteReport, crystalReportLocation);
@@ -132,7 +132,7 @@ namespace CrystalReportWrapper // Use the namespace of your wrapper project
             {
                 string errorMessage = $"Error setting report parameters: {ex.Message}";
                 Console.WriteLine($"ERROR: {errorMessage}");
-                 Logger.LogError(errorMessage, ex);
+                Logger.LogError(errorMessage, ex);
                 throw new Exception(errorMessage, ex);
             }
         }
@@ -181,104 +181,9 @@ namespace CrystalReportWrapper // Use the namespace of your wrapper project
                 throw new ReportExportException(errorMessage, ex);
             }
         }
-
-        /// <summary>
-        /// Cleans up files older than 30 days in the specified report directory by archiving them.
-        /// </summary>
-        private void CleanupOldFiles(string reportDirectory, StatusStrip statusStrip = null)
-        {
-            void UpdateStatusStripText(string text) { Console.WriteLine($"Status Update (Wrapper - Cleanup): {text}"); }
-
-            if (string.IsNullOrEmpty(reportDirectory))
-            {
-                Console.WriteLine("Warning: Report directory is null or empty. Skipping cleanup.");
-                Logger.LogWarning("Report directory is null or empty. Skipping cleanup.");
-                return;
-            }
-
-            try
-            {
-                if (!Directory.Exists(reportDirectory))
-                {
-                    Console.WriteLine($"Warning: Report directory '{reportDirectory}' does not exist. Skipping cleanup.");
-                    Logger.LogWarning($"Report directory '{reportDirectory}' does not exist. Skipping cleanup.");
-                    return;
-                }
-
-                var directory = new DirectoryInfo(reportDirectory);
-                var cutoffDate = DateTime.Now.AddDays(-30);
-                var files = directory.GetFiles("*.xlsx"); // Assuming output is always .xlsx
-                int fileCount = files.Length;
-                int filesProcessed = 0;
-                int archivedCount = 0;
-
-                UpdateStatusStripText($"Checking {fileCount} file(s) for archiving...");
-
-                foreach (var file in files)
-                {
-                    try
-                    {
-                        if (file.LastWriteTime < cutoffDate)
-                        {
-                            ArchiveFile(file, reportDirectory);
-                            archivedCount++;
-                        }
-                    }
-                    catch (Exception fileEx)
-                    {
-                        Console.WriteLine($"ERROR archiving file '{file.Name}': {fileEx.Message}");
-                        Logger.LogError($"Error archiving file '{file.Name}': {fileEx.Message}");
-                    }
-                    filesProcessed++;
-                }
-                if (archivedCount > 0) Console.WriteLine($"Archiving complete. Archived {archivedCount} file(s).");
-                UpdateStatusStripText("Archiving Complete");
-            }
-            catch (Exception ex)
-            {
-                string errorMessage = $"Error cleaning up old files in '{reportDirectory}': {ex.Message}";
-                Console.WriteLine($"ERROR: {errorMessage}");
-                 Logger.LogError(errorMessage, ex);
-            }
-        }
-
-        /// <summary>
-        /// Archives the specified file.
-        /// </summary>
-        private static void ArchiveFile(FileInfo file, string reportDirectory)
-        {
-            try
-            {
-                string archiveDirectory = Path.Combine(reportDirectory, "Archive", file.LastWriteTime.ToString("yyyy-MM"));
-                if (!Directory.Exists(archiveDirectory))
-                {
-                    Directory.CreateDirectory(archiveDirectory);
-                }
-
-                string archiveFilePath = Path.Combine(archiveDirectory, file.Name);
-
-                if (File.Exists(archiveFilePath))
-                {
-                    string uniqueName = string.Format("{0}_{1:yyyyMMddHHmmss}{2}", Path.GetFileNameWithoutExtension(file.Name), DateTime.Now, file.Extension);
-                    archiveFilePath = Path.Combine(archiveDirectory, uniqueName);
-                    Logger.LogWarning($"Archive file '{file.Name}' exists. Saving as '{uniqueName}'.");
-                }
-
-                File.Move(file.FullName, archiveFilePath);
-                Console.WriteLine($"Archived file: {file.Name} to {archiveFilePath}");
-                Logger.LogInfo($"Archived file: {file.Name} to {archiveFilePath}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"ERROR archiving file '{file.FullName}': {ex.Message}");
-                Logger.LogError($"Error archiving file {file.FullName}: {ex.Message}");
-            }
-        }
-
     }
 
     // --- Custom Exception Classes (Keep these) ---
     public class ReportLoadingException : Exception { public ReportLoadingException(string message, Exception innerException) : base(message, innerException) { } }
     public class ReportExportException : Exception { public ReportExportException(string message, Exception innerException) : base(message, innerException) { } }
-    public class FileCleanupException : Exception { public FileCleanupException(string message, Exception innerException) : base(message, innerException) { } }
 }

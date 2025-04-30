@@ -260,7 +260,7 @@ public static class Logger
     private static string CreateLogMessage(LogLevel level, string message)
     {
         // Added Thread ID for better async debugging
-        return $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff zzz}] [Usr:{Environment.UserName}] [PID:{Environment.ProcessId},TID:{Environment.CurrentManagedThreadId}] [{level.ToString().ToUpperInvariant(),-8}] {message}";
+        return $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff zzz}] [User:{Environment.UserName}] [PID:{Environment.ProcessId},TID:{Environment.CurrentManagedThreadId}] [{level.ToString().ToUpperInvariant(),-8}] {message}";
     }
 
     /// <summary>
