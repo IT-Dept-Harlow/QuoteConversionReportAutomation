@@ -43,6 +43,7 @@ namespace QuoteConversionReportAutomation
 
                 // Ensure the directory exists
                 Directory.CreateDirectory(targetFolderPath);
+
                 Logger.LogInfo($"Ensured report output folder exists: {targetFolderPath}");
                 return targetFolderPath;
             }

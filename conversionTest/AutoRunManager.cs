@@ -52,12 +52,58 @@ namespace conversionTest
             false;
 #endif
 
-        /// <summary>Gets the base directory where the final processed analysis Excel file will be saved.</summary>
-        private string ExcelFinalSaveLocation => _configuration["settings:ExcelFinalSaveLocation"]
-            ?? $@"C:\Users\{Environment.UserName}\Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimates\"; // Fallback if not in config
+        // --- User Profile Path ---
+        /// <summary>Gets the user's profile directory path.</summary>
+        private string UserProfilePath => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+
+        /// <summary>Gets the base directory where the final processed analysis Excel file will be saved, combined with user profile.</summary>
+        private string ExcelFinalSaveLocation
+        {
+            get
+            {
+                // Read relative path, trim leading slashes, provide fallback
+                string relativePath = _configuration["settings:ExcelFinalSaveLocation"]
+                                          ?.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                                      // Fallback relative path if config is missing
+                                      ?? @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimates";
+                // *** FIX: Combine with user profile path ***
+                return Path.Combine(UserProfilePath, relativePath);
+            }
+        }
 
         /// <summary>Gets the Crystal Report file path from configuration.</summary>
         private string CrystalReportLocation => _configuration["settings:CrystalReportPath"] ?? string.Empty;
+
+        /// <summary>Gets the base directory for raw report exports from configuration, combined with user profile.</summary>
+        private string RawReportExportBaseDir
+        {
+            get
+            {
+                // Read relative path, trim leading slashes, provide fallback
+                string relativePath = _configuration["settings:RawReportExportBaseDir"]
+                                          ?.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                                      // Fallback relative path if config is missing
+                                      ?? @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimate Reports Exports";
+                // *** FIX: Combine with user profile path ***
+                return Path.Combine(UserProfilePath, relativePath);
+            }
+        }
+
+        /// <summary>Gets the base directory for templates from configuration, combined with user profile.</summary>
+        public string ExcelTemplateBaseDir
+        {
+            get
+            {
+                // Read relative path, trim leading slashes, provide fallback
+                string relativePath = _configuration["settings:TemplateBaseDir"]
+                                          ?.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                                      // Fallback relative path if config is missing
+                                      ?? @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\TEMPLATE";
+                // *** FIX: Combine with user profile path ***
+                return Path.Combine(UserProfilePath, relativePath);
+            }
+        }
 
 
         #endregion
@@ -220,7 +266,8 @@ namespace conversionTest
                 { throw new InvalidOperationException($"Auto Run Error: Failed to start or connect to the report service."); }
 
                 progress.Report("Preparing request...");
-                string dailyOutputPath = GetAutomatedReportOutputPath(reportDate); // Calls instance method below
+                // *** FIX: GetAutomatedReportOutputPath now uses the RawReportExportBaseDir property which includes UserProfilePath ***
+                string dailyOutputPath = GetAutomatedReportOutputPath(reportDate);
                 string crystalReportPath = CrystalReportLocation;
                 if (string.IsNullOrEmpty(crystalReportPath) || !File.Exists(crystalReportPath))
                 { throw new FileNotFoundException("Auto Run Error: Crystal Report file path is invalid or missing.", crystalReportPath); }
@@ -248,12 +295,16 @@ namespace conversionTest
                     string errorMessage = response?.ErrorMessage ?? "Unknown error from report service.";
                     if (response?.Success == true && (string.IsNullOrEmpty(response.OutputPath) || !File.Exists(response.OutputPath)))
                     { errorMessage = $"Auto Run Error: Report service success, but output file invalid/missing ('{response?.OutputPath ?? "NULL"}')."; }
+                    // Log the full path attempted
+                    Logger.LogError($"Auto Run Error: Report generation failed attempting to write to '{dailyOutputPath}'. Message: {errorMessage}");
                     throw new Exception($"Auto Run Error: Report generation failed: {errorMessage}");
                 }
 
                 // --- Step 2: Process Report ---
                 progress.Report("Processing report...");
+                // *** FIX: GetAutomatedTemplatePath now uses the ExcelTemplateBaseDir property which includes UserProfilePath ***
                 string templatePath = GetAutomatedTemplatePath();
+                // *** FIX: ExcelFinalSaveLocation property now includes UserProfilePath ***
                 string baseSaveLocation = ExcelFinalSaveLocation;
                 string currentFY = _excelProcessor.GetCurrentFinancialYear(true); // Use instance
 
@@ -313,6 +364,7 @@ namespace conversionTest
             }
             catch (Exception ex)
             {
+                // Log the exception already includes the path issue from step 1 or other errors
                 Logger.LogError($"Auto Run: Error during automated process: {ex}");
                 progress.Report($"ERROR: {ex.Message}");
                 return false;
@@ -326,18 +378,18 @@ namespace conversionTest
         /// <summary>
         /// Gets the output path for the automated raw report generation, using a specific date.
         /// Ensures the directory exists using the FolderCreation utility.
+        /// Uses the RawReportExportBaseDir property which combines config with UserProfilePath.
         /// </summary>
         private string GetAutomatedReportOutputPath(DateTime reportDate)
         {
-            // Use configuration for base path if available, otherwise fallback
-            string baseDir = _configuration["settings:RawReportExportBaseDir"]
-               ?? $@"C:\Users\{Environment.UserName}\Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimate Reports Exports";
+            // *** FIX: Use the property that combines with user profile ***
+            string baseDir = RawReportExportBaseDir;
             string fileName = $"{reportDate:yyyyMMdd}_EstimateSuccessReport_Raw.xlsx";
             string fullPath = string.Empty; // Initialize
 
             try
             {
-                // *** FIX: Use FolderCreation static method ***
+                // Use FolderCreation static method
                 // Use reportDate for folder structure consistency
                 string? folderPath = FolderCreation.CreateReportSpecificFolder(DailyReportIndex, baseDir, reportDate);
 
@@ -345,6 +397,7 @@ namespace conversionTest
                 {
                     // Construct the path using the determined folder
                     fullPath = Path.Combine(folderPath, fileName);
+                    Logger.LogDebug($"Auto Run: Determined raw output path: {fullPath}"); // Log the correct path
                 }
                 else
                 {
@@ -362,18 +415,19 @@ namespace conversionTest
                 string fallbackFolder = Path.Combine(baseDir, "Daily Reports", "ErrorFallback");
                 try { Directory.CreateDirectory(fallbackFolder); } catch { /* Ignore secondary error */ }
                 fullPath = Path.Combine(fallbackFolder, fileName);
+                Logger.LogError($"GetAutomatedReportOutputPath: Using ErrorFallback path: {fullPath}"); // Log error fallback path
             }
             return fullPath;
         }
 
         /// <summary>
         /// Gets the template path for the automated daily run (uses the weekly template).
+        /// Uses the ExcelTemplateBaseDir property which combines config with UserProfilePath.
         /// </summary>
         private string GetAutomatedTemplatePath()
         {
-            // Use configuration for base path if available, otherwise fallback
-            string baseDir = _configuration["settings:TemplateBaseDir"]
-               ?? $@"C:\Users\{Environment.UserName}\Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\TEMPLATE\";
+            // *** FIX: Use the property that combines with user profile ***
+            string baseDir = ExcelTemplateBaseDir;
             string templateName = "TEMPLATE_Estimate Success Rate.xlsx"; // Daily uses the weekly template
             return Path.Combine(baseDir, templateName);
         }
@@ -415,7 +469,7 @@ namespace conversionTest
             string subjectPrefix = $"Daily {reportTypeName}"; // Always Daily for auto-run
 
             string subject = $"AUTOMATED: {subjectPrefix} Report ({reportDate:yyyy-MM-dd})"; // Indicate automated run and report date
-            string body = $"{greeting}\n\nPlease find attached the automated {subjectPrefix} report {dateRangeInfo}.\n\nThank you,\nAutomation Service";
+            string body = $"{greeting}\n\nPlease find attached the automated {subjectPrefix.ToLower()} report {dateRangeInfo}.\n\nThank you,\nAutomation Service";
 
             return (subject, body);
         }

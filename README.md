@@ -13,9 +13,9 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
     * Modified `Form1` to remove the stored `_today` field and related `_financialYear` field.
     * Updated `reportTypeComboBox_SelectedIndexChanged` and `PopulateFinancialYearDropdown` to always use `DateTime.Today` for calculating default date ranges and the current financial year, ensuring the UI reflects the actual current date.
     * Ensured `processEmailButton_Click` gets the correct financial year dynamically before processing.
-    * Updated Help text slightly to reflect that default dates/FY are based on the current date.
 	* Removed Financial Year dropdown from daily reports as it's not used.
-	* Updated and reformatted help text.
+	* Updated Help text (`HelpForm`) to accurately state that default date ranges and financial year selections are calculated based on the *current date* when the report type is changed, not the application start date. Also improved RTF formatting for folder path examples.
+    * Fixed issue where AutoRun failed with "Access Denied" because `AutoRunManager.cs` was not correctly combining relative paths from configuration (`RawReportExportBaseDir`, `ExcelFinalSaveLocation`, `ExcelTemplateBaseDir`) with the user's profile path. Updated `AutoRunManager.cs` to construct full paths correctly, matching `Form1.cs`.
 
 ---
 
