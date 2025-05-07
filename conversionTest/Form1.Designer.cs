@@ -48,12 +48,21 @@
             emailRecipientLabel = new Label();
             financialYearLabel = new Label();
             financialYearComboBox = new ComboBox();
+            generateAndSendButton = new Button();
             toggleAutoRunButton = new Button();
             dailyCheckTimer = new System.Windows.Forms.Timer(components);
             menuStrip1 = new MenuStrip();
             optionsToolStripMenuItem = new ToolStripMenuItem();
             darkModeToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator1 = new ToolStripSeparator();
+            viewConfigToolStripMenuItem = new ToolStripMenuItem();
+            validateConfigToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator3 = new ToolStripSeparator();
+            openLogsToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator4 = new ToolStripSeparator();
+            editConfigToolStripMenuItem = new ToolStripMenuItem();
             helpToolStripMenuItem = new ToolStripMenuItem();
+            toolTip1 = new ToolTip(components);
             mainStatusStrip.SuspendLayout();
             reportSettingsGroupBox.SuspendLayout();
             menuStrip1.SuspendLayout();
@@ -65,6 +74,7 @@
             startDatePicker.Name = "startDatePicker";
             startDatePicker.Size = new Size(200, 22);
             startDatePicker.TabIndex = 0;
+            toolTip1.SetToolTip(startDatePicker, "Select the start date for the report period. Modifying this will set the Report Type to 'Custom'.");
             // 
             // endDatePicker
             // 
@@ -72,6 +82,7 @@
             endDatePicker.Name = "endDatePicker";
             endDatePicker.Size = new Size(200, 22);
             endDatePicker.TabIndex = 1;
+            toolTip1.SetToolTip(endDatePicker, "Select the end date for the report period. Modifying this will set the Report Type to 'Custom'.");
             // 
             // startDateLabel
             // 
@@ -102,6 +113,7 @@
             createReportButton.Size = new Size(134, 71);
             createReportButton.TabIndex = 5;
             createReportButton.Text = "Create Report";
+            toolTip1.SetToolTip(createReportButton, "Click to generate the raw Crystal Report based on the selected dates and report type.");
             createReportButton.UseVisualStyleBackColor = true;
             createReportButton.Click += createReportButton_Click;
             // 
@@ -116,6 +128,7 @@
             processEmailButton.Size = new Size(134, 71);
             processEmailButton.TabIndex = 6;
             processEmailButton.Text = "Create Analysis &\r\nSend Email";
+            toolTip1.SetToolTip(processEmailButton, "Click to process the generated raw report, create the final analysis, and email it.");
             processEmailButton.UseMnemonic = false;
             processEmailButton.UseVisualStyleBackColor = true;
             processEmailButton.Click += processEmailButton_Click;
@@ -131,6 +144,7 @@
             viewReportButton.Size = new Size(75, 23);
             viewReportButton.TabIndex = 8;
             viewReportButton.Text = "View File";
+            toolTip1.SetToolTip(viewReportButton, "Click to open the generated raw report file.");
             viewReportButton.UseVisualStyleBackColor = true;
             viewReportButton.Click += viewReportButton_Click;
             // 
@@ -145,13 +159,17 @@
             viewAnalysisButton.Size = new Size(75, 23);
             viewAnalysisButton.TabIndex = 9;
             viewAnalysisButton.Text = "View File";
+            toolTip1.SetToolTip(viewAnalysisButton, "Click to open the final processed analysis file.");
             viewAnalysisButton.UseVisualStyleBackColor = true;
             viewAnalysisButton.Click += viewAnalysisButton_Click;
             // 
             // statusLabel
             // 
             statusLabel.Name = "statusLabel";
-            statusLabel.Size = new Size(0, 17);
+            statusLabel.Size = new Size(512, 17);
+            statusLabel.Spring = true;
+            statusLabel.Text = "Ready";
+            statusLabel.TextAlign = ContentAlignment.MiddleLeft;
             // 
             // mainStatusStrip
             // 
@@ -164,10 +182,8 @@
             // 
             // autoRunStatusLabel
             // 
-            autoRunStatusLabel.LiveSetting = System.Windows.Forms.Automation.AutomationLiveSetting.Assertive;
             autoRunStatusLabel.Name = "autoRunStatusLabel";
-            autoRunStatusLabel.Size = new Size(620, 17);
-            autoRunStatusLabel.Spring = true;
+            autoRunStatusLabel.Size = new Size(108, 17);
             autoRunStatusLabel.Text = "Auto Run: Disabled";
             autoRunStatusLabel.TextAlign = ContentAlignment.MiddleRight;
             // 
@@ -181,6 +197,7 @@
             sendToFemiOnlyCheckBox.Size = new Size(142, 21);
             sendToFemiOnlyCheckBox.TabIndex = 11;
             sendToFemiOnlyCheckBox.Text = "Send to only Femi?";
+            toolTip1.SetToolTip(sendToFemiOnlyCheckBox, "Check this to send the email report only to Femi (and relevant CCs based on build mode). Uncheck to send to the broader team.");
             sendToFemiOnlyCheckBox.UseVisualStyleBackColor = true;
             // 
             // reportTypeComboBox
@@ -194,6 +211,7 @@
             reportTypeComboBox.Name = "reportTypeComboBox";
             reportTypeComboBox.Size = new Size(200, 21);
             reportTypeComboBox.TabIndex = 12;
+            toolTip1.SetToolTip(reportTypeComboBox, "Select the type of report to generate (Daily, Weekly, etc.). Dates will adjust automatically based on the current date. Manual date changes will set this to 'Custom'.");
             reportTypeComboBox.SelectedIndexChanged += reportTypeComboBox_SelectedIndexChanged;
             // 
             // reportTypeLabel
@@ -247,6 +265,14 @@
             financialYearComboBox.Name = "financialYearComboBox";
             financialYearComboBox.Size = new Size(200, 22);
             financialYearComboBox.TabIndex = 15;
+            toolTip1.SetToolTip(financialYearComboBox, "Select the financial year for the report. Only applicable for certain report types.");
+            // 
+            // generateAndSendButton
+            // 
+            generateAndSendButton.Location = new Point(0, 0);
+            generateAndSendButton.Name = "generateAndSendButton";
+            generateAndSendButton.Size = new Size(75, 23);
+            generateAndSendButton.TabIndex = 19;
             // 
             // toggleAutoRunButton
             // 
@@ -255,6 +281,7 @@
             toggleAutoRunButton.Size = new Size(107, 54);
             toggleAutoRunButton.TabIndex = 16;
             toggleAutoRunButton.Text = "Enable Daily Auto Run @ 8 AM";
+            toolTip1.SetToolTip(toggleAutoRunButton, "Enable or disable the automated daily report generation. The report runs around 8 AM for the previous workday.");
             toggleAutoRunButton.UseVisualStyleBackColor = true;
             toggleAutoRunButton.Click += toggleAutoRunButton_Click;
             // 
@@ -274,7 +301,7 @@
             // 
             // optionsToolStripMenuItem
             // 
-            optionsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem });
+            optionsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem, toolStripSeparator1, viewConfigToolStripMenuItem, validateConfigToolStripMenuItem, toolStripSeparator3, openLogsToolStripMenuItem, toolStripSeparator4, editConfigToolStripMenuItem });
             optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
             optionsToolStripMenuItem.Size = new Size(61, 20);
             optionsToolStripMenuItem.Text = "&Options";
@@ -283,17 +310,72 @@
             // 
             darkModeToolStripMenuItem.CheckOnClick = true;
             darkModeToolStripMenuItem.Name = "darkModeToolStripMenuItem";
-            darkModeToolStripMenuItem.Size = new Size(132, 22);
+            darkModeToolStripMenuItem.Size = new Size(192, 22);
             darkModeToolStripMenuItem.Text = "&Dark Mode";
-            darkModeToolStripMenuItem.ToolTipText = "Enables/Disables Dark Mode";
+            darkModeToolStripMenuItem.ToolTipText = "Toggle between light and dark visual themes for the application.";
             darkModeToolStripMenuItem.Click += darkModeToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator1
+            // 
+            toolStripSeparator1.Name = "toolStripSeparator1";
+            toolStripSeparator1.Size = new Size(189, 6);
+            // 
+            // viewConfigToolStripMenuItem
+            // 
+            viewConfigToolStripMenuItem.Name = "viewConfigToolStripMenuItem";
+            viewConfigToolStripMenuItem.Size = new Size(192, 22);
+            viewConfigToolStripMenuItem.Text = "&View Configuration";
+            viewConfigToolStripMenuItem.ToolTipText = "Show detailed status of configuration settings like file paths.";
+            viewConfigToolStripMenuItem.Click += viewConfigToolStripMenuItem_Click;
+            // 
+            // validateConfigToolStripMenuItem
+            // 
+            validateConfigToolStripMenuItem.Name = "validateConfigToolStripMenuItem";
+            validateConfigToolStripMenuItem.Size = new Size(192, 22);
+            validateConfigToolStripMenuItem.Text = "V&alidate Configuration";
+            validateConfigToolStripMenuItem.ToolTipText = "Quickly validate essential configuration and update status bar.";
+            validateConfigToolStripMenuItem.Click += validateConfigToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator3
+            // 
+            toolStripSeparator3.Name = "toolStripSeparator3";
+            toolStripSeparator3.Size = new Size(189, 6);
+            // 
+            // openLogsToolStripMenuItem
+            // 
+            openLogsToolStripMenuItem.Name = "openLogsToolStripMenuItem";
+            openLogsToolStripMenuItem.Size = new Size(192, 22);
+            openLogsToolStripMenuItem.Text = "Open &Logs Folder";
+            openLogsToolStripMenuItem.ToolTipText = "Open the folder containing application log files.";
+            openLogsToolStripMenuItem.Click += openLogsToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator4
+            // 
+            toolStripSeparator4.Name = "toolStripSeparator4";
+            toolStripSeparator4.Size = new Size(189, 6);
+            // 
+            // editConfigToolStripMenuItem
+            // 
+            editConfigToolStripMenuItem.Name = "editConfigToolStripMenuItem";
+            editConfigToolStripMenuItem.Size = new Size(192, 22);
+            editConfigToolStripMenuItem.Text = "&Edit appsettings.json";
+            editConfigToolStripMenuItem.ToolTipText = "Open the appsettings.json file for manual editing (use with caution).";
+            editConfigToolStripMenuItem.Click += editConfigToolStripMenuItem_Click;
             // 
             // helpToolStripMenuItem
             // 
             helpToolStripMenuItem.Name = "helpToolStripMenuItem";
             helpToolStripMenuItem.Size = new Size(44, 20);
             helpToolStripMenuItem.Text = "&Help";
+            helpToolStripMenuItem.ToolTipText = "Show the help window with instructions and troubleshooting tips.";
             helpToolStripMenuItem.Click += helpToolStripMenuItem_Click;
+            // 
+            // toolTip1
+            // 
+            toolTip1.AutomaticDelay = 700;
+            toolTip1.AutoPopDelay = 7000;
+            toolTip1.InitialDelay = 500;
+            toolTip1.ReshowDelay = 140;
             // 
             // Form1
             // 
@@ -310,6 +392,7 @@
             Controls.Add(viewReportButton);
             Controls.Add(processEmailButton);
             Controls.Add(createReportButton);
+            Controls.Add(generateAndSendButton);
             Controls.Add(endDateLabel);
             Controls.Add(startDateLabel);
             Controls.Add(endDatePicker);
@@ -351,14 +434,22 @@
         private System.Windows.Forms.GroupBox reportSettingsGroupBox;
         private System.Windows.Forms.Label financialYearLabel;
         private System.Windows.Forms.ComboBox financialYearComboBox;
-        private Label emailRecipientLabel;
-        private Button toggleAutoRunButton;
+        private System.Windows.Forms.Label emailRecipientLabel;
+        private System.Windows.Forms.Button generateAndSendButton; // Added field
+        private System.Windows.Forms.Button toggleAutoRunButton;
         private System.Windows.Forms.Timer dailyCheckTimer;
-        private MenuStrip menuStrip1;
-        private ToolStripMenuItem optionsToolStripMenuItem;
-        private ToolStripMenuItem darkModeToolStripMenuItem;
-        private ToolStripMenuItem helpToolStripMenuItem;
-        private ToolStripStatusLabel autoRunStatusLabel;
+        private System.Windows.Forms.MenuStrip menuStrip1;
+        private System.Windows.Forms.ToolStripMenuItem optionsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem darkModeToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem helpToolStripMenuItem;
+        private System.Windows.Forms.ToolStripStatusLabel autoRunStatusLabel;
+        private System.Windows.Forms.ToolTip toolTip1;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
+        private System.Windows.Forms.ToolStripMenuItem viewConfigToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem openLogsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem editConfigToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem validateConfigToolStripMenuItem;
+        private ToolStripSeparator toolStripSeparator3;
+        private ToolStripSeparator toolStripSeparator4;
     }
 }
-

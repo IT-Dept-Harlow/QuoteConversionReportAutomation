@@ -19,6 +19,7 @@ namespace conversionTest
     /// Manages the automated daily report generation feature.
     /// Handles timing checks, execution logic, state persistence, and coordination
     /// with other services like process management, communication, and UI updates.
+    /// Takes into account bank holidays for daily report date calculation.
     /// </summary>
     public class AutoRunManager
     {
@@ -241,14 +242,17 @@ namespace conversionTest
 
         /// <summary>
         /// Executes the automated daily report generation, processing, and emailing sequence.
-        /// Uses the previous workday for the report dates.
+        /// Uses the previous workday for the report dates, considering bank holidays.
         /// </summary>
         private async Task<bool> RunAutomatedDailyReportAsync()
         {
             Logger.LogInfo("Auto Run: Starting automated daily report process...");
             string? generatedRawPath = null;
             string? finalAnalysisPath = null;
-            DateTime reportDate = GetPreviousWorkday(DateTime.Today); // Get the date for the report
+            // *** MODIFIED: Use GetPreviousWorkday which now considers bank holidays ***
+            DateTime reportDate = GetPreviousWorkday(DateTime.Today);
+            Logger.LogInfo($"Auto Run: Calculated report date (previous workday considering bank holidays): {reportDate:yyyy-MM-dd}");
+
 
             using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(20)); // Timeout for the whole process
             var token = cts.Token;
@@ -465,7 +469,7 @@ namespace conversionTest
         {
             string reportTypeName = "Estimate Success Rate";
             string greeting = IsDebug ? "Hi Debug," : (_configuration["settings:ProductionEmails:AutoRunDailyGreeting"] ?? "Hi Paul,");
-            string dateRangeInfo = $"for {reportDate:dd MMM yyyy}"; // Corrected format
+            string dateRangeInfo = $"for {reportDate:dd MMM yy}"; // Corrected format
             string subjectPrefix = $"Daily {reportTypeName}"; // Always Daily for auto-run
 
             string subject = $"AUTOMATED: {subjectPrefix} Report ({reportDate:yyyy-MM-dd})"; // Indicate automated run and report date
@@ -552,18 +556,37 @@ namespace conversionTest
         }
 
         /// <summary>
-        /// Calculates the previous working day (Monday -> Friday, otherwise Day - 1).
+        /// Calculates the previous working day, skipping weekends and bank holidays.
         /// </summary>
+        /// <param name="currentDate">The date to calculate from (usually Today).</param>
+        /// <returns>The DateTime representing the previous workday.</returns>
         private static DateTime GetPreviousWorkday(DateTime currentDate)
         {
-            // This could potentially be moved to a static helper if preferred
             DateTime previousDay = currentDate.AddDays(-1);
-            return currentDate.DayOfWeek switch
+
+            // Loop backwards until a non-weekend, non-bank holiday is found
+            while (true)
             {
-                DayOfWeek.Monday => currentDate.AddDays(-3),
-                DayOfWeek.Sunday => currentDate.AddDays(-2),
-                _ => previousDay,
-            };
+                // Check for weekends
+                if (previousDay.DayOfWeek == DayOfWeek.Saturday)
+                {
+                    previousDay = previousDay.AddDays(-1); // Move to Friday
+                }
+                else if (previousDay.DayOfWeek == DayOfWeek.Sunday)
+                {
+                    previousDay = previousDay.AddDays(-2); // Move to Friday
+                }
+
+                // Check for bank holidays (using the BankHolidayHelper)
+                if (!BankHolidayHelper.IsBankHoliday(previousDay))
+                {
+                    // Not a weekend and not a bank holiday, so this is our workday
+                    return previousDay;
+                }
+
+                // If it was a bank holiday, subtract another day and check again
+                previousDay = previousDay.AddDays(-1);
+            }
         }
 
         /// <summary>

@@ -6,6 +6,43 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ## ChangeLog
 
+### Version 1.7.0
+
+* **Bank Holiday Integration & Previous Workday Logic**
+    * Integrated comprehensive bank holiday calculations (`BankHolidayHelper.cs`) into the `GetPreviousWorkday` logic used by `ReportHelper.cs` and `AutoRunManager.cs`.
+    * This enhancement ensures that Daily reports and the auto-run Daily report feature now accurately determine the previous working day by correctly skipping:
+        * Weekends (Saturdays and Sundays).
+        * Standard bank holidays for **England and Wales**.
+        * Moving bank holidays (e.g., Good Friday, Easter Monday, Spring, and Summer bank holidays which depend on Easter's date or are proclaimed).
+        * Bank holidays that fall on a weekend, which are then observed on the following Monday (or Tuesday if Monday itself is a bank holiday, e.g., Christmas/Boxing Day scenarios).
+    * The `BankHolidayHelper.cs` also includes a mechanism (`AddCustomBankHoliday` and `AddRecurringCustomBankHoliday`) to allow for the programmatic addition of custom one-off or recurring bank holidays (e.g., for special national events like Jubilees or State Funerals), although this is not currently exposed via the UI.
+    * Updated `Form1.cs` to utilize the enhanced `ReportHelper.GetPreviousWorkday` for UI date calculations for the "Daily" report type.
+    * Help text in `Form1.cs` updated to reflect the new bank holiday considerations for daily reports.
+
+* **UI Enhancements & Menu Options**
+    * Added `ToolTip` support throughout `Form1.cs` and `Form1.Designer.cs`, providing helpful hints and descriptions for various UI controls to improve user experience.
+    * Revamped "Options" menu in `Form1.cs` and `Form1.Designer.cs` with new functionalities:
+        * "View Configuration": Replaced "Check Configuration". Shows a detailed breakdown of current configuration paths (Crystal Report, Wrapper EXE, Template, Export, Save, and Log directories) and their existence status in a message box.
+        * "Validate Configuration": Performs a quick validation of essential configuration paths (Crystal Report and Wrapper EXE) and updates the main status bar with "Configuration OK." or an error message.
+        * "Open Logs Folder": Opens the user-specific application log directory in File Explorer.
+        * "Edit appsettings.json": Opens the main `appsettings.json` configuration file for manual editing using the default system application.
+    * Updated application help text to include information about these new menu options.
+
+* **UI Theming & Rendering**
+    * Addressed and resolved issues with `MenuStrip` theming when switching between dark and light modes. This ensures that the main menu, sub-menus, and individual menu items (including their backgrounds and text colors) render correctly and consistently in both themes.
+    * Implemented a custom `DarkModeMenuRenderer` and `DarkModeColorTable` in `UIManager.cs` to provide a more tailored dark mode appearance for menus, including hover effects and border colors.
+    * Fixed CS0120 errors in `DarkModeMenuRenderer` by correctly making color fields used in the base constructor call `static readonly`.
+    * Corrected `StatusStrip` item layout in `Form1.Designer.cs` to ensure the main status label (`statusLabel`) correctly uses available space and is not obscured by other items.
+
+* **Code & Functionality Refinements**
+    * **ProgressBar Removal**: All `ToolStripProgressBar` related controls and logic were removed from `Form1.Designer.cs`, `UIManager.cs`, and `Form1.cs` as per user request. Status updates for ongoing operations are now text-only via the `ToolStripStatusLabel`.
+    * Corrected event handler subscriptions in `Form1.cs` for new menu items to prevent them from firing twice.
+    * Aligned log path determination logic in `Form1.cs` (for "View Configuration" and "Open Logs Folder" features) to correctly use the `settings:LogDirectory` configuration key, consistent with `Logger.cs`.
+    * Ensured that `UIManager.cs` correctly handles updates to `ToolStripItems` (like `ToolStripStatusLabel`) by invoking updates on their parent `StatusStrip` or `MenuStrip` when necessary for thread safety.
+    * Incremented application version to v1.7.0.
+
+---
+
 ### Version 1.6.5
 
 * **Bug Fixes & Improvements**
@@ -13,8 +50,8 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
     * Modified `Form1` to remove the stored `_today` field and related `_financialYear` field.
     * Updated `reportTypeComboBox_SelectedIndexChanged` and `PopulateFinancialYearDropdown` to always use `DateTime.Today` for calculating default date ranges and the current financial year, ensuring the UI reflects the actual current date.
     * Ensured `processEmailButton_Click` gets the correct financial year dynamically before processing.
-	* Removed Financial Year dropdown from daily reports as it's not used.
-	* Updated Help text (`HelpForm`) to accurately state that default date ranges and financial year selections are calculated based on the *current date* when the report type is changed, not the application start date. Also improved RTF formatting for folder path examples.
+    * Removed Financial Year dropdown from daily reports as it's not used.
+    * Updated Help text (`HelpForm`) to accurately state that default date ranges and financial year selections are calculated based on the *current date* when the report type is changed, not the application start date. Also improved RTF formatting for folder path examples.
     * Fixed issue where AutoRun failed with "Access Denied" because `AutoRunManager.cs` was not correctly combining relative paths from configuration (`RawReportExportBaseDir`, `ExcelFinalSaveLocation`, `ExcelTemplateBaseDir`) with the user's profile path. Updated `AutoRunManager.cs` to construct full paths correctly, matching `Form1.cs`.
 
 ---
