@@ -23,7 +23,7 @@ namespace conversionTest
     /// Includes handling for a "Custom" report type triggered by manual date changes.
     /// Includes background archiving of old report files on startup.
     /// Daily report date calculation now considers bank holidays.
-    /// Added new options menu items: View Configuration, Validate Configuration, Open Logs, Edit Config.
+    /// Added new options menu items: View Configuration, Validate Configuration, Open Logs, Edit Config, Manage Custom Bank Holidays, Exit.
     /// ProgressBar functionality has been removed.
     /// </summary>
     public partial class Form1 : Form
@@ -40,7 +40,7 @@ namespace conversionTest
         private readonly ExcelCopyData _excelProcessor;
 
         // --- Application Info ---
-        private const string AppVersion = "1.7.0"; // Reflects bank holiday help text update
+        private const string AppVersion = "1.7.1"; // Reflects latest changes
 
         // --- State Variables (Remaining in Form1) ---
         private string _generatedReportPath = string.Empty;
@@ -139,14 +139,14 @@ namespace conversionTest
                 // --- Instantiate Dependencies and Managers ---
                 _emailUtility = new EmailUtility(_configuration);
                 _excelProcessor = new ExcelCopyData();
-                _uiManager = new UIManager( // ProgressBar parameter removed
+                _uiManager = new UIManager(
                     this, menuStrip1, mainStatusStrip, statusLabel, autoRunStatusLabel,
                     darkModeToolStripMenuItem, createReportButton, processEmailButton,
-                    generateAndSendButton, // Assuming this button exists from your designer
+                    generateAndSendButton,
                     toggleAutoRunButton, viewReportButton, viewAnalysisButton,
                     reportTypeComboBox, startDatePicker, endDatePicker,
                     financialYearComboBox, financialYearLabel, sendToFemiOnlyCheckBox,
-                    emailRecipientLabel, toolTip1 // Assuming toolTip1 is your ToolTip component
+                    emailRecipientLabel, toolTip1
                 );
                 string wrapperExePath = Path.GetFullPath(_configuration["settings:WrapperExePath"] ?? "CrystalReportWrapper.exe");
                 _processManager = new ReportProcessManager(wrapperExePath);
@@ -159,8 +159,13 @@ namespace conversionTest
                 // --- Wire up event handlers ---
                 this.startDatePicker.ValueChanged += new System.EventHandler(this.DatePicker_ValueChanged);
                 this.endDatePicker.ValueChanged += new System.EventHandler(this.DatePicker_ValueChanged);
-                Logger.LogDebug("Date picker event handlers wired up.");
-                // Note: Menu item event handlers are wired in Form1.Designer.cs
+                // Event handlers for menu items like exitToolStripMenuItem, manageCustomBankHolidaysToolStripMenuItem etc.
+                // are typically wired up in Form1.Designer.cs by the designer when you double-click them.
+                // If not, they should be added here or in the designer.
+                // Example (ensure these match your Designer.cs or add them here):
+                // this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
+                // this.manageCustomBankHolidaysToolStripMenuItem.Click += new System.EventHandler(this.manageCustomBankHolidaysToolStripMenuItem_Click);
+                Logger.LogDebug("Event handlers wired up.");
             }
             catch (Exception ex)
             {
@@ -185,6 +190,10 @@ namespace conversionTest
             _uiManager.UpdateStatusMain("Loading application...");
             try
             {
+                // Initialize BankHolidayHelper - crucial for loading custom holidays
+                BankHolidayHelper.Initialize();
+                Logger.LogInfo("BankHolidayHelper initialized.");
+
                 Logger.LogInfo("Form Loading...");
 
                 // --- Configuration Validation ---
@@ -466,6 +475,21 @@ namespace conversionTest
         }
 
         /// <summary>
+        /// Handles the Click event for the "Generate & Send" button.
+        /// This is a placeholder and needs to be implemented if the button is active.
+        /// </summary>
+        private async void generateAndSendButton_Click(object sender, EventArgs e)
+        {
+            Logger.LogInfo("Generate & Send button clicked. Functionality not yet fully implemented.");
+            _uiManager.UpdateStatusMain("Generate & Send: Not implemented.");
+            // Placeholder: You would chain createReportButton_Click and then processEmailButton_Click logic here.
+            // Ensure proper error handling and UI updates throughout the combined process.
+            await Task.Delay(2000); // Simulate work
+            _uiManager.UpdateStatusMain("Ready.");
+        }
+
+
+        /// <summary>
         /// Handles the Click event for the "View Report" button. Uses ReportHelper.
         /// </summary>
         private void viewReportButton_Click(object sender, EventArgs e)
@@ -575,58 +599,63 @@ namespace conversionTest
         private void helpToolStripMenuItem_Click(object sender, EventArgs e)
         {
             string helpTitle = $"Help - Quote Conversion v{AppVersion}";
-            // Use verbatim string literal (@) to handle backslashes in RTF easily
-            // Ensure all RTF commands are correct and braces are balanced.
-            string helpMessage = @"{\rtf1\ansi\ansicpg1252\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset0 Segoe UI;}}
-{\colortbl ;\red0\green0\blue0;}
-\pard\sa200\sl276\slmult1\b\f0\fs24 Quote Conversion Automation Tool\b0\fs20\par
-\par
-This tool automates the process of generating and processing Estimate Success Rate reports.\par
-\par
-\b How to Use: \b0\par
-\par
-1.  \b Select Report Type: \b0 Choose Daily, Weekly, Monthly, Quarterly, Annual, or Custom from the dropdown. The 'From' and 'To' dates, along with the Financial Year (if applicable), will adjust automatically based on the {\i current date} when you select a standard report type.\par
-    * \b Daily: \b0 Dates will be set to the {\i previous working day}. This calculation automatically skips weekends (Saturdays/Sundays) and official bank holidays for England and Wales. It correctly handles bank holidays that fall on a weekend (substituting them to the following Monday/Tuesday) and moving holidays like Easter. {\i (Note: Custom/one-off bank holidays like Jubilees require code updates in BankHolidayHelper.cs).}\par 
-    * \b Weekly/Daily: \b0 Ensure the correct Financial Year is selected if visible (it defaults based on the {\i current date}).\par
-    * \b Custom: \b0 Select this type, or simply change the 'From' or 'To' dates manually.\par
-\par
-2.  \b Adjust Dates (Optional/Custom report): \b0 You can manually change the 'From' and 'To' dates. Doing so will automatically select the 'Custom' report type.\par
-\par
-3.  \b Create Raw Report: \b0 Click the \""Create Report\"" button. This contacts a background service to generate the raw data export from Crystal Reports. Wait for the status to show \""Report Created\"". The filename will reflect the 'To' date.\par
-\par
-4.  \b Process & Email: \b0 Once the raw report is created, click the \""Process and Email\"" button. This performs data processing (including appending to the central weekly file for Weekly reports) and emails the final report.\par
-    * (For Monthly/Quarterly/Annual/Custom) You will be prompted to open the file in Excel to Refresh All pivot tables, Save, and Close before the email is sent.\par
-\par
-5.  \b View Files (Optional): \b0 Use the \""View Report\"" and \""View Analysis\"" buttons after the corresponding steps are complete to open the generated files.\par
-\par
-6.  \b Options Menu: \b0\par
-    * \b Dark Mode: \b0 Toggle the visual theme.\par
-    * \b View Configuration: \b0 Show detailed status of configuration settings.\par 
-    * \b Validate Configuration: \b0 Quickly validate essential configuration and update status bar.\par 
-    * \b Open Logs Folder: \b0 Open the folder containing application logs.\par 
-    * \b Edit appsettings.json: \b0 Open the main configuration file for manual editing (use with caution!).\par 
-\par
-7.  \b Auto Run Button: \b0 Enable/Disable the automated daily report generation. When enabled, the application checks around 8 AM each day. If the report for the {\i previous working day} (considering weekends and England/Wales bank holidays) hasn't run yet for the current date, it will generate and email it automatically. The status is shown on the right of the status bar.\par 
-\par
-\b Automated Features: \b0\par
-* \b Folder Creation: \b0 The application automatically creates the necessary folder structure within the configured base directories (e.g., `ExcelFinalSaveLocation`, `RawReportExportBaseDir`) when generating or processing reports. The structure depends on the report type:\par
-    * \b Daily/Weekly: \b0 `..\\\[Report Type Folder]\[Year]\[Month Name]\Week [Week Number]\` (e.g., `..\\Estimates\\Weekly Reports\\2025\\April\\Week 2\\`)\par
-    * \b Monthly: \b0 `..\\\[Report Type Folder]\[Year]\[MMM yy]\` (e.g., `..\\Estimates\\Monthly Reports\\2025\\Apr 25\\`)\par
-    * \b Quarterly: \b0 `..\\\[Report Type Folder]\[Year]\[Mmm to Mmm]\` (e.g., `..\\Estimates\\Quarterly reports\\2025\\Jan to Mar\\`)\par
-    * \b Annual: \b0 `..\\\[Report Type Folder]\[Year]\` (e.g., `..\\Estimates\\Annual Reports\\2025\\`)\par
-    * \b Custom: \b0 `..\\Custom Reports\[Year]\[yyyy-MM-dd_HHmmss]\` (e.g., `..\\Estimates\\Custom Reports\\2025\\2025-04-30_101500\\`)\par
-* \b Log Archiving: \b0 Old log files (older than 30 days) are automatically moved to an 'Archive' subfolder within your user's log directory during application startup to keep the main log folder clean.\par
-* \b Report Archiving: \b0 On startup, older report files/folders are archived: Final reports from previous years (e.g., `..\\Estimates\\Weekly Reports\\2024`) are moved into an `Archive` folder (`..\\Estimates\\Archive\\Weekly Reports\\2024`), merging if the destination exists. Raw report files older than 30 days (configurable) are moved into an `Archive\\YYYY-MM` subfolder within their report type folder (e.g., `..\\Exports\\Daily Reports\\Archive\\2025-03`).\par
-* \b Weekly Sheet Creation: \b0 When processing a Weekly report, if the sheet for the corresponding Financial Year (e.g., '2024_25') doesn't exist in the central Power BI source file (`weekly report quotes conversion merged.xlsx`), the application will create it automatically, copying headers from the 'Analysis' sheet of the template.\par
-\par
-\b Troubleshooting: \b0\par
-* Ensure the Crystal Report Wrapper service is running (the app tries to start it).\par
-* Check file paths in `appsettings.json` if errors occur finding reports or templates. Use Options -> Edit appsettings.json to open it.\par 
-* Ensure the central weekly report file is accessible and not locked if appending fails.\par
-* Check the application logs located in the 'Logs' subfolder (within the configured LogDirectory, specific to your username) for detailed error information. Use Options -> Open Logs Folder for quick access.\par 
-* If auto-run fails to update `appsettings.json`, check file permissions for the application directory.\par
-* If you get an error refreshing a Slicer, remove it, then click into the Pivot table, in the PivotTable Fields on the right, Right Click customers and select add as slicer, move it back to where it was.\par
-}";
+            var helpMessageBuilder = new System.Text.StringBuilder();
+
+            // --- Start RTF Content ---
+            helpMessageBuilder.AppendLine(@"{\rtf1\ansi\ansicpg1252\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset0 Segoe UI;}}");
+            helpMessageBuilder.AppendLine(@"{\colortbl ;\red0\green0\blue0;}");
+            helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\b\f0\fs24 Quote Conversion Automation Tool\b0\fs20\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"This tool automates the process of generating and processing Estimate Success Rate reports.\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"\b How to Use: \b0\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"1.  \b Select Report Type: \b0 Choose Daily, Weekly, Monthly, Quarterly, Annual, or Custom from the dropdown. The 'From' and 'To' dates, along with the Financial Year (if applicable), will adjust automatically based on the {\i current date} when you select a standard report type.\par");
+            helpMessageBuilder.AppendLine(@"    * \b Daily: \b0 Dates will be set to the {\i previous working day}. This calculation automatically skips weekends (Saturdays/Sundays) and official bank holidays for England and Wales. It correctly handles bank holidays that fall on a weekend (substituting them to the following Monday/Tuesday) and moving holidays like Easter. {\i (Note: Custom/one-off bank holidays like Jubilees require code updates in BankHolidayHelper.cs).}\par");
+            helpMessageBuilder.AppendLine(@"    * \b Weekly/Daily: \b0 Ensure the correct Financial Year is selected if visible (it defaults based on the {\i current date}).\par");
+            helpMessageBuilder.AppendLine(@"    * \b Custom: \b0 Select this type, or simply change the 'From' or 'To' dates manually.\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"2.  \b Adjust Dates (Optional/Custom report): \b0 You can manually change the 'From' and 'To' dates. Doing so will automatically select the 'Custom' report type.\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"3.  \b Create Raw Report: \b0 Click the \""Create Report\"" button. This contacts a background service to generate the raw data export from Crystal Reports. Wait for the status to show \""Report Created\"". The filename will reflect the 'To' date.\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"4.  \b Process & Email: \b0 Once the raw report is created, click the \""Process and Email\"" button. This performs data processing (including appending to the central weekly file for Weekly reports) and emails the final report.\par");
+            helpMessageBuilder.AppendLine(@"    * (For Monthly/Quarterly/Annual/Custom) You will be prompted to open the file in Excel to Refresh All pivot tables, Save, and Close before the email is sent.\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"5.  \b View Files (Optional): \b0 Use the \""View Report\"" and \""View Analysis\"" buttons after the corresponding steps are complete to open the generated files.\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"6.  \b Options Menu: \b0\par");
+            helpMessageBuilder.AppendLine(@"    * \b Dark Mode: \b0 Toggle the visual theme.\par");
+            helpMessageBuilder.AppendLine(@"    * \b View Configuration: \b0 Show detailed status of configuration settings.\par");
+            helpMessageBuilder.AppendLine(@"    * \b Validate Configuration: \b0 Quickly validate essential configuration and update status bar.\par");
+            helpMessageBuilder.AppendLine(@"    * \b Manage Custom Bank Holidays: \b0 Add or remove custom one-off or recurring bank holidays.\par");
+            helpMessageBuilder.AppendLine(@"    * \b Open Logs Folder: \b0 Open the folder containing application logs.\par");
+            helpMessageBuilder.AppendLine(@"    * \b Edit appsettings.json: \b0 Open the main configuration file for manual editing (use with caution!).\par");
+            helpMessageBuilder.AppendLine(@"    * \b Exit: \b0 Close the application.\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"7.  \b Auto Run Button: \b0 Enable/Disable the automated daily report generation. When enabled, the application checks around 8 AM each day. If the report for the {\i previous working day} (considering weekends and England/Wales bank holidays) hasn't run yet for the current date, it will generate and email it automatically. The status is shown on the right of the status bar.\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"\b Automated Features: \b0\par");
+            helpMessageBuilder.AppendLine(@"* \b Folder Creation: \b0 The application automatically creates the necessary folder structure within the configured base directories (e.g., `ExcelFinalSaveLocation`, `RawReportExportBaseDir`) when generating or processing reports. The structure depends on the report type:\par");
+            helpMessageBuilder.AppendLine(@"    * \b Daily/Weekly: \b0 `..\\\[Report Type Folder]\\\[Year]\\\[Month Name]\Week [Week Number]\` (e.g., `..\\Estimates\\Weekly Reports\\2025\\April\\Week 2\\`)\par");
+            helpMessageBuilder.AppendLine(@"    * \b Monthly: \b0 `..\\\[Report Type Folder]\\\[Year]\\\[MMM yy]\` (e.g., `..\\Estimates\\Monthly Reports\\2025\\Apr 25\\`)\par");
+            helpMessageBuilder.AppendLine(@"    * \b Quarterly: \b0 `..\\\[Report Type Folder]\\\[Year]\\\[Mmm to Mmm]\` (e.g., `..\\Estimates\\Quarterly reports\\2025\\Jan to Mar\\`)\par");
+            helpMessageBuilder.AppendLine(@"    * \b Annual: \b0 `..\\\[Report Type Folder]\\\[Year]\` (e.g., `..\\Estimates\\Annual Reports\\2025\\`)\par");
+            helpMessageBuilder.AppendLine(@"    * \b Custom: \b0 `..\\Custom Reports\[Year]\\\[yyyy-MM-dd_HHmmss]\` (e.g., `..\\Estimates\\Custom Reports\\2025\\2025-04-30_101500\\`)\par");
+            helpMessageBuilder.AppendLine(@"* \b Log Archiving: \b0 Old log files (older than 30 days) are automatically moved to an 'Archive' subfolder within your user's log directory during application startup to keep the main log folder clean.\par");
+            helpMessageBuilder.AppendLine(@"* \b Report Archiving: \b0 On startup, older report files/folders are archived: Final reports from previous years (e.g., `..\\Estimates\\Weekly Reports\\2024`) are moved into an `Archive` folder (`..\\Estimates\\Archive\\Weekly Reports\\2024`), merging if the destination exists. Raw report files older than 30 days (configurable) are moved into an `Archive\\YYYY-MM` subfolder within their report type folder (e.g., `..\\Exports\\Daily Reports\\Archive\\2025-03`).\par");
+            helpMessageBuilder.AppendLine(@"* \b Weekly Sheet Creation: \b0 When processing a Weekly report, if the sheet for the corresponding Financial Year (e.g., '2024_25') doesn't exist in the central Power BI source file (`weekly report quotes conversion merged.xlsx`), the application will create it automatically, copying headers from the 'Analysis' sheet of the template.\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"\b Troubleshooting: \b0\par");
+            helpMessageBuilder.AppendLine(@"* Ensure the Crystal Report Wrapper service is running (the app tries to start it).\par");
+            helpMessageBuilder.AppendLine(@"* Check file paths in `appsettings.json` if errors occur finding reports or templates. Use Options -> Edit appsettings.json to open it.\par");
+            helpMessageBuilder.AppendLine(@"* Ensure the central weekly report file is accessible and not locked if appending fails.\par");
+            helpMessageBuilder.AppendLine(@"* Check the application logs located in the 'Logs' subfolder (within the configured LogDirectory, specific to your username) for detailed error information. Use Options -> Open Logs Folder for quick access.\par");
+            helpMessageBuilder.AppendLine(@"* If auto-run fails to update `appsettings.json`, check file permissions for the application directory.\par");
+            helpMessageBuilder.AppendLine(@"* If you get an error refreshing a Slicer, remove it, then click into the Pivot table, in the PivotTable Fields on the right, Right Click customers and select add as slicer, move it back to where it was.\par");
+            helpMessageBuilder.Append(@"}");
+
+            string helpMessage = helpMessageBuilder.ToString();
 
             try
             {
@@ -725,6 +754,31 @@ This tool automates the process of generating and processing Estimate Success Ra
                 else MessageBox.Show($"appsettings.json not found: {_appSettingsPath}", "File Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             catch (Exception ex) { Logger.LogError($"Error opening appsettings.json: {ex.Message}", ex); MessageBox.Show($"Could not open appsettings.json: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        }
+
+        /// <summary>
+        /// Handles the Click event for the "Exit" menu item.
+        /// Closes the application.
+        /// </summary>
+        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Logger.LogInfo("Options -> Exit clicked. Closing application.");
+            this.Close();
+        }
+
+        /// <summary>
+        /// Handles the Click event for the "Manage Custom Bank Holidays" menu item.
+        /// Opens the form for managing custom bank holidays.
+        /// </summary>
+        private void manageCustomBankHolidaysToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Logger.LogInfo("Options -> Manage Custom Bank Holidays clicked.");
+            using (var manageForm = new ManageBankHolidaysForm(darkModeToolStripMenuItem.Checked))
+            {
+                manageForm.ShowDialog(this);
+                // BankHolidayHelper's cache is cleared internally when holidays are added/removed.
+                // This ensures subsequent date calculations use the updated list.
+            }
         }
         #endregion
 
@@ -832,7 +886,7 @@ This tool automates the process of generating and processing Estimate Success Ra
             if (!File.Exists(attachmentPath)) throw new FileNotFoundException("Attachment file not found.", attachmentPath);
             try
             {
-                var (to, cc) = GetEmailRecipients(); // Use the user-provided version
+                var (to, cc) = GetEmailRecipients();
                 if (to.Count == 0 && cc.Count == 0) throw new InvalidOperationException("No recipients.");
                 var (subj, body) = GetEmailSubjectAndBody(startDatePicker.Value, endDatePicker.Value);
                 if (!await _emailUtility.SendEmailAsync(to, cc, subj, body, attachmentPath, progress, cancellationToken) && !cancellationToken.IsCancellationRequested)
@@ -852,7 +906,7 @@ This tool automates the process of generating and processing Estimate Success Ra
             Logger.LogTrace("Entering GetEmailRecipients...");
             List<string> toAddresses = [];
             List<string> ccAddresses = [];
-            // Ensure checkbox state is read correctly (consider reading directly if needed)
+            // Ensure checkbox state is read correctly
             bool sendToFemiOnly = sendToFemiOnlyCheckBox.Checked;
             int currentReportType = reportTypeComboBox.SelectedIndex;
             Logger.LogDebug($"GetEmailRecipients: sendToFemiOnlyCheckBox.Checked = {sendToFemiOnly}, ReportType = {currentReportType}, IsDebug = {IsDebug}");
@@ -873,24 +927,20 @@ This tool automates the process of generating and processing Estimate Success Ra
                 // Always send To: chrisp (or config override)
                 toAddresses.Add(_configuration["settings:DebugEmails:To"] ?? "chrisp@harlowsolutions.co.uk");
 
-                // *** UPDATED DEBUG CC Logic ***
                 string? debugCC1 = _configuration["settings:DebugEmails:CC1"] ?? "chrisp@harlowsolutions.co.uk"; // Chris P default
                 string? debugCC2 = _configuration["settings:DebugEmails:CC2"] ?? "jamier@harlowsolutions.co.uk"; // Jamie R default
 
                 if (sendToFemiOnly) // Checkbox IS checked
                 {
                     Logger.LogDebug("DEBUG Build: Femi checkbox CHECKED. Adding CC1 and CC2.");
-                    // Add both CC1 (chrisp) and CC2 (jamier)
                     if (!string.IsNullOrWhiteSpace(debugCC1)) ccAddresses.Add(debugCC1);
                     if (!string.IsNullOrWhiteSpace(debugCC2)) ccAddresses.Add(debugCC2);
                 }
                 else // Checkbox is NOT checked
                 {
                     Logger.LogDebug("DEBUG Build: Femi checkbox NOT CHECKED. Adding CC1 only.");
-                    // Add only CC1 (chrisp)
                     if (!string.IsNullOrWhiteSpace(debugCC1)) ccAddresses.Add(debugCC1);
                 }
-                // *** End UPDATED DEBUG CC Logic ***
 #else
                 // --- RELEASE Build Recipients (for non-Daily reports) ---
                 Logger.LogInfo($"RELEASE Build (Non-Daily/Custom): SendToFemiOnly = {sendToFemiOnly}");

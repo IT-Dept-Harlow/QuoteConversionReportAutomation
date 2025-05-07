@@ -36,6 +36,7 @@
             endDateLabel = new Label();
             createReportButton = new Button();
             processEmailButton = new Button();
+            generateAndSendButton = new Button();
             viewReportButton = new Button();
             viewAnalysisButton = new Button();
             statusLabel = new ToolStripStatusLabel();
@@ -48,7 +49,6 @@
             emailRecipientLabel = new Label();
             financialYearLabel = new Label();
             financialYearComboBox = new ComboBox();
-            generateAndSendButton = new Button();
             toggleAutoRunButton = new Button();
             dailyCheckTimer = new System.Windows.Forms.Timer(components);
             menuStrip1 = new MenuStrip();
@@ -57,12 +57,16 @@
             toolStripSeparator1 = new ToolStripSeparator();
             viewConfigToolStripMenuItem = new ToolStripMenuItem();
             validateConfigToolStripMenuItem = new ToolStripMenuItem();
-            toolStripSeparator3 = new ToolStripSeparator();
+            manageCustomBankHolidaysToolStripMenuItem = new ToolStripMenuItem();
             openLogsToolStripMenuItem = new ToolStripMenuItem();
-            toolStripSeparator4 = new ToolStripSeparator();
             editConfigToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator2 = new ToolStripSeparator();
+            exitToolStripMenuItem = new ToolStripMenuItem();
             helpToolStripMenuItem = new ToolStripMenuItem();
             toolTip1 = new ToolTip(components);
+            toolStripSeparator3 = new ToolStripSeparator();
+            toolStripSeparator4 = new ToolStripSeparator();
+            toolStripSeparator5 = new ToolStripSeparator();
             mainStatusStrip.SuspendLayout();
             reportSettingsGroupBox.SuspendLayout();
             menuStrip1.SuspendLayout();
@@ -104,13 +108,11 @@
             // 
             // createReportButton
             // 
-            createReportButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
-            createReportButton.FlatAppearance.MouseOverBackColor = Color.Gray;
             createReportButton.FlatStyle = FlatStyle.System;
             createReportButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            createReportButton.Location = new Point(187, 245);
+            createReportButton.Location = new Point(142, 245);
             createReportButton.Name = "createReportButton";
-            createReportButton.Size = new Size(134, 71);
+            createReportButton.Size = new Size(130, 71);
             createReportButton.TabIndex = 5;
             createReportButton.Text = "Create Report";
             toolTip1.SetToolTip(createReportButton, "Click to generate the raw Crystal Report based on the selected dates and report type.");
@@ -119,13 +121,11 @@
             // 
             // processEmailButton
             // 
-            processEmailButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
-            processEmailButton.FlatAppearance.MouseOverBackColor = Color.Gray;
             processEmailButton.FlatStyle = FlatStyle.System;
             processEmailButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            processEmailButton.Location = new Point(327, 245);
+            processEmailButton.Location = new Point(358, 245);
             processEmailButton.Name = "processEmailButton";
-            processEmailButton.Size = new Size(134, 71);
+            processEmailButton.Size = new Size(130, 71);
             processEmailButton.TabIndex = 6;
             processEmailButton.Text = "Create Analysis &\r\nSend Email";
             toolTip1.SetToolTip(processEmailButton, "Click to process the generated raw report, create the final analysis, and email it.");
@@ -133,13 +133,18 @@
             processEmailButton.UseVisualStyleBackColor = true;
             processEmailButton.Click += processEmailButton_Click;
             // 
+            // generateAndSendButton
+            // 
+            generateAndSendButton.Location = new Point(0, 0);
+            generateAndSendButton.Name = "generateAndSendButton";
+            generateAndSendButton.Size = new Size(75, 23);
+            generateAndSendButton.TabIndex = 19;
+            // 
             // viewReportButton
             // 
-            viewReportButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
-            viewReportButton.FlatAppearance.MouseOverBackColor = Color.Gray;
             viewReportButton.FlatStyle = FlatStyle.System;
             viewReportButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            viewReportButton.Location = new Point(218, 322);
+            viewReportButton.Location = new Point(175, 324);
             viewReportButton.Name = "viewReportButton";
             viewReportButton.Size = new Size(75, 23);
             viewReportButton.TabIndex = 8;
@@ -150,11 +155,9 @@
             // 
             // viewAnalysisButton
             // 
-            viewAnalysisButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(128, 255, 128);
-            viewAnalysisButton.FlatAppearance.MouseOverBackColor = Color.Gray;
             viewAnalysisButton.FlatStyle = FlatStyle.System;
             viewAnalysisButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            viewAnalysisButton.Location = new Point(357, 324);
+            viewAnalysisButton.Location = new Point(386, 324);
             viewAnalysisButton.Name = "viewAnalysisButton";
             viewAnalysisButton.Size = new Size(75, 23);
             viewAnalysisButton.TabIndex = 9;
@@ -267,13 +270,6 @@
             financialYearComboBox.TabIndex = 15;
             toolTip1.SetToolTip(financialYearComboBox, "Select the financial year for the report. Only applicable for certain report types.");
             // 
-            // generateAndSendButton
-            // 
-            generateAndSendButton.Location = new Point(0, 0);
-            generateAndSendButton.Name = "generateAndSendButton";
-            generateAndSendButton.Size = new Size(75, 23);
-            generateAndSendButton.TabIndex = 19;
-            // 
             // toggleAutoRunButton
             // 
             toggleAutoRunButton.Location = new Point(12, 359);
@@ -301,7 +297,7 @@
             // 
             // optionsToolStripMenuItem
             // 
-            optionsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem, toolStripSeparator1, viewConfigToolStripMenuItem, validateConfigToolStripMenuItem, toolStripSeparator3, openLogsToolStripMenuItem, toolStripSeparator4, editConfigToolStripMenuItem });
+            optionsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem, toolStripSeparator3, viewConfigToolStripMenuItem, validateConfigToolStripMenuItem, toolStripSeparator4, manageCustomBankHolidaysToolStripMenuItem, toolStripSeparator5, openLogsToolStripMenuItem, toolStripSeparator1, editConfigToolStripMenuItem, toolStripSeparator2, exitToolStripMenuItem });
             optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
             optionsToolStripMenuItem.Size = new Size(61, 20);
             optionsToolStripMenuItem.Text = "&Options";
@@ -310,7 +306,7 @@
             // 
             darkModeToolStripMenuItem.CheckOnClick = true;
             darkModeToolStripMenuItem.Name = "darkModeToolStripMenuItem";
-            darkModeToolStripMenuItem.Size = new Size(192, 22);
+            darkModeToolStripMenuItem.Size = new Size(240, 22);
             darkModeToolStripMenuItem.Text = "&Dark Mode";
             darkModeToolStripMenuItem.ToolTipText = "Toggle between light and dark visual themes for the application.";
             darkModeToolStripMenuItem.Click += darkModeToolStripMenuItem_Click;
@@ -318,12 +314,12 @@
             // toolStripSeparator1
             // 
             toolStripSeparator1.Name = "toolStripSeparator1";
-            toolStripSeparator1.Size = new Size(189, 6);
+            toolStripSeparator1.Size = new Size(237, 6);
             // 
             // viewConfigToolStripMenuItem
             // 
             viewConfigToolStripMenuItem.Name = "viewConfigToolStripMenuItem";
-            viewConfigToolStripMenuItem.Size = new Size(192, 22);
+            viewConfigToolStripMenuItem.Size = new Size(240, 22);
             viewConfigToolStripMenuItem.Text = "&View Configuration";
             viewConfigToolStripMenuItem.ToolTipText = "Show detailed status of configuration settings like file paths.";
             viewConfigToolStripMenuItem.Click += viewConfigToolStripMenuItem_Click;
@@ -331,36 +327,47 @@
             // validateConfigToolStripMenuItem
             // 
             validateConfigToolStripMenuItem.Name = "validateConfigToolStripMenuItem";
-            validateConfigToolStripMenuItem.Size = new Size(192, 22);
+            validateConfigToolStripMenuItem.Size = new Size(240, 22);
             validateConfigToolStripMenuItem.Text = "V&alidate Configuration";
             validateConfigToolStripMenuItem.ToolTipText = "Quickly validate essential configuration and update status bar.";
             validateConfigToolStripMenuItem.Click += validateConfigToolStripMenuItem_Click;
             // 
-            // toolStripSeparator3
+            // manageCustomBankHolidaysToolStripMenuItem
             // 
-            toolStripSeparator3.Name = "toolStripSeparator3";
-            toolStripSeparator3.Size = new Size(189, 6);
+            manageCustomBankHolidaysToolStripMenuItem.Name = "manageCustomBankHolidaysToolStripMenuItem";
+            manageCustomBankHolidaysToolStripMenuItem.Size = new Size(240, 22);
+            manageCustomBankHolidaysToolStripMenuItem.Text = "Manage Custom &Bank Holidays";
+            manageCustomBankHolidaysToolStripMenuItem.ToolTipText = "Add or remove custom bank holidays.";
+            manageCustomBankHolidaysToolStripMenuItem.Click += manageCustomBankHolidaysToolStripMenuItem_Click;
             // 
             // openLogsToolStripMenuItem
             // 
             openLogsToolStripMenuItem.Name = "openLogsToolStripMenuItem";
-            openLogsToolStripMenuItem.Size = new Size(192, 22);
+            openLogsToolStripMenuItem.Size = new Size(240, 22);
             openLogsToolStripMenuItem.Text = "Open &Logs Folder";
             openLogsToolStripMenuItem.ToolTipText = "Open the folder containing application log files.";
             openLogsToolStripMenuItem.Click += openLogsToolStripMenuItem_Click;
             // 
-            // toolStripSeparator4
-            // 
-            toolStripSeparator4.Name = "toolStripSeparator4";
-            toolStripSeparator4.Size = new Size(189, 6);
-            // 
             // editConfigToolStripMenuItem
             // 
             editConfigToolStripMenuItem.Name = "editConfigToolStripMenuItem";
-            editConfigToolStripMenuItem.Size = new Size(192, 22);
+            editConfigToolStripMenuItem.Size = new Size(240, 22);
             editConfigToolStripMenuItem.Text = "&Edit appsettings.json";
             editConfigToolStripMenuItem.ToolTipText = "Open the appsettings.json file for manual editing (use with caution).";
             editConfigToolStripMenuItem.Click += editConfigToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator2
+            // 
+            toolStripSeparator2.Name = "toolStripSeparator2";
+            toolStripSeparator2.Size = new Size(237, 6);
+            // 
+            // exitToolStripMenuItem
+            // 
+            exitToolStripMenuItem.Name = "exitToolStripMenuItem";
+            exitToolStripMenuItem.Size = new Size(240, 22);
+            exitToolStripMenuItem.Text = "E&xit";
+            exitToolStripMenuItem.ToolTipText = "Close the application.";
+            exitToolStripMenuItem.Click += exitToolStripMenuItem_Click;
             // 
             // helpToolStripMenuItem
             // 
@@ -377,6 +384,21 @@
             toolTip1.InitialDelay = 500;
             toolTip1.ReshowDelay = 140;
             // 
+            // toolStripSeparator3
+            // 
+            toolStripSeparator3.Name = "toolStripSeparator3";
+            toolStripSeparator3.Size = new Size(237, 6);
+            // 
+            // toolStripSeparator4
+            // 
+            toolStripSeparator4.Name = "toolStripSeparator4";
+            toolStripSeparator4.Size = new Size(237, 6);
+            // 
+            // toolStripSeparator5
+            // 
+            toolStripSeparator5.Name = "toolStripSeparator5";
+            toolStripSeparator5.Size = new Size(237, 6);
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(6F, 13F);
@@ -390,9 +412,9 @@
             Controls.Add(menuStrip1);
             Controls.Add(viewAnalysisButton);
             Controls.Add(viewReportButton);
+            Controls.Add(generateAndSendButton);
             Controls.Add(processEmailButton);
             Controls.Add(createReportButton);
-            Controls.Add(generateAndSendButton);
             Controls.Add(endDateLabel);
             Controls.Add(startDateLabel);
             Controls.Add(endDatePicker);
@@ -424,6 +446,7 @@
         private System.Windows.Forms.Label endDateLabel;
         private System.Windows.Forms.Button createReportButton;
         private System.Windows.Forms.Button processEmailButton;
+        private System.Windows.Forms.Button generateAndSendButton; // Added field
         private System.Windows.Forms.Button viewReportButton;
         private System.Windows.Forms.Button viewAnalysisButton;
         private System.Windows.Forms.ToolStripStatusLabel statusLabel;
@@ -435,7 +458,6 @@
         private System.Windows.Forms.Label financialYearLabel;
         private System.Windows.Forms.ComboBox financialYearComboBox;
         private System.Windows.Forms.Label emailRecipientLabel;
-        private System.Windows.Forms.Button generateAndSendButton; // Added field
         private System.Windows.Forms.Button toggleAutoRunButton;
         private System.Windows.Forms.Timer dailyCheckTimer;
         private System.Windows.Forms.MenuStrip menuStrip1;
@@ -449,7 +471,11 @@
         private System.Windows.Forms.ToolStripMenuItem openLogsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem editConfigToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem validateConfigToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
+        private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem manageCustomBankHolidaysToolStripMenuItem; // Added
         private ToolStripSeparator toolStripSeparator3;
         private ToolStripSeparator toolStripSeparator4;
+        private ToolStripSeparator toolStripSeparator5;
     }
 }
