@@ -6,6 +6,18 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ## ChangeLog
 
+### Version 1.7.2
+
+* **Power BI Data Export Refinements (ExcelCopyData.cs)**
+    * Renamed `CopyAnalysisDataToWeeklyReportAsync` method to `CopyAnalysisDataToPowerBIReportAsync` to better reflect its purpose of preparing data for a Power BI source file.
+    * Modified `CopyAnalysisDataToPowerBIReportAsync` to always use a hardcoded sheet name: `"powerBI"` (defined by a new constant `PowerBISheetName`). This standardizes the output sheet for Power BI consumption.
+    * The logic for creating the target sheet now specifically checks for and creates a sheet named `"powerBI"` if it doesn't exist in the destination workbook (typically `weekly report quotes conversion merged.xlsx`).
+    * Removed the `selectedFinYear` parameter from `CopyAnalysisDataToPowerBIReportAsync` as the financial year is no longer used to determine the target sheet name within this specific method.
+    * Updated the call to `CopyAnalysisDataToPowerBIReportAsync` within `ProcessPostCopyOperationsAsync` to reflect the method name change and the removal of the `selectedFinYear` parameter for sheet naming purposes.
+    * Updated XML comments and inline logging messages to align with these changes.
+
+---
+
 ### Version 1.7.1
 
 * **Custom Bank Holiday Management UI**
