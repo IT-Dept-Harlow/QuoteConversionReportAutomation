@@ -27,7 +27,7 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
     /// Now uses a specific report date for filename generation.
     /// This is a non-static version requiring instantiation.
     /// </summary>
-    public class ExcelCopyData 
+    public class ExcelCopyData
     {
         #region Constants
 
@@ -54,6 +54,7 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
         private const string AnalysisSheetName = "Analysis"; // Sheet containing formulas/unique customers
         private const string MonthlyOrderPivotSheetName = "OrderPivot";
         private const string MonthlyEstimatePivotSheetName = "Estimate Success PivotTable";
+        private const string PowerBISheetName = "powerBI"; // Destination sheet for Power BI data
 
         // --- Pivot Table Names ---
         private const string MonthlyOrderPivotName = "PivotTable1";
@@ -76,11 +77,11 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
 
         /// <summary>
         /// Asynchronously processes an Excel report: copies data, extracts unique customers, calculates, cleans,
-        /// updates weekly summary (if applicable), and handles pivot tables. Saves the final file into a report-type specific folder.
+        /// updates Power BI summary (if applicable for weekly reports), and handles pivot tables. Saves the final file into a report-type specific folder.
         /// Uses the provided report date for filename generation and folder structure.
         /// </summary>
         public async Task<string?> ProcessExcelReportAsync( // Removed static
-            string selectedFinYear,
+            string selectedFinYear, // Still needed for other parts of processing, just not for Power BI sheet name
             int reportType,
             string sourceFilePath,
             string sourceSheetName,
@@ -104,6 +105,10 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
             // Financial year validation might not apply to Custom, adjust if needed
             if (reportType == WeeklyReportIndex || reportType == DailyReportIndex)
             {
+                // selectedFinYear is used by CopyAnalysisDataToPowerBIReportAsync indirectly via ProcessPostCopyOperationsAsync
+                // for filename generation logic, even if not for sheet naming.
+                // However, the direct use in CopyAnalysisDataToPowerBIReportAsync for sheet naming is removed.
+                // Let's keep the check here for now as it might be relevant for other logic.
                 ArgumentException.ThrowIfNullOrEmpty(selectedFinYear);
             }
 
@@ -125,8 +130,6 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
 
                 // 1. Determine and Create Report-Specific Folder using FolderCreation utility
                 Logger.LogTrace("ProcessExcelReportAsync: Determining output folder using FolderCreation..."); // Trace: Internal step
-                // Use reportDate for folder structure consistency with filename (for Custom, this is the end date)
-                // Use DateTime.Now for the timestamped folder name for Custom reports
                 DateTime folderTimestampDate = (reportType == CustomReportIndex) ? DateTime.Now : reportDate;
                 fullOutputFolderPath = FolderCreation.CreateReportSpecificFolder(reportType, baseFileSaveLocation, folderTimestampDate); // Use static method
                 if (fullOutputFolderPath == null)
@@ -182,7 +185,8 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
 
                     // 5. Post-Copy Processing
                     Logger.LogDebug("ProcessExcelReportAsync: Starting post-copy operations..."); // Debug: Milestone
-                    await ProcessPostCopyOperationsAsync(destinationPackage, destinationDataSheetName, AnalysisSheetName, reportType, progress, selectedFinYear, sourceFilePath, reportDate, cancellationToken); // Use instance method
+                    // Pass selectedFinYear as it might be used for other logic within post-copy, even if not for Power BI sheet naming directly.
+                    await ProcessPostCopyOperationsAsync(destinationPackage, destinationDataSheetName, AnalysisSheetName, reportType, progress, selectedFinYear, sourceFilePath, reportDate, cancellationToken);
                     Logger.LogDebug("ProcessExcelReportAsync: Post-copy operations finished."); // Debug: Milestone
 
                     // 6. Save the destination package
@@ -208,7 +212,6 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
                 // 7. Generate Final File Name
                 progress?.Report(new ProgressReport("Generating final filename...", 90));
                 Logger.LogTrace("ProcessExcelReportAsync: Generating final filename..."); // Trace: Internal step
-                // Pass the *reportDate* (end date) for filename consistency, but use Now for custom timestamp part
                 string generatedFileName = await Task.Run(() => GenerateFinalFileName(reportType, reportDate, DateTime.Now), cancellationToken); // Use instance method
                 finalFilePath = Path.Combine(fullOutputFolderPath, generatedFileName);
                 Logger.LogDebug($"ProcessExcelReportAsync: Generated final filename: {generatedFileName}"); // Debug: Useful info
@@ -396,7 +399,7 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
 
         /// <summary>
         /// Performs post-copy operations: extracts unique customers, calculates analysis, cleans rows/content,
-        /// refreshes pivots, and potentially copies to a weekly summary report.
+        /// refreshes pivots, and potentially copies to a Power BI report file.
         /// </summary>
         private async Task ProcessPostCopyOperationsAsync( // Removed static
             ExcelPackage package,
@@ -404,7 +407,7 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
             string targetAnalysisSheetName,
             int reportType,
             IProgress<ProgressReport>? progress,
-            string selectedFinYear,
+            string selectedFinYear, // This is passed through but not used by CopyAnalysisDataToPowerBIReportAsync for sheet naming
             string originalSourceFilePath,
             DateTime reportDate,
             CancellationToken cancellationToken)
@@ -420,14 +423,12 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
             progress?.Report(new ProgressReport("Calculating analysis sheet...", 50));
             Logger.LogTrace("ProcessPostCopyOperationsAsync: Calling CalculateSheet..."); // Trace: Internal step
             await Task.Run(() => CalculateSheet(package, targetAnalysisSheetName), cancellationToken); // Call instance method
-            // Logger.LogInfo($"Sheet '{targetAnalysisSheetName}' calculations performed."); // Can be Debug or Trace
             Logger.LogTrace($"Sheet '{targetAnalysisSheetName}' calculations performed.");
             cancellationToken.ThrowIfCancellationRequested();
 
             progress?.Report(new ProgressReport("Cleaning analysis sheet...", 60));
             Logger.LogTrace("ProcessPostCopyOperationsAsync: Calling ClearContentBelowLastCustomer..."); // Trace: Internal step
             await Task.Run(() => ClearContentBelowLastCustomer(package, targetAnalysisSheetName, CustomerColumnIndex, FirstFormulaColumnIndex, LastFormulaColumnIndex), cancellationToken); // Call instance method
-            // Logger.LogInfo($"Cleaned content below last customer in sheet '{targetAnalysisSheetName}'."); // Can be Debug or Trace
             Logger.LogTrace($"Cleaned content below last customer in sheet '{targetAnalysisSheetName}'.");
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -448,13 +449,14 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
             }
 
 
-            // Append to Central Weekly Report (only if processing a Weekly report type)
+            // Append to Central Power BI Report (only if processing a Weekly report type, as this was the original trigger)
             if (reportType == WeeklyReportIndex)
             {
-                progress?.Report(new ProgressReport("Appending data to central weekly report...", 75));
-                Logger.LogTrace("ProcessPostCopyOperationsAsync: Calling CopyAnalysisDataToWeeklyReportAsync..."); // Trace: Internal step
-                await CopyAnalysisDataToWeeklyReportAsync(package, targetAnalysisSheetName, progress, selectedFinYear, reportType, originalSourceFilePath, reportDate, cancellationToken); // Call instance method
-                Logger.LogInfo("Data appended to central weekly report."); // Info: Significant action
+                progress?.Report(new ProgressReport("Appending data to Power BI report...", 75));
+                Logger.LogTrace("ProcessPostCopyOperationsAsync: Calling CopyAnalysisDataToPowerBIReportAsync..."); // Trace: Internal step
+                // selectedFinYear is not passed to CopyAnalysisDataToPowerBIReportAsync as it now uses a hardcoded sheet name "powerBI"
+                await CopyAnalysisDataToPowerBIReportAsync(package, targetAnalysisSheetName, progress, reportType, originalSourceFilePath, reportDate, cancellationToken);
+                Logger.LogInfo("Data appended to Power BI report."); // Info: Significant action
                 cancellationToken.ThrowIfCancellationRequested();
             }
             stopwatch.Stop();
@@ -718,77 +720,79 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
         }
 
         /// <summary>
-        /// Copies data VALUES from the processed Analysis sheet to the central weekly report file asynchronously.
-        /// Appends data to the sheet corresponding to the selected financial year.
+        /// Copies data VALUES from the processed Analysis sheet to the central Power BI report file asynchronously.
+        /// Appends data to the sheet named "powerBI".
         /// Sets the SourceFileName column based on the report type and report date.
         /// </summary>
-        private async Task CopyAnalysisDataToWeeklyReportAsync( // Removed static
+        private async Task CopyAnalysisDataToPowerBIReportAsync( // Renamed, selectedFinYear parameter removed
             ExcelPackage sourcePackage,
-            string sourceSheetName,
+            string sourceSheetName, // This is the "Analysis" sheet from the temporary processed report
             IProgress<ProgressReport>? progress,
-            string selectedFinYear,
-            int reportType,
-            string originalSourceFilePath,
-            DateTime reportDate,
+            int reportType, // Used for generating filenameToWrite
+            string originalSourceFilePath, // Used for generating filenameToWrite
+            DateTime reportDate, // Used for generating filenameToWrite
             CancellationToken cancellationToken)
         {
-            Logger.LogTrace($"Entering CopyAnalysisDataToWeeklyReportAsync(sourceSheet: {sourceSheetName}, finYear: {selectedFinYear})"); // Trace: Method entry
+            Logger.LogTrace($"Entering CopyAnalysisDataToPowerBIReportAsync(sourceSheet: {sourceSheetName})"); // Trace: Method entry
             string username = Environment.UserName;
-            string destinationFilePath = GetWeeklyReportPath(username); // Use instance method
+            // GetWeeklyReportPath determines the path to "weekly report quotes conversion merged.xlsx"
+            // which is the target file for Power BI data.
+            string destinationFilePath = GetWeeklyReportPath(username);
 
             if (string.IsNullOrEmpty(destinationFilePath))
             {
-                Logger.LogError($"Central weekly report path is invalid or could not be determined. Cannot append data."); // Error: Cannot proceed
-                progress?.Report(new ProgressReport("Error: Central weekly report path invalid."));
-                Logger.LogTrace($"Exiting CopyAnalysisDataToWeeklyReportAsync early - invalid destination path."); // Trace: Exit path
+                Logger.LogError($"Central Power BI report path is invalid or could not be determined. Cannot append data."); // Error: Cannot proceed
+                progress?.Report(new ProgressReport("Error: Central Power BI report path invalid."));
+                Logger.LogTrace($"Exiting CopyAnalysisDataToPowerBIReportAsync early - invalid destination path."); // Trace: Exit path
                 return;
             }
             if (!File.Exists(destinationFilePath))
             {
-                Logger.LogError($"Central weekly report file not found: '{destinationFilePath}'. Cannot append data."); // Error: Cannot proceed
-                progress?.Report(new ProgressReport("Error: Central weekly report file not found."));
-                Logger.LogTrace($"Exiting CopyAnalysisDataToWeeklyReportAsync early - destination file not found."); // Trace: Exit path
+                Logger.LogError($"Central Power BI report file not found: '{destinationFilePath}'. Cannot append data."); // Error: Cannot proceed
+                progress?.Report(new ProgressReport("Error: Central Power BI report file not found."));
+                Logger.LogTrace($"Exiting CopyAnalysisDataToPowerBIReportAsync early - destination file not found."); // Trace: Exit path
                 return;
             }
 
             ExcelWorksheet? sourceWorksheet = sourcePackage.Workbook.Worksheets[sourceSheetName];
             if (sourceWorksheet == null || sourceWorksheet.Dimension == null)
             {
-                Logger.LogWarning($"Source sheet '{sourceSheetName}' not found or is empty. Cannot copy to weekly report.");
-                progress?.Report(new ProgressReport("Warning: No analysis data to copy to weekly report."));
-                Logger.LogTrace($"Exiting CopyAnalysisDataToWeeklyReportAsync early - source sheet not found or empty."); // Trace: Exit path
+                Logger.LogWarning($"Source analysis sheet '{sourceSheetName}' not found or is empty. Cannot copy to Power BI report.");
+                progress?.Report(new ProgressReport("Warning: No analysis data to copy to Power BI report."));
+                Logger.LogTrace($"Exiting CopyAnalysisDataToPowerBIReportAsync early - source sheet not found or empty."); // Trace: Exit path
                 return;
             }
 
             try
             {
-                Logger.LogInfo($"Opening weekly report file for appending: {destinationFilePath}"); // Info: Starting action
+                Logger.LogInfo($"Opening Power BI report file for appending: {destinationFilePath}"); // Info: Starting action
                 using var destinationPackage = await Task.Run(() => new ExcelPackage(new FileInfo(destinationFilePath)), cancellationToken);
-                Logger.LogTrace($"CopyAnalysisDataToWeeklyReportAsync: Destination package opened."); // Trace: Internal step
+                Logger.LogTrace($"CopyAnalysisDataToPowerBIReportAsync: Destination package opened."); // Trace: Internal step
 
-                string targetSheetName = selectedFinYear;
+                string targetSheetName = PowerBISheetName; // Use the constant "powerBI"
                 ExcelWorksheet? destinationWorksheet = destinationPackage.Workbook.Worksheets[targetSheetName];
 
                 if (destinationWorksheet == null)
                 {
-                    Logger.LogTrace($"CopyAnalysisDataToWeeklyReportAsync: Destination sheet '{targetSheetName}' not found, creating..."); // Trace: Internal step
+                    Logger.LogTrace($"CopyAnalysisDataToPowerBIReportAsync: Destination sheet '{targetSheetName}' not found, creating..."); // Trace: Internal step
                     destinationWorksheet = destinationPackage.Workbook.Worksheets.Add(targetSheetName);
                     CopyHeaders(sourceWorksheet, destinationWorksheet); // Use instance method
-                    Logger.LogInfo($"Created sheet '{targetSheetName}' in weekly report and copied headers."); // Info: Sheet created
+                    Logger.LogInfo($"Created sheet '{targetSheetName}' in Power BI report and copied headers."); // Info: Sheet created
                 }
 
                 int nextFreeRow = await Task.Run(() => GetNextFreeRow(destinationWorksheet), cancellationToken); // Use instance method
-                Logger.LogDebug($"Next free row in weekly report sheet '{targetSheetName}' is {nextFreeRow}."); // Debug: State info
+                Logger.LogDebug($"Next free row in Power BI report sheet '{targetSheetName}' is {nextFreeRow}."); // Debug: State info
 
-                string filenameToWrite = GenerateFinalFileName(reportType, reportDate, DateTime.Now); // Use instance method
-                Logger.LogDebug($"Using filename for weekly report append: {filenameToWrite}"); // Debug: State info
+                // Generate the filename that will be written into the "Source File Name" column
+                string filenameToWrite = GenerateFinalFileName(reportType, reportDate, DateTime.Now);
+                Logger.LogDebug($"Using filename for Power BI report append (Source File Name column): {filenameToWrite}"); // Debug: State info
 
-                Logger.LogTrace($"CopyAnalysisDataToWeeklyReportAsync: Starting row copy task..."); // Trace: Internal step
+                Logger.LogTrace($"CopyAnalysisDataToPowerBIReportAsync: Starting row copy task..."); // Trace: Internal step
                 await Task.Run(() =>
                 {
                     int sourceRowCount = sourceWorksheet.Dimension.Rows;
                     int sourceColCount = sourceWorksheet.Dimension.End.Column;
-                    int startDataRowInAnalysis = 6;
+                    int startDataRowInAnalysis = 6; // Data in "Analysis" sheet starts from row 6
 
                     if (sourceRowCount < startDataRowInAnalysis)
                     {
@@ -800,48 +804,52 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
                     for (int sourceRow = startDataRowInAnalysis; sourceRow <= sourceRowCount; sourceRow++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
+                        // Check if the first cell (Customer Name) in the source row has data
                         var firstCellVal = sourceWorksheet.Cells[sourceRow, CustomerColumnIndex].Value;
                         if (firstCellVal != null && !string.IsNullOrWhiteSpace(firstCellVal.ToString()))
                         {
+                            // Copy all columns for the current row
                             for (int col = 1; col <= sourceColCount; col++)
                             {
                                 destinationWorksheet.Cells[nextFreeRow, col].Value = sourceWorksheet.Cells[sourceRow, col].Value;
                             }
+                            // Overwrite/set the SourceFileNameColumnIndex with the generated filename
                             destinationWorksheet.Cells[nextFreeRow, SourceFileNameColumnIndex].Value = filenameToWrite;
                             nextFreeRow++;
                             copiedRowCount++;
                         }
 
-                        if (sourceRow % 50 == 0)
+                        if (sourceRow % 50 == 0) // Report progress periodically
                         {
                             int percent = (int)((double)(sourceRow - startDataRowInAnalysis + 1) / (sourceRowCount - startDataRowInAnalysis + 1) * 100);
-                            progress?.Report(new ProgressReport($"Copying to weekly report... {percent}%", percent));
+                            progress?.Report(new ProgressReport($"Copying to Power BI report... {percent}%", percent));
                         }
                     }
-                    Logger.LogInfo($"Copied values for {copiedRowCount} rows from '{sourceSheetName}' to weekly report sheet '{targetSheetName}'."); // Info: Action result
-                    progress?.Report(new ProgressReport($"Copying to weekly report... 100%", 100));
+                    Logger.LogInfo($"Copied values for {copiedRowCount} rows from '{sourceSheetName}' to Power BI report sheet '{targetSheetName}'."); // Info: Action result
+                    progress?.Report(new ProgressReport($"Copying to Power BI report... 100%", 100));
                 }, cancellationToken);
-                Logger.LogTrace($"CopyAnalysisDataToWeeklyReportAsync: Row copy task finished."); // Trace: Internal step
+                Logger.LogTrace($"CopyAnalysisDataToPowerBIReportAsync: Row copy task finished."); // Trace: Internal step
 
-                Logger.LogTrace($"CopyAnalysisDataToWeeklyReportAsync: Saving destination package..."); // Trace: Internal step
+                Logger.LogTrace($"CopyAnalysisDataToPowerBIReportAsync: Saving destination package..."); // Trace: Internal step
                 await destinationPackage.SaveAsync(cancellationToken);
                 Logger.LogInfo($"Successfully appended data to sheet '{targetSheetName}' in '{destinationFilePath}'."); // Info: Major action complete
-                progress?.Report(new ProgressReport("Data appended to central weekly report."));
-                Logger.LogTrace($"CopyAnalysisDataToWeeklyReportAsync: Destination package saved."); // Trace: Internal step
+                progress?.Report(new ProgressReport("Data appended to Power BI report."));
+                Logger.LogTrace($"CopyAnalysisDataToPowerBIReportAsync: Destination package saved."); // Trace: Internal step
 
             }
             catch (OperationCanceledException)
             {
-                Logger.LogWarning("Operation cancelled during copy to weekly report.");
-                progress?.Report(new ProgressReport("Cancelled copy to weekly report."));
-                throw;
+                Logger.LogWarning("Operation cancelled during copy to Power BI report.");
+                progress?.Report(new ProgressReport("Cancelled copy to Power BI report."));
+                throw; // Re-throw to allow ProcessPostCopyOperationsAsync to handle it
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Error copying data to weekly report '{destinationFilePath}': {ex}"); // Error: Operation failed
-                progress?.Report(new ProgressReport($"Error copying to weekly report: {ex.Message}"));
+                Logger.LogError($"Error copying data to Power BI report '{destinationFilePath}': {ex}"); // Error: Operation failed
+                progress?.Report(new ProgressReport($"Error copying to Power BI report: {ex.Message}"));
+                // Depending on desired behavior, you might want to re-throw or handle more gracefully
             }
-            Logger.LogTrace($"Exiting CopyAnalysisDataToWeeklyReportAsync."); // Trace: Method exit
+            Logger.LogTrace($"Exiting CopyAnalysisDataToPowerBIReportAsync."); // Trace: Method exit
         }
 
 
@@ -861,7 +869,7 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
             }
             else
             {
-                destinationSheet.Cells[1, 1].Value = "DefaultHeader";
+                destinationSheet.Cells[1, 1].Value = "DefaultHeader"; // Fallback if source has no headers
                 Logger.LogWarning($"Source sheet '{sourceSheet.Name}' for header copy was empty or had no rows. Added default header to {destinationSheet.Name}.");
             }
             Logger.LogTrace($"Exiting CopyHeaders."); // Trace: Method exit
@@ -876,47 +884,49 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
             if (worksheet.Dimension == null)
             {
                 Logger.LogTrace($"Exiting GetNextFreeRow. Worksheet empty. Result: 1"); // Trace: Exit path
-                return 1;
+                return 1; // Sheet is empty, start at row 1
             }
+            // Start from the last row that has data and go upwards
             int lastUsedRow = worksheet.Dimension.End.Row;
             while (lastUsedRow >= 1)
             {
-                var cell = worksheet.Cells[lastUsedRow, 1].Value;
+                var cell = worksheet.Cells[lastUsedRow, 1].Value; // Check column 1
                 if (cell != null && !string.IsNullOrWhiteSpace(cell.ToString()))
                 {
-                    Logger.LogTrace($"Exiting GetNextFreeRow. Last used row: {lastUsedRow}. Result: {lastUsedRow + 1}"); // Trace: Exit path
-                    return lastUsedRow + 1;
+                    // Found the last row with data in column 1
+                    Logger.LogTrace($"Exiting GetNextFreeRow. Last used row in Col1: {lastUsedRow}. Result: {lastUsedRow + 1}"); // Trace: Exit path
+                    return lastUsedRow + 1; // Next free row is one below it
                 }
                 lastUsedRow--;
             }
-            Logger.LogTrace($"Exiting GetNextFreeRow. Column 1 empty. Result: 1"); // Trace: Exit path
-            return 1;
+            // If loop finishes, it means column 1 is entirely empty (or sheet was empty up to Dimension.End.Row)
+            Logger.LogTrace($"Exiting GetNextFreeRow. Column 1 empty or no data found. Result: 1"); // Trace: Exit path
+            return 1; // Start at row 1
         }
 
         /// <summary>
-        /// Gets the path to the central weekly report file based on DEBUG or RELEASE build configuration.
+        /// Gets the path to the central weekly report file (now considered the Power BI source file)
+        /// based on DEBUG or RELEASE build configuration.
         /// </summary>
-        private string GetWeeklyReportPath(string username) // Removed static
+        private string GetWeeklyReportPath(string username) // Name retained for now, but it's the Power BI source
         {
             Logger.LogTrace($"Entering GetWeeklyReportPath(username: {username})"); // Trace: Method entry
 #if DEBUG
+            // Path for DEBUG mode
             string path = $@"C:\Users\{username}\Harlow Printing\IT - Documents\PowerBI\Quote Conversion Report\Quotes conversion data_wrangled\weekly report quotes conversion merged - copy.xlsx";
             Logger.LogTrace($"Exiting GetWeeklyReportPath (DEBUG). Result: {path}"); // Trace: Method exit
             return path;
 #else
-                string path = $@"C:\Users\{username}\Harlow Printing\IT - Documents\PowerBI\Quote Conversion Report\Quotes conversion data_wrangled\weekly report quotes conversion merged.xlsx";
-                 Logger.LogTrace($"Exiting GetWeeklyReportPath (RELEASE). Result: {path}"); // Trace: Method exit
-                 return path;
+            // Path for RELEASE mode
+            string path = $@"C:\Users\{username}\Harlow Printing\IT - Documents\PowerBI\Quote Conversion Report\Quotes conversion data_wrangled\weekly report quotes conversion merged.xlsx";
+            Logger.LogTrace($"Exiting GetWeeklyReportPath (RELEASE). Result: {path}"); // Trace: Method exit
+            return path;
 #endif
         }
 
         #endregion Internal Processing Steps (Non-Static)
 
-        #region File and Folder Helpers (REMOVED - Use FolderCreation class)
-
-        // --- Methods removed from here and functionality delegated to FolderCreation ---
-        // internal string? CreateReportSpecificFolder(...) // REMOVED
-        // internal string? GetReportSpecificFolderPath(...) // REMOVED
+        #region File and Folder Helpers
 
         /// <summary>
         /// Generates the final file name based on the report type and the specific report date.
@@ -936,6 +946,8 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
                     fileName = $"{reportDate:yyyyMMdd}_Estimate_Success_Rate_Daily.xlsx";
                     break;
                 case WeeklyReportIndex:
+                    // This filename is used for the individual weekly report file,
+                    // AND for the "Source File Name" column when appending to the Power BI central file.
                     fileName = $"{reportDate:yyyyMMdd} Estimate Success Rate.xlsx";
                     break;
                 case MonthlyReportIndex:
@@ -952,7 +964,6 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
                     fileName = $"Estimate Success Rate {reportDate.Year}.xlsx";
                     break;
                 case CustomReportIndex: // <<< ADDED CASE
-                    // Use end date and timestamp for uniqueness
                     fileName = $"{reportDate:yyyyMMdd}_{runTimestamp:HHmmss}_Estimate_Success_Rate_Custom.xlsx";
                     break;
                 default:
@@ -990,11 +1001,11 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
                 {
                     Logger.LogWarning($"Rename operation cancelled while trying to move '{sourcePath}'.");
                     Logger.LogTrace($"Exiting RenameFileWithRetryAsync - Cancelled."); // Trace: Exit path
-                    throw;
+                    throw; // Re-throw to allow calling method to handle cancellation
                 }
             }
             Logger.LogTrace($"Exiting RenameFileWithRetryAsync - Failed after retries."); // Trace: Exit path
-            // Log final failure as Error
+            // Log final failure as Error and throw specific exception
             throw new IOException($"Failed to rename file '{sourcePath}' to '{destinationPath}' after {maxRetries} attempts. The file might still be locked or another IO error occurred.");
         }
 

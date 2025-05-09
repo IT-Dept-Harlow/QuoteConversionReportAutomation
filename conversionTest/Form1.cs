@@ -40,7 +40,7 @@ namespace conversionTest
         private readonly ExcelCopyData _excelProcessor;
 
         // --- Application Info ---
-        private const string AppVersion = "1.7.1"; // Reflects latest changes
+        private const string AppVersion = "1.7.2"; // Reflects changes to PowerBi copying to sheet named PowerBI and not {finyear}
 
         // --- State Variables (Remaining in Form1) ---
         private string _generatedReportPath = string.Empty;
