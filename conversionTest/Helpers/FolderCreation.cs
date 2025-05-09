@@ -4,7 +4,7 @@ using System;
 using System.Globalization; // Added for month formatting
 using System.IO;
 
-namespace QuoteConversionReportAutomation
+namespace QuoteConversionReportAutomation.Helpers
 {
     /// <summary>
     /// Utility class for creating report-specific folder structures.

@@ -6,6 +6,68 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ## ChangeLog
 
+## [1.7.9] - 2025-05-09
+
+### Added
+- **1-Click Processing Mode**: Introduced a new "Enable 1-Click Processing" option in the "Options" menu. When enabled, the "Create Report" and "Process and Email" buttons are replaced by a single "Generate, Process & Email Report" button to perform all actions sequentially.
+- **Skip Sending Email Option**: Added a "Skip Sending Email" checkbox within the "Report Settings" group box. If checked, the email sending step is bypassed during manual or 1-Click processing.
+- **Configurable Auto-Run Hour**: Added an option under "Options" menu ("Set Auto-Run Hour...") to allow users to change the hour (0-23) at which the daily automated report task executes. This setting is saved in `appsettings.json`.
+- **Auto-Run Time Display on Button**: The "Enable/Disable Daily Auto Run" button now displays the configured auto-run hour (e.g., "@ 8:00") as part of its text on application load and after changes.
+
+### Changed
+- **Help Text Enhancements**:
+    - Significantly updated and expanded the RTF help text to be more comprehensive, explaining all new features, automated processes, and detailed troubleshooting steps.
+    - Corrected RTF formatting for better readability, including ensuring spaces appear correctly after bolded text followed by colons and fixing bullet point alignment.
+    - Revised Excel refresh instructions in the help text to be more specific about right-clicking PivotTables and Slicers in the "OrderPivot" and "Estimate Success PivotTable" sheets.
+- **UI Manager**: Updated to correctly manage new UI elements related to 1-Click processing and skip email functionality.
+- **AutoRunManager**: Modified to use and persist the configurable auto-run hour.
+- **Form1 Logic**:
+    - Implemented event handlers and UI logic for the new 1-Click processing mode, skip email checkbox, and setting the auto-run hour.
+    - Ensured the `toggleAutoRunButton` text is updated on application load to reflect the currently configured auto-run hour.
+
+### Fixed
+- Resolved various minor UI update and theming issues related to the new controls.
+- Corrected RTF formatting for help text to ensure proper spacing and bullet point rendering.
+
+---
+
+## ChangeLog
+
+### Version 1.7.4
+
+* **Email Recipient Management Feature**
+    * Added a new "Manage Email Recipients" option under the "Options" menu in `Form1.cs`.
+    * This opens a new `ManageEmailRecipientsForm` which allows users to:
+        * View current email recipients for different report types and scenarios (Production: AutoRun Daily, Femi Only, Team; Debug: To, CC1, CC2).
+        * Edit these recipient lists (multiple emails can be entered, separated by commas or semicolons).
+        * Save their custom recipient settings. These overrides are stored in a `user_email_settings.json` file in the user's `AppData\Roaming\HarlowSolutions\QuoteConversionReportAutomation` directory.
+        * Restore all recipients to the application defaults defined in `appsettings.json` (this deletes the user override file).
+    * Introduced `UserEmailSettings.cs` as the data model for storing user-defined recipient lists.
+    * Created `EmailRecipientManager.cs` to:
+        * Load default recipients from `appsettings.json`.
+        * Load user-defined overrides from `user_email_settings.json`.
+        * Provide the effective email recipients by merging defaults with overrides (overrides take precedence).
+        * Save user overrides to `user_email_settings.json`.
+        * Clear user overrides to restore defaults.
+        * Validate email address formats.
+    * Updated `Form1.GetEmailRecipients()` to use `EmailRecipientManager` to determine To/CC lists, thus incorporating user overrides.
+    * Updated `AutoRunManager.cs` constructor to accept `EmailRecipientManager` and use it to fetch recipients for automated daily reports.
+    * The `ManageEmailRecipientsForm` includes theming support (Dark/Light mode) consistent with the main application.
+
+* **Bug Fixes & Refinements**
+    * **`Form1.cs`:**
+        * Corrected calls for `GetPreviousWorkday` to use `ReportHelper.GetPreviousWorkday` instead of `BankHolidayHelper.GetPreviousWorkday`.
+        * Refactored `createReportButton_Click` and `processEmailButton_Click` event handlers from `async Task` back to `async void` to resolve CS0407 designer errors. The core asynchronous logic was moved into new `private async Task PerformCreateReportAsync()` and `private async Task PerformProcessAndEmailAsync()` helper methods. The `generateAndSendButton_Click` method was updated to `await` these new helper methods.
+        * Corrected references to `autoRunStatusLabel.Text` (from `_autoRunStatusLabel.Text`) to use the control's property directly.
+        * Corrected the configuration key for `ExcelTemplateBaseDir` from `settings:TemplateBaseDir` to `settings:ExcelTemplateFolder` to match `appsettings.json`.
+        * Updated help text to include the new "Manage Email Recipients" feature.
+    * **`AutoRunManager.cs`:**
+        * Updated the constructor to accept `EmailRecipientManager` as a dependency.
+        * Modified `RunAutomatedDailyReportAsync` to use the injected `EmailRecipientManager` for determining email recipients for automated daily reports, replacing the local `GetAutoRunEmailRecipients()` method.
+    * Updated application version to `1.7.4`.
+
+---
+
 ### Version 1.7.2
 
 * **Power BI Data Export Refinements (ExcelCopyData.cs)**

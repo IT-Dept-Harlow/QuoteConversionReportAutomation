@@ -1,7 +1,7 @@
 ﻿// C# 10+ Features
 using conversionTest;
 
-namespace QuoteConversionReportAutomation
+namespace QuoteConversionReportAutomation.Managers
 {
     // --- Using Statements ---
     using System;
@@ -9,7 +9,7 @@ namespace QuoteConversionReportAutomation
     using System.IO;
     using System.Threading;
     using System.Threading.Tasks;
-    using JR.Utils.GUI.Forms; // For FlexibleMessageBox
+    using QuoteConversionReportAutomation.Helpers;
 
     /// <summary>
     /// Manages the lifecycle (checking, launching, terminating) of the external

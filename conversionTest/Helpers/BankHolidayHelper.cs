@@ -4,9 +4,9 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json; // Requires System.Text.Json NuGet package if not already referenced
-using conversionTest; // Assuming Logger is in this namespace
+using conversionTest;
 
-namespace QuoteConversionReportAutomation
+namespace QuoteConversionReportAutomation.Helpers
 {
     /// <summary>
     /// Represents a one-off custom bank holiday.
@@ -50,7 +50,12 @@ namespace QuoteConversionReportAutomation
         private static List<CustomHolidayEntry> s_customOneOffHolidays = new List<CustomHolidayEntry>();
         private static List<RecurringHolidayEntry> s_customRecurringHolidays = new List<RecurringHolidayEntry>();
         private static bool s_customHolidaysLoaded = false;
-        private static readonly string s_customHolidaysFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "custom_bank_holidays.json");
+        //private static readonly string s_customHolidaysFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "custom_bank_holidays.json");
+        // Define path for user-specific settings
+        private static string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        private static string companyFolder = "HarlowSolutions";
+        private static string appFolder = "QuoteConversionReportAutomation";
+        private static readonly string s_customHolidaysFilePath = Path.Combine(appDataPath, companyFolder, appFolder, "user_email_settings.json");
 
         /// <summary>
         /// Initializes the BankHolidayHelper by loading custom bank holidays from the persistent store.
@@ -83,7 +88,7 @@ namespace QuoteConversionReportAutomation
         /// <returns>True if the holiday was added successfully, false if a holiday for that date already exists.</returns>
         public static bool AddCustomBankHoliday(DateTime date, string description)
         {
-            ArgumentNullException.ThrowIfNullOrEmpty(description, nameof(description));
+            ArgumentException.ThrowIfNullOrEmpty(description, nameof(description));
             EnsureCustomHolidaysLoaded();
 
             DateTime dateOnly = date.Date;
@@ -137,7 +142,7 @@ namespace QuoteConversionReportAutomation
             ArgumentOutOfRangeException.ThrowIfGreaterThan(day, 31, nameof(day)); // Basic validation, specific month day counts checked during calculation
             ArgumentOutOfRangeException.ThrowIfLessThan(month, 1, nameof(month));
             ArgumentOutOfRangeException.ThrowIfGreaterThan(month, 12, nameof(month));
-            ArgumentNullException.ThrowIfNullOrEmpty(description, nameof(description));
+            ArgumentException.ThrowIfNullOrEmpty(description, nameof(description));
             EnsureCustomHolidaysLoaded();
 
             if (!s_customRecurringHolidays.Any(h => h.Day == day && h.Month == month))
@@ -428,7 +433,7 @@ namespace QuoteConversionReportAutomation
             int l = (32 + 2 * e + 2 * i - h - k) % 7;
             int m = (a + 11 * h + 22 * l) / 451;
             int month = (h + l - 7 * m + 114) / 31;
-            int day = ((h + l - 7 * m + 114) % 31) + 1;
+            int day = (h + l - 7 * m + 114) % 31 + 1;
             return new DateTime(year, month, day);
         }
     }

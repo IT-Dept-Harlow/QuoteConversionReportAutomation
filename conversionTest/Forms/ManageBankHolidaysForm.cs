@@ -9,7 +9,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using conversionTest; // Assuming Logger is in this namespace
+using conversionTest;
+using QuoteConversionReportAutomation.Helpers; // Assuming Logger is in this namespace
 
 namespace QuoteConversionReportAutomation
 {

@@ -2,6 +2,7 @@
 using conversionTest; // Assuming Logger is in this namespace or globally available
 using OfficeOpenXml; // EPPlus library for Excel manipulation
 using OfficeOpenXml.Table.PivotTable;
+using QuoteConversionReportAutomation.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics; // Added for Stopwatch

@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows.Forms;
 
-namespace JR.Utils.GUI.Forms
+namespace QuoteConversionReportAutomation.Helpers
 {
     /* FlexibleMessageBox – A flexible replacement for the .NET MessageBox
      *
@@ -217,17 +217,17 @@ namespace JR.Utils.GUI.Forms
             // Use the designer view in Visual Studio to modify the form's layout.
 
             private readonly System.ComponentModel.IContainer? components = null;
-            private System.Windows.Forms.Button button1;
-            private System.Windows.Forms.RichTextBox richTextBoxMessage;
-            private System.Windows.Forms.Panel panelButtons; // Renamed for clarity
-            private System.Windows.Forms.PictureBox pictureBoxIcon; // Renamed for clarity
-            private System.Windows.Forms.Button button2;
-            private System.Windows.Forms.Button button3;
-            private System.Windows.Forms.Panel panelTop; // Added for icon and text
+            private Button button1;
+            private RichTextBox richTextBoxMessage;
+            private Panel panelButtons; // Renamed for clarity
+            private PictureBox pictureBoxIcon; // Renamed for clarity
+            private Button button2;
+            private Button button3;
+            private Panel panelTop; // Added for icon and text
 
             protected override void Dispose(bool disposing)
             {
-                if (disposing && (components != null))
+                if (disposing && components != null)
                 {
                     components.Dispose();
                 }
@@ -236,140 +236,140 @@ namespace JR.Utils.GUI.Forms
 
             private void InitializeComponent()
             {
-                this.panelButtons = new System.Windows.Forms.Panel();
-                this.button1 = new System.Windows.Forms.Button();
-                this.button2 = new System.Windows.Forms.Button();
-                this.button3 = new System.Windows.Forms.Button();
-                this.panelTop = new System.Windows.Forms.Panel();
-                this.pictureBoxIcon = new System.Windows.Forms.PictureBox();
-                this.richTextBoxMessage = new System.Windows.Forms.RichTextBox();
-                this.panelButtons.SuspendLayout();
-                this.panelTop.SuspendLayout();
-                ((System.ComponentModel.ISupportInitialize)(this.pictureBoxIcon)).BeginInit();
-                this.SuspendLayout();
+                panelButtons = new Panel();
+                button1 = new Button();
+                button2 = new Button();
+                button3 = new Button();
+                panelTop = new Panel();
+                pictureBoxIcon = new PictureBox();
+                richTextBoxMessage = new RichTextBox();
+                panelButtons.SuspendLayout();
+                panelTop.SuspendLayout();
+                ((System.ComponentModel.ISupportInitialize)pictureBoxIcon).BeginInit();
+                SuspendLayout();
                 //
                 // panelButtons
                 //
-                this.panelButtons.BackColor = System.Drawing.SystemColors.Control;
-                this.panelButtons.Controls.Add(this.button1);
-                this.panelButtons.Controls.Add(this.button2);
-                this.panelButtons.Controls.Add(this.button3);
-                this.panelButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
-                this.panelButtons.Location = new System.Drawing.Point(0, 76); // Adjusted initial position
-                this.panelButtons.Name = "panelButtons";
-                this.panelButtons.Padding = new System.Windows.Forms.Padding(10, 10, 10, 10); // Add padding for buttons
-                this.panelButtons.Size = new System.Drawing.Size(284, 46); // Adjusted initial size
-                this.panelButtons.TabIndex = 1;
+                panelButtons.BackColor = SystemColors.Control;
+                panelButtons.Controls.Add(button1);
+                panelButtons.Controls.Add(button2);
+                panelButtons.Controls.Add(button3);
+                panelButtons.Dock = DockStyle.Bottom;
+                panelButtons.Location = new Point(0, 76); // Adjusted initial position
+                panelButtons.Name = "panelButtons";
+                panelButtons.Padding = new Padding(10, 10, 10, 10); // Add padding for buttons
+                panelButtons.Size = new Size(284, 46); // Adjusted initial size
+                panelButtons.TabIndex = 1;
                 //
                 // button1
                 //
-                this.button1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-                this.button1.AutoSize = true;
-                this.button1.DialogResult = System.Windows.Forms.DialogResult.OK; // Default, will be overridden
-                this.button1.Location = new System.Drawing.Point(37, 10); // Adjusted position
-                this.button1.Margin = new System.Windows.Forms.Padding(3, 3, 3, 3);
-                this.button1.MinimumSize = new System.Drawing.Size(75, 26); // Increased min height
-                this.button1.Name = "button1";
-                this.button1.Size = new System.Drawing.Size(75, 26);
-                this.button1.TabIndex = 2;
-                this.button1.Text = "B1"; // Placeholder
-                this.button1.UseVisualStyleBackColor = true;
-                this.button1.Visible = false;
+                button1.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+                button1.AutoSize = true;
+                button1.DialogResult = DialogResult.OK; // Default, will be overridden
+                button1.Location = new Point(37, 10); // Adjusted position
+                button1.Margin = new Padding(3, 3, 3, 3);
+                button1.MinimumSize = new Size(75, 26); // Increased min height
+                button1.Name = "button1";
+                button1.Size = new Size(75, 26);
+                button1.TabIndex = 2;
+                button1.Text = "B1"; // Placeholder
+                button1.UseVisualStyleBackColor = true;
+                button1.Visible = false;
                 //
                 // button2
                 //
-                this.button2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-                this.button2.AutoSize = true;
-                this.button2.DialogResult = System.Windows.Forms.DialogResult.OK; // Default, will be overridden
-                this.button2.Location = new System.Drawing.Point(118, 10); // Adjusted position
-                this.button2.Margin = new System.Windows.Forms.Padding(3, 3, 3, 3);
-                this.button2.MinimumSize = new System.Drawing.Size(75, 26); // Increased min height
-                this.button2.Name = "button2";
-                this.button2.Size = new System.Drawing.Size(75, 26);
-                this.button2.TabIndex = 3;
-                this.button2.Text = "B2"; // Placeholder
-                this.button2.UseVisualStyleBackColor = true;
-                this.button2.Visible = false;
+                button2.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+                button2.AutoSize = true;
+                button2.DialogResult = DialogResult.OK; // Default, will be overridden
+                button2.Location = new Point(118, 10); // Adjusted position
+                button2.Margin = new Padding(3, 3, 3, 3);
+                button2.MinimumSize = new Size(75, 26); // Increased min height
+                button2.Name = "button2";
+                button2.Size = new Size(75, 26);
+                button2.TabIndex = 3;
+                button2.Text = "B2"; // Placeholder
+                button2.UseVisualStyleBackColor = true;
+                button2.Visible = false;
                 //
                 // button3
                 //
-                this.button3.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-                this.button3.AutoSize = true;
-                this.button3.DialogResult = System.Windows.Forms.DialogResult.OK; // Default, will be overridden
-                this.button3.Location = new System.Drawing.Point(199, 10); // Adjusted position
-                this.button3.Margin = new System.Windows.Forms.Padding(3, 3, 3, 3);
-                this.button3.MinimumSize = new System.Drawing.Size(75, 26); // Increased min height
-                this.button3.Name = "button3";
-                this.button3.Size = new System.Drawing.Size(75, 26);
-                this.button3.TabIndex = 0; // Changed TabIndex for flow
-                this.button3.Text = "B3"; // Placeholder
-                this.button3.UseVisualStyleBackColor = true;
-                this.button3.Visible = false;
+                button3.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+                button3.AutoSize = true;
+                button3.DialogResult = DialogResult.OK; // Default, will be overridden
+                button3.Location = new Point(199, 10); // Adjusted position
+                button3.Margin = new Padding(3, 3, 3, 3);
+                button3.MinimumSize = new Size(75, 26); // Increased min height
+                button3.Name = "button3";
+                button3.Size = new Size(75, 26);
+                button3.TabIndex = 0; // Changed TabIndex for flow
+                button3.Text = "B3"; // Placeholder
+                button3.UseVisualStyleBackColor = true;
+                button3.Visible = false;
                 //
                 // panelTop
                 //
-                this.panelTop.BackColor = System.Drawing.Color.White;
-                this.panelTop.Controls.Add(this.pictureBoxIcon);
-                this.panelTop.Controls.Add(this.richTextBoxMessage);
-                this.panelTop.Dock = System.Windows.Forms.DockStyle.Fill;
-                this.panelTop.Location = new System.Drawing.Point(0, 0);
-                this.panelTop.Name = "panelTop";
-                this.panelTop.Size = new System.Drawing.Size(284, 76); // Adjusted initial size
-                this.panelTop.TabIndex = 0; // Changed TabIndex
+                panelTop.BackColor = Color.White;
+                panelTop.Controls.Add(pictureBoxIcon);
+                panelTop.Controls.Add(richTextBoxMessage);
+                panelTop.Dock = DockStyle.Fill;
+                panelTop.Location = new Point(0, 0);
+                panelTop.Name = "panelTop";
+                panelTop.Size = new Size(284, 76); // Adjusted initial size
+                panelTop.TabIndex = 0; // Changed TabIndex
                 //
                 // pictureBoxIcon
                 //
-                this.pictureBoxIcon.BackColor = System.Drawing.Color.Transparent;
-                this.pictureBoxIcon.Location = new System.Drawing.Point(15, 15); // Adjusted position
-                this.pictureBoxIcon.Margin = new System.Windows.Forms.Padding(3, 3, 3, 3);
-                this.pictureBoxIcon.Name = "pictureBoxIcon";
-                this.pictureBoxIcon.Size = new System.Drawing.Size(32, 32);
-                this.pictureBoxIcon.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage; // Ensure icon fits
-                this.pictureBoxIcon.TabIndex = 8;
-                this.pictureBoxIcon.TabStop = false;
-                this.pictureBoxIcon.Visible = false; // Initially hidden
+                pictureBoxIcon.BackColor = Color.Transparent;
+                pictureBoxIcon.Location = new Point(15, 15); // Adjusted position
+                pictureBoxIcon.Margin = new Padding(3, 3, 3, 3);
+                pictureBoxIcon.Name = "pictureBoxIcon";
+                pictureBoxIcon.Size = new Size(32, 32);
+                pictureBoxIcon.SizeMode = PictureBoxSizeMode.StretchImage; // Ensure icon fits
+                pictureBoxIcon.TabIndex = 8;
+                pictureBoxIcon.TabStop = false;
+                pictureBoxIcon.Visible = false; // Initially hidden
                 //
                 // richTextBoxMessage
                 //
-                this.richTextBoxMessage.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-                | System.Windows.Forms.AnchorStyles.Left)
-                | System.Windows.Forms.AnchorStyles.Right)));
-                this.richTextBoxMessage.BackColor = System.Drawing.Color.White;
-                this.richTextBoxMessage.BorderStyle = System.Windows.Forms.BorderStyle.None;
-                this.richTextBoxMessage.Font = new System.Drawing.Font("Microsoft Sans Serif", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0))); // Default, will be overridden
-                this.richTextBoxMessage.Location = new System.Drawing.Point(53, 15); // Adjusted initial position
-                this.richTextBoxMessage.Margin = new System.Windows.Forms.Padding(0);
-                this.richTextBoxMessage.Name = "richTextBoxMessage";
-                this.richTextBoxMessage.ReadOnly = true;
-                this.richTextBoxMessage.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Vertical;
-                this.richTextBoxMessage.Size = new System.Drawing.Size(219, 46); // Adjusted initial size
-                this.richTextBoxMessage.TabIndex = 0;
-                this.richTextBoxMessage.TabStop = false;
-                this.richTextBoxMessage.Text = "<Message>"; // Placeholder
-                this.richTextBoxMessage.LinkClicked += new System.Windows.Forms.LinkClickedEventHandler(this.richTextBoxMessage_LinkClicked);
+                richTextBoxMessage.Anchor = AnchorStyles.Top | AnchorStyles.Bottom
+                | AnchorStyles.Left
+                | AnchorStyles.Right;
+                richTextBoxMessage.BackColor = Color.White;
+                richTextBoxMessage.BorderStyle = BorderStyle.None;
+                richTextBoxMessage.Font = new Font("Microsoft Sans Serif", 9F, FontStyle.Regular, GraphicsUnit.Point, 0); // Default, will be overridden
+                richTextBoxMessage.Location = new Point(53, 15); // Adjusted initial position
+                richTextBoxMessage.Margin = new Padding(0);
+                richTextBoxMessage.Name = "richTextBoxMessage";
+                richTextBoxMessage.ReadOnly = true;
+                richTextBoxMessage.ScrollBars = RichTextBoxScrollBars.Vertical;
+                richTextBoxMessage.Size = new Size(219, 46); // Adjusted initial size
+                richTextBoxMessage.TabIndex = 0;
+                richTextBoxMessage.TabStop = false;
+                richTextBoxMessage.Text = "<Message>"; // Placeholder
+                richTextBoxMessage.LinkClicked += new LinkClickedEventHandler(richTextBoxMessage_LinkClicked);
                 //
                 // FlexibleMessageBoxForm
                 //
-                this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-                this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-                this.ClientSize = new System.Drawing.Size(284, 122); // Adjusted initial size
-                this.Controls.Add(this.panelTop);
-                this.Controls.Add(this.panelButtons);
-                this.MaximizeBox = false;
-                this.MinimizeBox = false;
-                this.MinimumSize = new System.Drawing.Size(200, 150); // Adjusted minimum size
-                this.Name = "FlexibleMessageBoxForm";
-                this.ShowIcon = false;
-                this.ShowInTaskbar = false;
-                this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Show;
-                this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent; // Default, may be overridden
-                this.Text = "<Caption>"; // Placeholder
-                this.Shown += new System.EventHandler(this.FlexibleMessageBoxForm_Shown);
-                this.panelButtons.ResumeLayout(false);
-                this.panelButtons.PerformLayout();
-                this.panelTop.ResumeLayout(false);
-                ((System.ComponentModel.ISupportInitialize)(this.pictureBoxIcon)).EndInit();
-                this.ResumeLayout(false);
+                AutoScaleDimensions = new SizeF(6F, 13F);
+                AutoScaleMode = AutoScaleMode.Font;
+                ClientSize = new Size(284, 122); // Adjusted initial size
+                Controls.Add(panelTop);
+                Controls.Add(panelButtons);
+                MaximizeBox = false;
+                MinimizeBox = false;
+                MinimumSize = new Size(200, 150); // Adjusted minimum size
+                Name = "FlexibleMessageBoxForm";
+                ShowIcon = false;
+                ShowInTaskbar = false;
+                SizeGripStyle = SizeGripStyle.Show;
+                StartPosition = FormStartPosition.CenterParent; // Default, may be overridden
+                Text = "<Caption>"; // Placeholder
+                Shown += new EventHandler(FlexibleMessageBoxForm_Shown);
+                panelButtons.ResumeLayout(false);
+                panelButtons.PerformLayout();
+                panelTop.ResumeLayout(false);
+                ((System.ComponentModel.ISupportInitialize)pictureBoxIcon).EndInit();
+                ResumeLayout(false);
 
             }
 
@@ -386,7 +386,7 @@ namespace JR.Utils.GUI.Forms
             private enum LanguageID { en, de, es, it }
 
             // Store button texts in a dictionary for easier lookup
-            private static readonly System.Collections.Generic.Dictionary<LanguageID, string[]> ButtonTexts = new()
+            private static readonly Dictionary<LanguageID, string[]> ButtonTexts = new()
             {
                 { LanguageID.en, new[] { "OK", "Cancel", "&Yes", "&No", "&Abort", "&Retry", "&Ignore" } }, // Fallback
                 { LanguageID.de, new[] { "OK", "Abbrechen", "&Ja", "&Nein", "&Abbrechen", "&Wiederholen", "&Ignorieren" } },
@@ -466,7 +466,7 @@ namespace JR.Utils.GUI.Forms
                 if (owner != null)
                 {
                     // Center on the owner form
-                    var ownerForm = owner as Form ?? Control.FromHandle(owner.Handle)?.FindForm();
+                    var ownerForm = owner as Form ?? FromHandle(owner.Handle)?.FindForm();
                     if (ownerForm != null)
                     {
                         screen = Screen.FromControl(ownerForm);
@@ -508,7 +508,7 @@ namespace JR.Utils.GUI.Forms
                 int maxFormHeight = (int)(screen.WorkingArea.Height * maxFactorHeight);
 
                 // Determine icon width (0 if no icon)
-                int iconWidth = (icon == MessageBoxIcon.None) ? 0 : DEFAULT_ICON_SIZE + ICON_TEXT_SPACING;
+                int iconWidth = icon == MessageBoxIcon.None ? 0 : DEFAULT_ICON_SIZE + ICON_TEXT_SPACING;
 
                 // Calculate available width for the RichTextBox
                 int richTextBoxMaxWidth = maxFormWidth - MARGIN_X - iconWidth - MARGIN_X - SystemInformation.VerticalScrollBarWidth; // Account for margins and potential scrollbar
@@ -529,7 +529,7 @@ namespace JR.Utils.GUI.Forms
                 if (_visibleButtonsCount > 1) requiredButtonWidth += (_visibleButtonsCount - 1) * button1.Margin.Horizontal; // Spacing between buttons
 
                 // Calculate required width for the caption
-                int captionWidth = TextRenderer.MeasureText(this.Text, SystemFonts.CaptionFont).Width + SystemInformation.CaptionButtonSize.Width * 2; // Estimate caption width
+                int captionWidth = TextRenderer.MeasureText(Text, SystemFonts.CaptionFont).Width + SystemInformation.CaptionButtonSize.Width * 2; // Estimate caption width
 
                 // Determine final form width
                 int requiredTotalWidth = Math.Max(requiredTextWidth, requiredButtonWidth);
@@ -537,31 +537,31 @@ namespace JR.Utils.GUI.Forms
                 int formWidth = requiredTotalWidth + MARGIN_X * 2 + SystemInformation.VerticalScrollBarWidth; // Add margins and scrollbar allowance
 
                 // Calculate required height
-                int formHeight = MARGIN_Y + preferredRichTextSize.Height + panelButtons.Height + MARGIN_Y + SystemInformation.CaptionHeight + (SystemInformation.FrameBorderSize.Height * 2);
+                int formHeight = MARGIN_Y + preferredRichTextSize.Height + panelButtons.Height + MARGIN_Y + SystemInformation.CaptionHeight + SystemInformation.FrameBorderSize.Height * 2;
 
                 // Apply maximum size constraints
                 formWidth = Math.Min(formWidth, maxFormWidth);
                 formHeight = Math.Min(formHeight, maxFormHeight);
 
                 // Apply minimum size constraints
-                formWidth = Math.Max(formWidth, this.MinimumSize.Width);
-                formHeight = Math.Max(formHeight, this.MinimumSize.Height);
+                formWidth = Math.Max(formWidth, MinimumSize.Width);
+                formHeight = Math.Max(formHeight, MinimumSize.Height);
 
                 // Set the final size
-                this.Size = new Size(formWidth, formHeight);
+                Size = new Size(formWidth, formHeight);
 
                 // Adjust RichTextBox position based on icon visibility
                 if (icon != MessageBoxIcon.None)
                 {
                     richTextBoxMessage.Left = MARGIN_X + DEFAULT_ICON_SIZE + ICON_TEXT_SPACING;
-                    richTextBoxMessage.Width = this.panelTop.ClientSize.Width - richTextBoxMessage.Left - MARGIN_X;
+                    richTextBoxMessage.Width = panelTop.ClientSize.Width - richTextBoxMessage.Left - MARGIN_X;
                 }
                 else
                 {
                     richTextBoxMessage.Left = MARGIN_X;
-                    richTextBoxMessage.Width = this.panelTop.ClientSize.Width - MARGIN_X - MARGIN_X;
+                    richTextBoxMessage.Width = panelTop.ClientSize.Width - MARGIN_X - MARGIN_X;
                 }
-                richTextBoxMessage.Height = this.panelTop.ClientSize.Height - MARGIN_Y - MARGIN_Y;
+                richTextBoxMessage.Height = panelTop.ClientSize.Height - MARGIN_Y - MARGIN_Y;
 
             }
 
@@ -581,7 +581,7 @@ namespace JR.Utils.GUI.Forms
                     _ => null // Includes MessageBoxIcon.None
                 };
 
-                pictureBoxIcon.Visible = (pictureBoxIcon.Image != null);
+                pictureBoxIcon.Visible = pictureBoxIcon.Image != null;
 
                 // Adjust layout based on icon visibility (done in SetDialogSizes now)
             }
@@ -595,7 +595,7 @@ namespace JR.Utils.GUI.Forms
                 button1.Visible = false;
                 button2.Visible = false;
                 button3.Visible = false;
-                this.CancelButton = null; // Reset cancel button
+                CancelButton = null; // Reset cancel button
 
                 switch (buttons)
                 {
@@ -611,14 +611,14 @@ namespace JR.Utils.GUI.Forms
                         _visibleButtonsCount = 2;
                         SetupButton(button2, ButtonID.OK, DialogResult.OK);
                         SetupButton(button3, ButtonID.CANCEL, DialogResult.Cancel);
-                        this.CancelButton = button3;
+                        CancelButton = button3;
                         break;
 
                     case MessageBoxButtons.RetryCancel:
                         _visibleButtonsCount = 2;
                         SetupButton(button2, ButtonID.RETRY, DialogResult.Retry);
                         SetupButton(button3, ButtonID.CANCEL, DialogResult.Cancel);
-                        this.CancelButton = button3;
+                        CancelButton = button3;
                         break;
 
                     case MessageBoxButtons.YesNo:
@@ -633,14 +633,14 @@ namespace JR.Utils.GUI.Forms
                         SetupButton(button1, ButtonID.YES, DialogResult.Yes);
                         SetupButton(button2, ButtonID.NO, DialogResult.No);
                         SetupButton(button3, ButtonID.CANCEL, DialogResult.Cancel);
-                        this.CancelButton = button3;
+                        CancelButton = button3;
                         break;
 
                     case MessageBoxButtons.OK:
                     default: // Treat unknown combinations as OK
                         _visibleButtonsCount = 1;
                         SetupButton(button3, ButtonID.OK, DialogResult.OK);
-                        this.CancelButton = button3; // OK button also acts as Cancel
+                        CancelButton = button3; // OK button also acts as Cancel
                         break;
                 }
 
@@ -649,12 +649,12 @@ namespace JR.Utils.GUI.Forms
                 if (button3.Visible)
                 {
                     button3.Location = new Point(currentRight - button3.Width, PADDING_Y);
-                    currentRight -= (button3.Width + button3.Margin.Horizontal);
+                    currentRight -= button3.Width + button3.Margin.Horizontal;
                 }
                 if (button2.Visible)
                 {
                     button2.Location = new Point(currentRight - button2.Width, PADDING_Y);
-                    currentRight -= (button2.Width + button2.Margin.Horizontal);
+                    currentRight -= button2.Width + button2.Margin.Horizontal;
                 }
                 if (button1.Visible)
                 {
@@ -748,7 +748,7 @@ namespace JR.Utils.GUI.Forms
 
                     var textForClipboard =
                         STANDARD_MESSAGEBOX_SEPARATOR_LINES +
-                        this.Text + Environment.NewLine + // Caption
+                        Text + Environment.NewLine + // Caption
                         STANDARD_MESSAGEBOX_SEPARATOR_LINES +
                         (_isRtf ? richTextBoxMessage.Text : richTextBoxMessage.Rtf) + Environment.NewLine + // Message (use Text for RTF for plain representation)
                         STANDARD_MESSAGEBOX_SEPARATOR_LINES +
@@ -769,19 +769,19 @@ namespace JR.Utils.GUI.Forms
                 else if (e.KeyCode == Keys.Escape)
                 {
                     // Find the button assigned as the Cancel button or the one with DialogResult.Cancel
-                    var cancelButton = this.CancelButton as Button ??
+                    var cancelButton = CancelButton as Button ??
                                        new[] { button1, button2, button3 }.FirstOrDefault(b => b.Visible && b.DialogResult == DialogResult.Cancel);
 
                     if (cancelButton != null)
                     {
                         // Simulate clicking the cancel button
-                        this.DialogResult = cancelButton.DialogResult;
-                        this.Close();
+                        DialogResult = cancelButton.DialogResult;
+                        Close();
                     }
                     else if (ControlBox && _visibleButtonsCount <= 1) // If only OK button and ControlBox is visible, Escape closes
                     {
-                        this.DialogResult = button3.Visible ? button3.DialogResult : DialogResult.Cancel; // Default to Cancel if OK not visible?
-                        this.Close();
+                        DialogResult = button3.Visible ? button3.DialogResult : DialogResult.Cancel; // Default to Cancel if OK not visible?
+                        Close();
                     }
                 }
             }
@@ -802,7 +802,7 @@ namespace JR.Utils.GUI.Forms
 
                 // Set base properties
                 form.Text = caption ?? string.Empty; // Use empty string if caption is null
-                form.Font = FlexibleMessageBox.FONT; // Use the static font property
+                form.Font = FONT; // Use the static font property
 
                 // Set message content (must be done before sizing)
                 form.richTextBoxMessage.Font = form.Font; // Ensure RichTextBox uses the correct font

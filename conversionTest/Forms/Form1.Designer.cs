@@ -1,4 +1,6 @@
-﻿namespace conversionTest
+﻿// Form1.Designer.cs
+// Ensure this namespace matches your project structure, e.g., conversionTest
+namespace conversionTest
 {
     partial class Form1
     {
@@ -37,12 +39,14 @@
             createReportButton = new Button();
             processEmailButton = new Button();
             generateAndSendButton = new Button();
+            oneClickProcessButton = new Button();
             viewReportButton = new Button();
             viewAnalysisButton = new Button();
             statusLabel = new ToolStripStatusLabel();
             mainStatusStrip = new StatusStrip();
             autoRunStatusLabel = new ToolStripStatusLabel();
             sendToFemiOnlyCheckBox = new CheckBox();
+            skipEmailCheckBox = new CheckBox();
             reportTypeComboBox = new ComboBox();
             reportTypeLabel = new Label();
             reportSettingsGroupBox = new GroupBox();
@@ -54,19 +58,24 @@
             menuStrip1 = new MenuStrip();
             optionsToolStripMenuItem = new ToolStripMenuItem();
             darkModeToolStripMenuItem = new ToolStripMenuItem();
-            toolStripSeparator1 = new ToolStripSeparator();
+            toolStripSeparator7 = new ToolStripSeparator();
+            enable1ClickProcessingToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator6 = new ToolStripSeparator();
+            setAutoRunHourToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator3 = new ToolStripSeparator();
             viewConfigToolStripMenuItem = new ToolStripMenuItem();
             validateConfigToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator4 = new ToolStripSeparator();
             manageCustomBankHolidaysToolStripMenuItem = new ToolStripMenuItem();
+            manageEmailRecipientsToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator5 = new ToolStripSeparator();
             openLogsToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator1 = new ToolStripSeparator();
             editConfigToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator2 = new ToolStripSeparator();
             exitToolStripMenuItem = new ToolStripMenuItem();
             helpToolStripMenuItem = new ToolStripMenuItem();
             toolTip1 = new ToolTip(components);
-            toolStripSeparator3 = new ToolStripSeparator();
-            toolStripSeparator4 = new ToolStripSeparator();
-            toolStripSeparator5 = new ToolStripSeparator();
             mainStatusStrip.SuspendLayout();
             reportSettingsGroupBox.SuspendLayout();
             menuStrip1.SuspendLayout();
@@ -110,7 +119,7 @@
             // 
             createReportButton.FlatStyle = FlatStyle.System;
             createReportButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            createReportButton.Location = new Point(142, 245);
+            createReportButton.Location = new Point(142, 260);
             createReportButton.Name = "createReportButton";
             createReportButton.Size = new Size(130, 71);
             createReportButton.TabIndex = 5;
@@ -123,7 +132,7 @@
             // 
             processEmailButton.FlatStyle = FlatStyle.System;
             processEmailButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            processEmailButton.Location = new Point(358, 245);
+            processEmailButton.Location = new Point(358, 260);
             processEmailButton.Name = "processEmailButton";
             processEmailButton.Size = new Size(130, 71);
             processEmailButton.TabIndex = 6;
@@ -139,12 +148,26 @@
             generateAndSendButton.Name = "generateAndSendButton";
             generateAndSendButton.Size = new Size(75, 23);
             generateAndSendButton.TabIndex = 19;
+            generateAndSendButton.Text = "Gen & Send";
+            generateAndSendButton.Visible = false;
+            // 
+            // oneClickProcessButton
+            // 
+            oneClickProcessButton.FlatStyle = FlatStyle.System;
+            oneClickProcessButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            oneClickProcessButton.Location = new Point(220, 260);
+            oneClickProcessButton.Name = "oneClickProcessButton";
+            oneClickProcessButton.Size = new Size(200, 71);
+            oneClickProcessButton.TabIndex = 20;
+            oneClickProcessButton.Text = "Generate, Process && Email Report";
+            toolTip1.SetToolTip(oneClickProcessButton, "Performs all steps: generates the raw report, processes it into the final analysis, and emails it (unless skipped).");
+            oneClickProcessButton.UseVisualStyleBackColor = true;
             // 
             // viewReportButton
             // 
             viewReportButton.FlatStyle = FlatStyle.System;
             viewReportButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            viewReportButton.Location = new Point(175, 324);
+            viewReportButton.Location = new Point(175, 339);
             viewReportButton.Name = "viewReportButton";
             viewReportButton.Size = new Size(75, 23);
             viewReportButton.TabIndex = 8;
@@ -157,7 +180,7 @@
             // 
             viewAnalysisButton.FlatStyle = FlatStyle.System;
             viewAnalysisButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            viewAnalysisButton.Location = new Point(386, 324);
+            viewAnalysisButton.Location = new Point(386, 339);
             viewAnalysisButton.Name = "viewAnalysisButton";
             viewAnalysisButton.Size = new Size(75, 23);
             viewAnalysisButton.TabIndex = 9;
@@ -203,6 +226,19 @@
             toolTip1.SetToolTip(sendToFemiOnlyCheckBox, "Check this to send the email report only to Femi (and relevant CCs based on build mode). Uncheck to send to the broader team.");
             sendToFemiOnlyCheckBox.UseVisualStyleBackColor = true;
             // 
+            // skipEmailCheckBox
+            // 
+            skipEmailCheckBox.AutoSize = true;
+            skipEmailCheckBox.FlatStyle = FlatStyle.System;
+            skipEmailCheckBox.Font = new Font("Segoe UI", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            skipEmailCheckBox.Location = new Point(15, 168);
+            skipEmailCheckBox.Name = "skipEmailCheckBox";
+            skipEmailCheckBox.Size = new Size(130, 18);
+            skipEmailCheckBox.TabIndex = 21;
+            skipEmailCheckBox.Text = "Skip Sending Email";
+            toolTip1.SetToolTip(skipEmailCheckBox, "If checked, the email sending step will be skipped during processing.");
+            skipEmailCheckBox.UseVisualStyleBackColor = true;
+            // 
             // reportTypeComboBox
             // 
             reportTypeComboBox.AutoCompleteCustomSource.AddRange(new string[] { "Weekly", "Monthly", "Quarterly (3 Months)", "Annual" });
@@ -228,6 +264,7 @@
             // 
             // reportSettingsGroupBox
             // 
+            reportSettingsGroupBox.Controls.Add(skipEmailCheckBox);
             reportSettingsGroupBox.Controls.Add(emailRecipientLabel);
             reportSettingsGroupBox.Controls.Add(financialYearLabel);
             reportSettingsGroupBox.Controls.Add(sendToFemiOnlyCheckBox);
@@ -235,7 +272,7 @@
             reportSettingsGroupBox.Font = new Font("Arial", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
             reportSettingsGroupBox.Location = new Point(142, 50);
             reportSettingsGroupBox.Name = "reportSettingsGroupBox";
-            reportSettingsGroupBox.Size = new Size(346, 176);
+            reportSettingsGroupBox.Size = new Size(346, 200);
             reportSettingsGroupBox.TabIndex = 14;
             reportSettingsGroupBox.TabStop = false;
             reportSettingsGroupBox.Text = "Report Settings";
@@ -297,7 +334,7 @@
             // 
             // optionsToolStripMenuItem
             // 
-            optionsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem, toolStripSeparator3, viewConfigToolStripMenuItem, validateConfigToolStripMenuItem, toolStripSeparator4, manageCustomBankHolidaysToolStripMenuItem, toolStripSeparator5, openLogsToolStripMenuItem, toolStripSeparator1, editConfigToolStripMenuItem, toolStripSeparator2, exitToolStripMenuItem });
+            optionsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem, toolStripSeparator7, enable1ClickProcessingToolStripMenuItem, toolStripSeparator6, setAutoRunHourToolStripMenuItem, toolStripSeparator3, viewConfigToolStripMenuItem, validateConfigToolStripMenuItem, toolStripSeparator4, manageCustomBankHolidaysToolStripMenuItem, manageEmailRecipientsToolStripMenuItem, toolStripSeparator5, openLogsToolStripMenuItem, toolStripSeparator1, editConfigToolStripMenuItem, toolStripSeparator2, exitToolStripMenuItem });
             optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
             optionsToolStripMenuItem.Size = new Size(61, 20);
             optionsToolStripMenuItem.Text = "&Options";
@@ -311,10 +348,35 @@
             darkModeToolStripMenuItem.ToolTipText = "Toggle between light and dark visual themes for the application.";
             darkModeToolStripMenuItem.Click += darkModeToolStripMenuItem_Click;
             // 
-            // toolStripSeparator1
+            // toolStripSeparator7
             // 
-            toolStripSeparator1.Name = "toolStripSeparator1";
-            toolStripSeparator1.Size = new Size(237, 6);
+            toolStripSeparator7.Name = "toolStripSeparator7";
+            toolStripSeparator7.Size = new Size(237, 6);
+            // 
+            // enable1ClickProcessingToolStripMenuItem
+            // 
+            enable1ClickProcessingToolStripMenuItem.CheckOnClick = true;
+            enable1ClickProcessingToolStripMenuItem.Name = "enable1ClickProcessingToolStripMenuItem";
+            enable1ClickProcessingToolStripMenuItem.Size = new Size(240, 22);
+            enable1ClickProcessingToolStripMenuItem.Text = "Enable &1-Click Processing";
+            enable1ClickProcessingToolStripMenuItem.ToolTipText = "Toggle between 2-button and 1-button processing mode.";
+            // 
+            // toolStripSeparator6
+            // 
+            toolStripSeparator6.Name = "toolStripSeparator6";
+            toolStripSeparator6.Size = new Size(237, 6);
+            // 
+            // setAutoRunHourToolStripMenuItem
+            // 
+            setAutoRunHourToolStripMenuItem.Name = "setAutoRunHourToolStripMenuItem";
+            setAutoRunHourToolStripMenuItem.Size = new Size(240, 22);
+            setAutoRunHourToolStripMenuItem.Text = "Set Auto-Run &Hour...";
+            setAutoRunHourToolStripMenuItem.ToolTipText = "Change the hour at which the daily auto-run task executes.";
+            // 
+            // toolStripSeparator3
+            // 
+            toolStripSeparator3.Name = "toolStripSeparator3";
+            toolStripSeparator3.Size = new Size(237, 6);
             // 
             // viewConfigToolStripMenuItem
             // 
@@ -332,6 +394,11 @@
             validateConfigToolStripMenuItem.ToolTipText = "Quickly validate essential configuration and update status bar.";
             validateConfigToolStripMenuItem.Click += validateConfigToolStripMenuItem_Click;
             // 
+            // toolStripSeparator4
+            // 
+            toolStripSeparator4.Name = "toolStripSeparator4";
+            toolStripSeparator4.Size = new Size(237, 6);
+            // 
             // manageCustomBankHolidaysToolStripMenuItem
             // 
             manageCustomBankHolidaysToolStripMenuItem.Name = "manageCustomBankHolidaysToolStripMenuItem";
@@ -340,6 +407,19 @@
             manageCustomBankHolidaysToolStripMenuItem.ToolTipText = "Add or remove custom bank holidays.";
             manageCustomBankHolidaysToolStripMenuItem.Click += manageCustomBankHolidaysToolStripMenuItem_Click;
             // 
+            // manageEmailRecipientsToolStripMenuItem
+            // 
+            manageEmailRecipientsToolStripMenuItem.Name = "manageEmailRecipientsToolStripMenuItem";
+            manageEmailRecipientsToolStripMenuItem.Size = new Size(240, 22);
+            manageEmailRecipientsToolStripMenuItem.Text = "Manage Email &Recipients";
+            manageEmailRecipientsToolStripMenuItem.ToolTipText = "Configure custom email recipients for different report types.";
+            manageEmailRecipientsToolStripMenuItem.Click += manageEmailRecipientsToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator5
+            // 
+            toolStripSeparator5.Name = "toolStripSeparator5";
+            toolStripSeparator5.Size = new Size(237, 6);
+            // 
             // openLogsToolStripMenuItem
             // 
             openLogsToolStripMenuItem.Name = "openLogsToolStripMenuItem";
@@ -347,6 +427,11 @@
             openLogsToolStripMenuItem.Text = "Open &Logs Folder";
             openLogsToolStripMenuItem.ToolTipText = "Open the folder containing application log files.";
             openLogsToolStripMenuItem.Click += openLogsToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator1
+            // 
+            toolStripSeparator1.Name = "toolStripSeparator1";
+            toolStripSeparator1.Size = new Size(237, 6);
             // 
             // editConfigToolStripMenuItem
             // 
@@ -384,27 +469,13 @@
             toolTip1.InitialDelay = 500;
             toolTip1.ReshowDelay = 140;
             // 
-            // toolStripSeparator3
-            // 
-            toolStripSeparator3.Name = "toolStripSeparator3";
-            toolStripSeparator3.Size = new Size(237, 6);
-            // 
-            // toolStripSeparator4
-            // 
-            toolStripSeparator4.Name = "toolStripSeparator4";
-            toolStripSeparator4.Size = new Size(237, 6);
-            // 
-            // toolStripSeparator5
-            // 
-            toolStripSeparator5.Name = "toolStripSeparator5";
-            toolStripSeparator5.Size = new Size(237, 6);
-            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(6F, 13F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = SystemColors.ControlLightLight;
             ClientSize = new Size(635, 459);
+            Controls.Add(oneClickProcessButton);
             Controls.Add(toggleAutoRunButton);
             Controls.Add(reportTypeLabel);
             Controls.Add(reportTypeComboBox);
@@ -446,12 +517,14 @@
         private System.Windows.Forms.Label endDateLabel;
         private System.Windows.Forms.Button createReportButton;
         private System.Windows.Forms.Button processEmailButton;
-        private System.Windows.Forms.Button generateAndSendButton; // Added field
+        private System.Windows.Forms.Button generateAndSendButton;
+        private System.Windows.Forms.Button oneClickProcessButton; // New field
         private System.Windows.Forms.Button viewReportButton;
         private System.Windows.Forms.Button viewAnalysisButton;
         private System.Windows.Forms.ToolStripStatusLabel statusLabel;
         private System.Windows.Forms.StatusStrip mainStatusStrip;
         private System.Windows.Forms.CheckBox sendToFemiOnlyCheckBox;
+        private System.Windows.Forms.CheckBox skipEmailCheckBox; // New field
         private System.Windows.Forms.ComboBox reportTypeComboBox;
         private System.Windows.Forms.Label reportTypeLabel;
         private System.Windows.Forms.GroupBox reportSettingsGroupBox;
@@ -473,9 +546,14 @@
         private System.Windows.Forms.ToolStripMenuItem validateConfigToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
         private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem manageCustomBankHolidaysToolStripMenuItem; // Added
-        private ToolStripSeparator toolStripSeparator3;
-        private ToolStripSeparator toolStripSeparator4;
-        private ToolStripSeparator toolStripSeparator5;
+        private System.Windows.Forms.ToolStripMenuItem manageCustomBankHolidaysToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator4;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator5;
+        private System.Windows.Forms.ToolStripMenuItem manageEmailRecipientsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem enable1ClickProcessingToolStripMenuItem; // New field
+        private System.Windows.Forms.ToolStripMenuItem setAutoRunHourToolStripMenuItem; // New field
+        private ToolStripSeparator toolStripSeparator7;
+        private ToolStripSeparator toolStripSeparator6;
     }
 }

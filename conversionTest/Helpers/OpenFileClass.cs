@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Diagnostics;
 
-namespace QuoteConversionReportAutomation
+namespace QuoteConversionReportAutomation.Helpers
 {
     /// <summary>
     /// Provides functionality to open a file using the default associated application.

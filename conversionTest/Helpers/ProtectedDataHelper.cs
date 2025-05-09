@@ -1,7 +1,7 @@
 ﻿// C# 10 File-Scoped Namespace
 using conversionTest;
 
-namespace QuoteConversionReportAutomation; // Or a more general namespace like YourProject.Security
+namespace QuoteConversionReportAutomation.Helpers; // Or a more general namespace like YourProject.Security
 
 using System;
 using System.Diagnostics;
