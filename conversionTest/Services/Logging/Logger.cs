@@ -1,5 +1,5 @@
 ﻿// C# 10 File-Scoped Namespace
-namespace conversionTest;
+namespace QuoteConversionReportAutomation.Services.Logging;
 
 using Microsoft.Extensions.Configuration; // Added for IConfiguration
 using System;
@@ -80,13 +80,13 @@ public static class Logger
                     Debug.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff zzz}] DEBUG: Configuration key '{ConfigKeyLogLevelDebug}' not found. Falling back to '{configKeyUsed}'.");
                 }
 #else
-                    configKeyUsed = ConfigKeyLogLevelRelease;
-                    logLevelString = configuration[configKeyUsed];
+                configKeyUsed = ConfigKeyLogLevelRelease;
+                logLevelString = configuration[configKeyUsed];
 #endif
 
                 LogLevel defaultLevel = LogLevel.Info; // Default for both modes if config is invalid
                 if (!string.IsNullOrEmpty(logLevelString) &&
-                    Enum.TryParse<LogLevel>(logLevelString, true, out LogLevel parsedLevel)) // Case-insensitive parse
+                    Enum.TryParse(logLevelString, true, out LogLevel parsedLevel)) // Case-insensitive parse
                 {
                     s_minimumLogLevel = parsedLevel;
                     Debug.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff zzz}] INFO: Minimum log level set from configuration key '{configKeyUsed}': {s_minimumLogLevel}");
@@ -143,7 +143,7 @@ public static class Logger
         /// <summary>Information useful for debugging but potentially too verbose for normal operation.</summary>
         Debug = 1,
         /// <summary>Informational messages highlighting the progress of the application.</summary>
-        Info = 2, 
+        Info = 2,
         /// <summary>Indicates potentially harmful situations or non-critical errors.</summary>
         Warning = 3,
         /// <summary>Indicates errors that might allow the application to continue running.</summary>

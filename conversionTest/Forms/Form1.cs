@@ -1,24 +1,19 @@
 // C# 10+ Features
 // Ensure this namespace matches your project structure, e.g., conversionTest
+// --- Global Usings ---
+using Microsoft.Extensions.Configuration;
+using Microsoft.VisualBasic; // For Interaction.InputBox
+using QuoteConversionReportAutomation; // For EmailRecipientManager, ManageEmailRecipientsForm etc.
+using QuoteConversionReportAutomation.Helpers;
+using QuoteConversionReportAutomation.Managers;
+using QuoteConversionReportAutomation.Services.Communication;
+using QuoteConversionReportAutomation.Services.Excel;
+using QuoteConversionReportAutomation.Services.Logging;
+using System.Diagnostics;
+using System.Text; // Required for StringBuilder
+
 namespace conversionTest
 {
-    // --- Global Usings ---
-    using Microsoft.Extensions.Configuration;
-    using System;
-    using System.Collections.Generic;
-    using System.Diagnostics;
-    using System.Drawing;
-    using System.IO;
-    using System.Windows.Forms;
-    using System.Threading;
-    using System.Threading.Tasks;
-    using ReportWrapperCommon;
-    using QuoteConversionReportAutomation; // For EmailRecipientManager, ManageEmailRecipientsForm etc.
-    using QuoteConversionReportAutomation.Helpers;
-    using QuoteConversionReportAutomation.Managers;
-    using Microsoft.VisualBasic; // For Interaction.InputBox
-    using System.Text; // Required for StringBuilder
-
     /// <summary>
     /// Represents the main form of the Quote Conversion Report Automation application.
     /// Orchestrates report generation and processing by coordinating with manager classes.
@@ -29,6 +24,7 @@ namespace conversionTest
     /// Daily report date calculation now considers bank holidays.
     /// Added new options menu items including "Manage Email Recipients".
     /// Added 1-Click processing mode, skip email checkbox, and option to set auto-run hour.
+    /// Annual report now uses financial year (May-April).
     /// </summary>
     public partial class Form1 : Form
     {
@@ -46,7 +42,7 @@ namespace conversionTest
 
         // --- Application Info ---
         // AppVersion is used in the help text.
-        private const string AppVersion = "1.7.9";
+        private const string AppVersion = "1.8.0"; // Ensure this is up-to-date
 
         // --- State Variables (Remaining in Form1) ---
         private string _generatedReportPath = string.Empty;
@@ -119,8 +115,7 @@ namespace conversionTest
                 string baseDir = ExcelTemplateBaseDir;
                 string templateName = reportTypeComboBox.SelectedIndex switch
                 {
-                    MonthlyReportIndex or QuarterlyReportIndex or AnnualReportIndex => "TEMPLATE_Estimate Success Rate_Monthly.xlsx",
-                    CustomReportIndex => "TEMPLATE_Estimate Success Rate_Monthly.xlsx",
+                    MonthlyReportIndex or QuarterlyReportIndex or AnnualReportIndex or CustomReportIndex => "TEMPLATE_Estimate Success Rate_Monthly.xlsx",
                     _ => "TEMPLATE_Estimate Success Rate.xlsx"
                 };
                 return Path.Combine(baseDir, templateName);
@@ -145,7 +140,7 @@ namespace conversionTest
                 _uiManager = new UIManager(
                     this, menuStrip1, mainStatusStrip, statusLabel, autoRunStatusLabel,
                     darkModeToolStripMenuItem, createReportButton, processEmailButton,
-                    generateAndSendButton, oneClickProcessButton,
+                    oneClickProcessButton,
                     toggleAutoRunButton, viewReportButton, viewAnalysisButton,
                     reportTypeComboBox, startDatePicker, endDatePicker,
                     financialYearComboBox, financialYearLabel, sendToFemiOnlyCheckBox,
@@ -156,16 +151,13 @@ namespace conversionTest
                 _processManager = new ReportProcessManager(wrapperExePath);
                 _pipeCommunicator = new NamedPipeCommunicator();
                 _currentAutoRunHour = _configuration.GetValue<int>("settings:AutoRunCheckHour", 8);
+
+                _uiManager.SetAutoRunHour(_currentAutoRunHour);
+
                 _autoRunManager = new AutoRunManager(
                     _configuration, _emailUtility, _processManager, _pipeCommunicator,
                     _uiManager, _excelProcessor, _appSettingsPath, _emailRecipientManager, _currentAutoRunHour
                 );
-
-                this.enable1ClickProcessingToolStripMenuItem.Click += new System.EventHandler(this.enable1ClickProcessingToolStripMenuItem_Click);
-                this.oneClickProcessButton.Click += new System.EventHandler(this.oneClickProcessButton_Click);
-                this.setAutoRunHourToolStripMenuItem.Click += new System.EventHandler(this.setAutoRunHourToolStripMenuItem_Click);
-                this.startDatePicker.ValueChanged += new System.EventHandler(this.DatePicker_ValueChanged);
-                this.endDatePicker.ValueChanged += new System.EventHandler(this.DatePicker_ValueChanged);
 
                 Logger.LogDebug("Event handlers wired up.");
             }
@@ -210,7 +202,10 @@ namespace conversionTest
                 StartPosition = FormStartPosition.CenterScreen;
                 financialYearComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
 
-                if (reportTypeComboBox.Items.Count == 5) { reportTypeComboBox.Items.Add("Custom"); }
+                if (!reportTypeComboBox.Items.Contains("Custom"))
+                {
+                    reportTypeComboBox.Items.Add("Custom");
+                }
                 if (reportTypeComboBox.Items.Count > DailyReportIndex) reportTypeComboBox.SelectedIndex = DailyReportIndex;
                 else if (reportTypeComboBox.Items.Count > 0) reportTypeComboBox.SelectedIndex = 0;
                 reportTypeComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -219,19 +214,13 @@ namespace conversionTest
                 darkModeToolStripMenuItem.Checked = useDarkMode;
                 _uiManager.ApplyTheme(useDarkMode);
 
-                // Update AutoRun button text and tooltip on load
-                string autoRunButtonText = $"{(dailyCheckTimer.Enabled ? "Disable" : "Enable")} Daily Auto Run @ {_currentAutoRunHour}:00";
-                UIManager.SafeControlUpdate(toggleAutoRunButton, () => toggleAutoRunButton.Text = autoRunButtonText);
-                toolTip1.SetToolTip(toggleAutoRunButton, $"Enable or disable the automated daily report generation. The report runs around {_currentAutoRunHour}:00 for the previous workday.");
-
-                // Update AutoRun UI status label
                 _uiManager.UpdateAutoRunUI(dailyCheckTimer.Enabled, false, useDarkMode, $"Auto Run: {(dailyCheckTimer.Enabled ? $"Enabled (Next check ~{_currentAutoRunHour}:00)" : "Disabled")}");
 
                 reportTypeComboBox_SelectedIndexChanged(reportTypeComboBox, EventArgs.Empty);
                 _uiManager.ResetButtonStatesAfterTypeChange(configValid);
 
                 enable1ClickProcessingToolStripMenuItem.Checked = false;
-                Update1ClickProcessingModeUI(); // Call after other UI setups
+                Update1ClickProcessingModeUI();
 
                 if (!configValid) _uiManager.UpdateStatusMain("Config Error: Check Options menu.");
 
@@ -285,37 +274,12 @@ namespace conversionTest
             await PerformProcessAndEmailAsync(skipEmail: skipEmailCheckBox.Checked);
         }
 
-        private async void generateAndSendButton_Click(object sender, EventArgs e) // Legacy button
-        {
-            Logger.LogInfo("Legacy Generate & Send button clicked. This button is being phased out by 1-Click Process.");
-            _uiManager.UpdateStatusMain("Generate & Send: Starting...");
-
-            UIManager.SafeControlUpdate(oneClickProcessButton, () => oneClickProcessButton.Enabled = false);
-            UIManager.SafeControlUpdate(createReportButton, () => createReportButton.Enabled = false);
-            UIManager.SafeControlUpdate(processEmailButton, () => processEmailButton.Enabled = false);
-            UIManager.SafeControlUpdate(generateAndSendButton, () => generateAndSendButton.Enabled = false);
-
-            _uiManager.SetOtherControlsEnabled(false, financialYearComboBox.Visible);
-
-            await PerformCreateReportAsync();
-            if (string.IsNullOrEmpty(_generatedReportPath) || !File.Exists(_generatedReportPath))
-            {
-                Logger.LogWarning("Generate & Send: Raw report generation failed or was cancelled. Aborting.");
-                ResetUIStateOnError("Create Report");
-                return;
-            }
-
-            await PerformProcessAndEmailAsync(skipEmail: skipEmailCheckBox.Checked);
-            Logger.LogInfo("Generate & Send sequence completed (or aborted).");
-        }
-
         private async void oneClickProcessButton_Click(object sender, EventArgs e)
         {
             Logger.LogInfo("1-Click Process button clicked.");
             _uiManager.UpdateStatusMain("1-Click Process: Starting...");
 
             UIManager.SafeControlUpdate(oneClickProcessButton, () => oneClickProcessButton.Enabled = false);
-            // Ensure other buttons are also disabled if somehow visible (defensive)
             UIManager.SafeControlUpdate(createReportButton, () => createReportButton.Enabled = false);
             UIManager.SafeControlUpdate(processEmailButton, () => processEmailButton.Enabled = false);
             _uiManager.SetOtherControlsEnabled(false, financialYearComboBox.Visible);
@@ -325,14 +289,13 @@ namespace conversionTest
             if (string.IsNullOrEmpty(_generatedReportPath) || !File.Exists(_generatedReportPath))
             {
                 Logger.LogWarning("1-Click Process: Raw report generation failed or was cancelled. Aborting.");
-                ResetUIStateOnError("1-Click Process"); // Reset UI with appropriate button text
+                ResetUIStateOnError("Generate, Process && Email Report");
                 return;
             }
 
             await PerformProcessAndEmailAsync(skipEmail: skipEmailCheckBox.Checked);
 
             Logger.LogInfo("1-Click Process sequence completed (or aborted).");
-            // ResetUIStateOnError is typically called within PerformProcessAndEmailAsync or PerformCreateReportAsync on error/completion
         }
 
         private void viewReportButton_Click(object sender, EventArgs e)
@@ -351,16 +314,15 @@ namespace conversionTest
         private async Task PerformCreateReportAsync()
         {
             Button currentActionButton = oneClickProcessButton.Visible ? oneClickProcessButton : createReportButton;
-            string originalButtonText = string.Empty; // To restore text on non-1-click mode if only create fails
+            string originalButtonText = string.Empty;
             UIManager.SafeControlUpdate(currentActionButton, () => originalButtonText = currentActionButton.Text);
 
-            // Disable the active button and other controls
             UIManager.SafeControlUpdate(currentActionButton, () => currentActionButton.Enabled = false);
-            if (currentActionButton == createReportButton) // If in 2-button mode, also disable the other main action button
+            if (currentActionButton == createReportButton)
             {
                 UIManager.SafeControlUpdate(processEmailButton, () => processEmailButton.Enabled = false);
             }
-            else // oneClickProcessButton is the current action button, ensure the others are disabled too
+            else
             {
                 UIManager.SafeControlUpdate(createReportButton, () => createReportButton.Enabled = false);
                 UIManager.SafeControlUpdate(processEmailButton, () => processEmailButton.Enabled = false);
@@ -376,7 +338,7 @@ namespace conversionTest
 
             try
             {
-                if (!ValidateInputDates()) { ResetUIStateOnError(originalButtonText); return; } // Use original text for reset
+                if (!ValidateInputDates()) { ResetUIStateOnError(originalButtonText); return; }
                 if (!ValidateFinancialYearSelection()) { ResetUIStateOnError(originalButtonText); return; }
 
                 string crystalReportPath = CrystalReportLocation;
@@ -403,17 +365,15 @@ namespace conversionTest
                     _generatedReportPath = response.OutputPath;
                     Logger.LogInfo($"Report generated successfully by wrapper: {_generatedReportPath}");
 
-                    if (oneClickProcessButton.Visible) // In 1-click mode
+                    if (oneClickProcessButton.Visible)
                     {
-                        // Button remains disabled and text "Requesting..." or "Processing..."
-                        // It will be fully reset at the end of PerformProcessAndEmailAsync
+                        // Button remains disabled
                     }
-                    else // In 2-button mode
+                    else
                     {
                         UIManager.SafeControlUpdate(createReportButton, () => createReportButton.Text = "Report Created");
-                        // processEmailButton is already disabled, will be enabled if create is successful
                         UIManager.SafeControlUpdate(processEmailButton, () => processEmailButton.Enabled = true);
-                        _uiManager.SetOtherControlsEnabled(true, financialYearComboBox.Visible); // Re-enable other controls
+                        _uiManager.SetOtherControlsEnabled(true, financialYearComboBox.Visible);
                     }
                     _uiManager.ShowViewReportButton(true, _generatedReportPath);
                     _uiManager.ShowViewAnalysisButton(false);
@@ -432,13 +392,13 @@ namespace conversionTest
             {
                 Logger.LogWarning("Report generation request cancelled or timed out.");
                 FlexibleMessageBox.Show("The report generation request timed out or was cancelled.", "Timeout / Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                ResetUIStateOnError("Cancelled"); // Resets based on current 1-click mode
+                ResetUIStateOnError("Cancelled");
             }
             catch (Exception ex)
             {
                 Logger.LogError($"Error during Create Report operation: {ex.Message}", ex);
                 FlexibleMessageBox.Show($"An error occurred while requesting the report:\n\n{ex.Message}", "Report Request Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                ResetUIStateOnError("Error"); // Resets based on current 1-click mode
+                ResetUIStateOnError("Error");
             }
         }
 
@@ -449,13 +409,12 @@ namespace conversionTest
             string originalButtonText = string.Empty;
             UIManager.SafeControlUpdate(currentActionButton, () => originalButtonText = currentActionButton.Text);
 
-            // Ensure the correct button is targeted for updates and all relevant buttons are disabled
             UIManager.SafeControlUpdate(currentActionButton, () => currentActionButton.Enabled = false);
-            if (currentActionButton == processEmailButton) // If in 2-button mode, createReportButton should also be disabled
+            if (currentActionButton == processEmailButton)
             {
                 UIManager.SafeControlUpdate(createReportButton, () => createReportButton.Enabled = false);
             }
-            else // oneClickProcessButton is active, ensure the others are disabled.
+            else
             {
                 UIManager.SafeControlUpdate(createReportButton, () => createReportButton.Enabled = false);
                 UIManager.SafeControlUpdate(processEmailButton, () => processEmailButton.Enabled = false);
@@ -474,7 +433,11 @@ namespace conversionTest
             int reportType = reportTypeComboBox.SelectedIndex;
             bool requiresManualRefresh = reportType is MonthlyReportIndex or QuarterlyReportIndex or AnnualReportIndex or CustomReportIndex;
             string baseSaveLocation = ExcelFinalSaveLocation;
-            DateTime reportDate = endDatePicker.Value;
+
+            // For most reports, endDatePicker.Value is the key date for filename/folder.
+            // For Annual (Financial Year), startDatePicker.Value (May 1st of FY start) is more appropriate for filename.
+            DateTime dateForFilenameAndExcelProcessing = (reportType == AnnualReportIndex) ? startDatePicker.Value : endDatePicker.Value;
+
 
             try
             {
@@ -482,18 +445,18 @@ namespace conversionTest
                 if (string.IsNullOrEmpty(_generatedReportPath) || !File.Exists(_generatedReportPath))
                 {
                     FlexibleMessageBox.Show("The raw report file has not been generated or cannot be found. Please create the report first.", "Raw Report Missing", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    ResetUIStateOnError(oneClickProcessButton.Visible ? "1-Click Process" : "Create Report");
+                    ResetUIStateOnError(oneClickProcessButton.Visible ? "Generate, Process && Email Report" : "Create Report");
                     return;
                 }
 
-                string? expectedFinalPath = _excelProcessor.GetExpectedFinalFilePath(reportType, baseSaveLocation, reportDate);
+                string? expectedFinalPath = _excelProcessor.GetExpectedFinalFilePath(reportType, baseSaveLocation, dateForFilenameAndExcelProcessing);
                 if (expectedFinalPath != null && File.Exists(expectedFinalPath))
                 {
                     generalProgress.Report("Found existing file. Prompting user...");
                     DialogResult dr = FlexibleMessageBox.Show(
                         this,
                         $"The report file '{Path.GetFileName(expectedFinalPath)}' already exists for this period.\n\n" +
-                        "Do you want to skip processing and use this existing file?", // Simplified prompt
+                        "Do you want to skip processing and use this existing file?",
                         "File Already Exists", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
                     if (dr == DialogResult.Yes)
@@ -522,15 +485,14 @@ namespace conversionTest
                             _uiManager.UpdateStatusMain("Process completed. Email skipped by user.");
                             Logger.LogInfo("Email sending skipped by user checkbox.");
                         }
-                        // If process was not cancelled and completed (even if email skipped)
                         if (proceedToEmail || skipEmail)
                         {
                             _uiManager.SetUICompleted(CheckConfigValidity(), IsDailySelected(), dailyCheckTimer.Enabled, darkModeToolStripMenuItem.Checked, false, autoRunStatusLabel.Text ?? "");
                         }
-                        ResetUIStateOnError(oneClickProcessButton.Visible ? "1-Click Process" : "Create Report"); // Reset based on current mode
+                        ResetUIStateOnError(oneClickProcessButton.Visible ? "Generate, Process && Email Report" : "Create Report");
                         return;
                     }
-                    else // User chose No, overwrite/regenerate
+                    else
                     {
                         generalProgress.Report("Deleting existing file...");
                         Logger.LogInfo("User chose to overwrite/regenerate the existing file.");
@@ -550,7 +512,7 @@ namespace conversionTest
                      financialYearComboBox.SelectedItem?.ToString() ?? _excelProcessor.GetCurrentFinancialYear(true),
                      reportType,
                     _generatedReportPath, "Sheet1", baseSaveLocation, ExcelTemplateLocation, "DATA",
-                    1, 1, excelProgress, reportDate, token);
+                    1, 1, excelProgress, dateForFilenameAndExcelProcessing, token);
 
                 if (string.IsNullOrEmpty(finalFilePath) || !File.Exists(finalFilePath))
                 {
@@ -574,36 +536,35 @@ namespace conversionTest
                 {
                     await SendCompletionEmailAsync(finalFilePath, generalProgress, token);
                 }
-                else if (skipEmail) // If email is skipped, still log and update status
+                else if (skipEmail)
                 {
                     _uiManager.UpdateStatusMain("Process completed. Email skipped by user.");
                     Logger.LogInfo("Email sending skipped by user checkbox.");
                 }
 
-                // If the process wasn't cancelled during manual refresh and we reached here
                 if (proceedToEmailAfterGenerate || skipEmail)
                 {
                     _uiManager.SetUICompleted(CheckConfigValidity(), IsDailySelected(), dailyCheckTimer.Enabled, darkModeToolStripMenuItem.Checked, false, autoRunStatusLabel.Text ?? "");
                 }
-                ResetUIStateOnError(oneClickProcessButton.Visible ? "1-Click Process" : "Create Report"); // Reset based on current mode
+                ResetUIStateOnError(oneClickProcessButton.Visible ? "Generate, Process && Email Report" : "Create Report");
 
             }
             catch (OperationCanceledException)
             {
                 Logger.LogWarning("Excel processing or subsequent step cancelled.");
-                ResetUIStateOnError("Cancelled"); // Reset based on current mode
+                ResetUIStateOnError("Cancelled");
             }
             catch (FileNotFoundException fnfEx)
             {
                 Logger.LogError($"File not found during Process & Email operation: {fnfEx.Message}", fnfEx);
                 FlexibleMessageBox.Show(this, fnfEx.Message, "File Not Found Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                ResetUIStateOnError("File Error"); // Reset based on current mode
+                ResetUIStateOnError("File Error");
             }
             catch (Exception ex)
             {
                 Logger.LogError($"Error during Process & Email operation: {ex.Message}", ex);
                 FlexibleMessageBox.Show(this, $"An unexpected error occurred during processing:\n\n{ex.Message}", "Processing Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                ResetUIStateOnError("Error"); // Reset based on current mode
+                ResetUIStateOnError("Error");
             }
             Logger.LogTrace("Exiting PerformProcessAndEmailAsync logic");
         }
@@ -623,9 +584,8 @@ namespace conversionTest
                 Logger.LogDebug("Report Type changed to Custom. Manual date entry expected.");
                 UIManager.SafeControlUpdate(sendToFemiOnlyCheckBox, () => { sendToFemiOnlyCheckBox.Visible = true; });
                 UIManager.SafeControlUpdate(emailRecipientLabel, () => { emailRecipientLabel.Visible = false; });
-                // When type changes to Custom, reset buttons but maintain current 1-click mode visibility
-                _uiManager.ResetButtonStatesAfterTypeChange(CheckConfigValidity()); //This resets button texts and enabled states
-                Update1ClickProcessingModeUI(); // This ensures the correct set of buttons is visible
+                _uiManager.ResetButtonStatesAfterTypeChange(CheckConfigValidity());
+                Update1ClickProcessingModeUI();
                 return;
             }
 
@@ -633,24 +593,55 @@ namespace conversionTest
             _programmaticallyChangingDates = true;
             try
             {
-                (DateTime DateFrom, DateTime DateTo, bool ShowFinYear) rangeInfo = selectedIndex switch
-                {
-                    DailyReportIndex => (ReportHelper.GetPreviousWorkday(todayValue), ReportHelper.GetPreviousWorkday(todayValue), false),
-                    WeeklyReportIndex => (todayValue.AddDays(-15), todayValue, true),
-                    MonthlyReportIndex => (ReportHelper.CalculateMonthlyRange(todayValue).DateFrom, ReportHelper.CalculateMonthlyRange(todayValue).DateTo, false),
-                    QuarterlyReportIndex => (ReportHelper.CalculateQuarterlyRange(todayValue).DateFrom, ReportHelper.CalculateQuarterlyRange(todayValue).DateTo, false),
-                    AnnualReportIndex => (new DateTime(todayValue.Year - 1, 1, 1), new DateTime(todayValue.Year - 1, 12, 31), false),
-                    _ => (todayValue, todayValue, true) // Default or Custom (though Custom is handled above)
-                };
+                DateTime dateFrom = todayValue;
+                DateTime dateTo = todayValue;
+                bool showFinYear = true;
 
-                UIManager.SafeControlUpdate(startDatePicker, () => { startDatePicker.Value = rangeInfo.DateFrom; });
-                UIManager.SafeControlUpdate(endDatePicker, () => { endDatePicker.Value = rangeInfo.DateTo; });
-                UIManager.SafeControlUpdate(financialYearLabel, () => { financialYearLabel.Visible = rangeInfo.ShowFinYear; });
+                switch (selectedIndex)
+                {
+                    case DailyReportIndex:
+                        dateFrom = ReportHelper.GetPreviousWorkday(todayValue);
+                        dateTo = ReportHelper.GetPreviousWorkday(todayValue);
+                        showFinYear = false;
+                        break;
+                    case WeeklyReportIndex:
+                        dateFrom = todayValue.AddDays(-14);
+                        dateTo = todayValue;
+                        showFinYear = true;
+                        break;
+                    case MonthlyReportIndex:
+                        (dateFrom, dateTo) = ReportHelper.CalculateMonthlyRange(todayValue);
+                        showFinYear = false;
+                        break;
+                    case QuarterlyReportIndex:
+                        (dateFrom, dateTo) = ReportHelper.CalculateQuarterlyRange(todayValue);
+                        showFinYear = false;
+                        break;
+                    case AnnualReportIndex:
+                        // Calculate previous financial year (May to April)
+                        // If current month is May or later (>=5), previous FY started last calendar year.
+                        // If current month is before May (<5), previous FY started two calendar years ago.
+                        int prevFinancialYearStartCalendarYear = (todayValue.Month >= 5) ? todayValue.Year - 1 : todayValue.Year - 2;
+                        (dateFrom, dateTo) = ReportHelper.GetFinancialYearDates(prevFinancialYearStartCalendarYear); // Uses May-April default
+                        showFinYear = false;
+                        Logger.LogInfo($"Annual report selected. Dates set for Financial Year: {dateFrom:dd/MM/yyyy} - {dateTo:dd/MM/yyyy}");
+                        break;
+                    default:
+                        dateFrom = todayValue;
+                        dateTo = todayValue;
+                        showFinYear = true;
+                        Logger.LogWarning($"Unexpected reportTypeComboBox index: {selectedIndex}. Defaulting dates.");
+                        break;
+                }
+
+                UIManager.SafeControlUpdate(startDatePicker, () => { startDatePicker.Value = dateFrom; });
+                UIManager.SafeControlUpdate(endDatePicker, () => { endDatePicker.Value = dateTo; });
+                UIManager.SafeControlUpdate(financialYearLabel, () => { financialYearLabel.Visible = showFinYear; });
                 UIManager.SafeControlUpdate(financialYearComboBox, () =>
                 {
-                    financialYearComboBox.Visible = rangeInfo.ShowFinYear;
-                    financialYearComboBox.Enabled = rangeInfo.ShowFinYear; // Ensure enabled state matches visibility
-                    if (rangeInfo.ShowFinYear) PopulateFinancialYearDropdown();
+                    financialYearComboBox.Visible = showFinYear;
+                    financialYearComboBox.Enabled = showFinYear;
+                    if (showFinYear) PopulateFinancialYearDropdown();
                 });
 
                 bool isDaily = IsDailySelected();
@@ -658,11 +649,11 @@ namespace conversionTest
                 UIManager.SafeControlUpdate(emailRecipientLabel, () =>
                 {
                     emailRecipientLabel.Visible = isDaily;
-                    if (isDaily) emailRecipientLabel.Text = "Emailing Daily report to Paul S"; // Example text
+                    if (isDaily) emailRecipientLabel.Text = "Emailing Daily report to Paul";
                 });
 
-                _uiManager.ResetButtonStatesAfterTypeChange(CheckConfigValidity()); // Resets button texts/enabled
-                Update1ClickProcessingModeUI(); // Ensures correct button visibility for the mode
+                _uiManager.ResetButtonStatesAfterTypeChange(CheckConfigValidity());
+                Update1ClickProcessingModeUI();
             }
             finally
             {
@@ -674,7 +665,6 @@ namespace conversionTest
         private void toggleAutoRunButton_Click(object sender, EventArgs e)
         {
             dailyCheckTimer.Enabled = !dailyCheckTimer.Enabled;
-            // Update UI to reflect new state and potentially next check time
             _uiManager.UpdateAutoRunUI(dailyCheckTimer.Enabled,
                                       (autoRunStatusLabel.Text?.Contains("Completed") ?? false) || (autoRunStatusLabel.Text?.Contains("Done for") ?? false),
                                       darkModeToolStripMenuItem.Checked,
@@ -688,7 +678,7 @@ namespace conversionTest
 
             bool originallyEnabled = dailyCheckTimer.Enabled;
             dailyCheckTimer.Stop();
-            Logger.LogInfo("Daily Check Timer Ticked. Performing auto run check...");
+            Logger.LogInfo("Daily Check Timer Ticked.");
 
             try
             {
@@ -696,36 +686,33 @@ namespace conversionTest
             }
             catch (Exception ex)
             {
-                Logger.LogCritical($"CRITICAL ERROR during AutoRunManager.PerformDailyCheckAsync: {ex.Message}", ex);
+                Logger.LogCritical($"CRITICAL ERROR during AutoRunManager.PerformDailyCheckAsync dispatch: {ex.Message}", ex);
                 _uiManager.UpdateStatusMain("Critical AutoRun Error! Check Logs.");
                 _uiManager.UpdateStatusRight("AutoRun: FAILED");
-                originallyEnabled = false; // Prevent timer restart on critical error
+                originallyEnabled = false;
             }
             finally
             {
-                if (originallyEnabled) // Only restart if it was meant to be running and no critical error stopped it
+                if (originallyEnabled)
                 {
                     dailyCheckTimer.Start();
                     Logger.LogInfo("Daily Check Timer Restarted.");
+
+                    Logger.LogDebug("dailyCheckTimer_Tick: Calling ResetUIStateOnError after auto-run check.");
+                    ResetUIStateOnError(oneClickProcessButton.Visible ? "Generate, Process && Email Report" : "Create Report");
                 }
                 else
                 {
-                    Logger.LogInfo("Daily Check Timer remains stopped after check completion or error.");
-                    // If it was disabled due to an error, ensure the UI reflects this "Disabled" state.
+                    Logger.LogInfo("Daily Check Timer remains stopped.");
                     if (!dailyCheckTimer.Enabled)
                     {
-                        _uiManager.UpdateAutoRunUI(false, true, darkModeToolStripMenuItem.Checked, autoRunStatusLabel.Text.Contains("FAILED") ? autoRunStatusLabel.Text : "Auto Run: Disabled (Error)");
-                    }
-                }
+                        bool isFinalToday = (autoRunStatusLabel.Text?.Contains("Completed") ?? false) ||
+                                            (autoRunStatusLabel.Text?.Contains("Done for") ?? false) ||
+                                            (autoRunStatusLabel.Text?.Contains("FAILED") ?? false);
 
-                // Reset main UI buttons if auto-run is not actively indicated as "Running..."
-                if (!(autoRunStatusLabel.Text?.Contains("Running") ?? false) &&
-                    !(autoRunStatusLabel.Text?.Contains("Starting") ?? false) &&
-                    !(autoRunStatusLabel.Text?.Contains("Completed") ?? false) &&
-                    !(autoRunStatusLabel.Text?.Contains("Done for") ?? false))
-                {
-                    // This will set the correct button text and visibility based on current 1-click mode
-                    ResetUIStateOnError(oneClickProcessButton.Visible ? "1-Click Process" : "Create Report");
+                        _uiManager.UpdateAutoRunUI(false, isFinalToday, darkModeToolStripMenuItem.Checked,
+                                                  isFinalToday ? (autoRunStatusLabel.Text ?? "Auto Run: Disabled") : "Auto Run: Disabled");
+                    }
                 }
             }
         }
@@ -744,9 +731,7 @@ namespace conversionTest
             string helpTitle = $"Help - Quote Conversion v{AppVersion}";
             StringBuilder helpMessageBuilder = new StringBuilder();
 
-            // Using verbatim string literals (@"...") simplifies handling of backslashes in RTF.
-            // For RTF, backslashes are significant, so they are kept as single backslashes in the C# string.
-
+            // --- Help Text ---
             helpMessageBuilder.AppendLine(@"{\rtf1\ansi\ansicpg1252\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset0 Segoe UI;}{\f1\fnil\fcharset2 Symbol;}}");
             helpMessageBuilder.AppendLine(@"{\colortbl ;\red0\green0\blue0;\red255\green0\blue0;}"); // Ensure this color table is correct if you use \cfX commands
             helpMessageBuilder.AppendLine($@"\pard\sa200\sl276\slmult1\b\f0\fs28 Quote Conversion Automation Tool v{AppVersion}\b0\fs20\par");
@@ -757,51 +742,48 @@ namespace conversionTest
             helpMessageBuilder.AppendLine(@"\b\fs22 How to Use the Application\b0\fs20\par");
             helpMessageBuilder.AppendLine(@"\par");
             helpMessageBuilder.AppendLine(@"\b 1. Select Report Type:\b0\  \par");
-            helpMessageBuilder.AppendLine(@"Choose the desired report period from the \b Report Type\b0 dropdown menu. The options are:\par");
-            // Using RTF explicit space "\ " after \b0
+            helpMessageBuilder.AppendLine(@"Choose the desired report period from the \b Report Type\b0\ dropdown menu. The options are:\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Daily:\b0\  Generates a report for the {\i previous working day}. This automatically accounts for weekends (Saturday, Sunday) and official bank holidays (England & Wales, including custom-managed ones). It correctly handles holidays that fall on weekends and dynamic holidays like Easter.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Weekly:\b0\  Sets the 'To' date to today and the 'From' date to 15 days prior. {\i (Note: For Weekly reports, data is also appended to a 'powerBI' sheet in a central Excel file for Power BI integration.)}\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Monthly:\b0\  Calculates the 'From' and 'To' dates for the {\i previous full calendar month}.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Quarterly:\b0\  Calculates the 'From' and 'To' dates for the {\i previous full calendar quarter}.\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Annual:\b0\  Sets the 'From' and 'To' dates for the {\i previous full calendar year}.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Annual:\b0\  Sets the 'From' and 'To' dates for the {\i previous full financial year (May 1st - April 30th)}.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Custom:\b0\  Allows you to manually set any 'From' and 'To' date range.\par");
             helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1 When you select a standard report type (Daily, Weekly, etc.), the 'From' and 'To' dates will adjust automatically based on the {\i current date}.\par");
             helpMessageBuilder.AppendLine(@"\par");
             helpMessageBuilder.AppendLine(@"\b 2. Adjust Dates (Optional for 'Custom' Report Type):\b0\  \par");
-            helpMessageBuilder.AppendLine(@"You can manually change the \b Enter From Date\b0 and \b Enter To Date\b0 fields. If you modify these dates after selecting a standard report type, the \b Report Type\b0 will automatically switch to \b Custom\b0.\par");
-            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"You can manually change the \b Enter From Date\b0\ and \b Enter To Date\b0\ fields. If you modify these dates after selecting a standard report type, the \b Report Type\b0\ will automatically switch to \b Custom\b0.\par");
             helpMessageBuilder.AppendLine(@"\b 3. Financial Year (If Applicable):\b0\  \par");
-            helpMessageBuilder.AppendLine(@"For \b Weekly\b0 and \b Daily\b0 reports (or if manually made visible for Custom), ensure the correct \b Financial Year\b0 is selected from its dropdown. It usually defaults based on the current date.\par");
-            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"For \b Weekly\b0\ and \b Daily\b0\ reports (or if manually made visible for Custom), ensure the correct \b Financial Year\b0\ is selected from its dropdown. It usually defaults based on the current date.\par");
             helpMessageBuilder.AppendLine(@"\b 4. Report Processing Options:\b0\  \par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Send to only Femi?:\b0\  (Checkbox, visible for non-Daily reports) Check this to restrict the email recipient list primarily to Femi (and relevant IT CCs depending on Debug/Release mode). Uncheck to send to the broader configured team for that report type.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Skip Sending Email:\b0\  (Checkbox) If checked, the application will generate and process the report but will skip the final step of sending the completion email. This is useful if you only need the files locally.\par");
             helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
             helpMessageBuilder.AppendLine(@"\b 5. Choose Your Processing Mode (via Options Menu):\b0\  \par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Standard 2-Button Mode (Default):\b0\  \par");
-            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'31\tab}i. Click the \b Create Report\b0 button. This generates the raw data export from the reporting system. Wait for the status bar to indicate ""Report Created"".\par");
-            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'32\tab}ii. Once the raw report is ready, the \b Create Analysis & Send Email\b0 button becomes active. Click it to process the raw data, create the final analysis Excel file, and (if not skipped) email it to the configured recipients.\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'31\tab}i. Click the \b Create Report\b0\ button. This generates the raw data export from the reporting system. Wait for the status bar to indicate ""Report Created"".\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'32\tab}ii. Once the raw report is ready, the \b Create Analysis & Send Email\b0\ button becomes active. Click it to process the raw data, create the final analysis Excel file, and (if not skipped) email it to the configured recipients.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b 1-Click Processing Mode:\b0\  \par");
-            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'31\tab}i. Go to \b Options -> Enable 1-Click Processing\b0 (a checkmark will appear next to it).\par");
-            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'32\tab}ii. The two buttons will be replaced by a single button: \b Generate, Process & Email Report\b0 . Clicking this button performs all steps sequentially: creates the raw report, processes it into the final analysis, and (if not skipped) emails it.\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'31\tab}i. Go to \b Options -> Enable 1-Click Processing\b0\ (a checkmark will appear next to it).\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'32\tab}ii. The two buttons will be replaced by a single button: \b Generate, Process & Email Report\b0\ . Clicking this button performs all steps sequentially: creates the raw report, processes it into the final analysis, and (if not skipped) emails it.\par");
             helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
             helpMessageBuilder.AppendLine(@"\b 6. Manual Excel Refresh (for Monthly, Quarterly, Annual, Custom reports):\b0\  \par");
             helpMessageBuilder.AppendLine(@"For these report types, after the analysis file is generated (and before emailing), you will be prompted to:\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} Open the generated Excel file.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} {\i Enable Editing} if prompted by Excel.\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} In the Excel file, navigate to the \b 'OrderPivot'\b0 sheet. Right-click on each PivotTable and any Slicers present, then select \b 'Refresh'\b0 from the context menu.\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} Repeat this process for the \b 'Estimate Success PivotTable'\b0 sheet (or similarly named sheet containing the main estimate success pivot).\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b SAVE\b0 the Excel file.\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b CLOSE\b0 Excel.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} In the Excel file, navigate to the \b 'OrderPivot'\b0\ sheet. Right-click on each PivotTable and any Slicers present, then select \b 'Refresh'\b0\ from the context menu.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} Repeat this process for the \b 'Estimate Success PivotTable'\b0\ sheet (or similarly named sheet containing the main estimate success pivot).\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b SAVE\b0\ the Excel file.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b CLOSE\b0\ Excel.\par");
             helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1 The application will wait for you to close Excel before proceeding to the email step (if not skipped).\par");
             helpMessageBuilder.AppendLine(@"\par");
             helpMessageBuilder.AppendLine(@"\b 7. View Generated Files (Optional):\b0\  \par");
             helpMessageBuilder.AppendLine(@"After the relevant steps are completed, buttons may appear below the main action buttons:\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b View File\b0 (below ""Create Report"" area): Opens the generated raw report Excel file.\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b View File\b0 (below ""Process and Email"" area): Opens the final processed analysis Excel file.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b View File\b0\ (below ""Create Report"" area): Opens the generated raw report Excel file.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b View File\b0\ (below ""Process & Email"" area): Opens the final processed analysis Excel file.\par");
             helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
             helpMessageBuilder.AppendLine(@"\b\fs22 Options Menu Explained\b0\fs20\par");
-            helpMessageBuilder.AppendLine(@"The \b Options\b0 menu provides access to various settings and tools:\par");
+            helpMessageBuilder.AppendLine(@"The \b Options\b0\ menu provides access to various settings and tools:\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Enable 1-Click Processing:\b0\  (Checkable) Toggles between the standard 2-button operation and the single 1-Click button for report generation and processing.\par");
             helpMessageBuilder.AppendLine($@"    \pard\fi-360\li720{{\pntext\f1\'B7\tab}} \b Set Auto-Run Hour...:\b0\  Allows you to change the hour (0-23) at which the automated daily report task attempts to run. The current configured hour is approximately \b {_currentAutoRunHour}:00\b0 .\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Dark Mode:\b0\  (Checkable) Toggles the application's visual theme between light and dark mode.\par");
@@ -814,26 +796,26 @@ namespace conversionTest
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Exit:\b0\  Closes the application.\par");
             helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
             helpMessageBuilder.AppendLine(@"\b\fs22 Auto-Run Feature\b0\fs20\par");
-            helpMessageBuilder.AppendLine(@"Located on the left side of the main window, the \b Enable/Disable Daily Auto Run\b0 button controls the automated daily report generation.\par");
-            helpMessageBuilder.AppendLine($@"    \pard\fi-360\li720{{\pntext\f1\'B7\tab}} \b Functionality:\b0\  When enabled, the application will check daily around the configured hour (e.g., {_currentAutoRunHour}:00). If the \b Daily\b0 report for the {{\i previous working day}} (accounting for weekends and bank holidays) has not yet been run for the current calendar day, the system will automatically generate the raw report, process it into the analysis file, and email it to the configured 'AutoRun Daily' recipients.\par");
+            helpMessageBuilder.AppendLine(@"Located on the left side of the main window, the \b Enable/Disable Daily Auto Run\b0\ button controls the automated daily report generation.\par");
+            helpMessageBuilder.AppendLine($@"    \pard\fi-360\li720{{\pntext\f1\'B7\tab}} \b Functionality:\b0\  When enabled, the application will check daily around the configured hour (e.g., {_currentAutoRunHour}:00). If the \b Daily\b0\ report for the {{\i previous working day}} (accounting for weekends and bank holidays) has not yet been run for the current calendar day, the system will automatically generate the raw report, process it into the analysis file, and email it to the configured 'AutoRun Daily' recipients.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Status:\b0\  The status of the Auto-Run feature (e.g., Enabled, Disabled, Running, Completed for today, Failed) is displayed on the right side of the status bar at the bottom of the window.\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Configuration:\b0\  The hour for the auto-run check can be changed via \b Options -> Set Auto-Run Hour...\b0 . The last successful run date is stored in `appsettings.json` to prevent duplicate runs on the same day.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Configuration:\b0\  The hour for the auto-run check can be changed via \b Options -> Set Auto-Run Hour...\b0\ . The last successful run date is stored in `appsettings.json` to prevent duplicate runs on the same day.\par");
             helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
             helpMessageBuilder.AppendLine(@"\b\fs22 Automated Background Features\b0\fs20\par");
             helpMessageBuilder.AppendLine(@"The application performs several tasks automatically:\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Folder Creation:\b0\  Automatically creates necessary subfolders for storing raw reports and final analysis files, organized by report type (Daily, Weekly, etc.) and date/month/year as appropriate.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Log Archiving:\b0\  On startup, old application log files are archived to a subfolder to keep the main log directory tidy.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Report Archiving:\b0\  On startup, older raw report export files/folders and final processed Excel files/folders (beyond a configurable number of days, typically 30) are moved to an 'Archived' subfolder within their respective base directories.\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Power BI Sheet Update (Weekly Reports):\b0\  When processing a \b Weekly\b0 report, data from the 'Analysis' sheet of the template is appended to a sheet named \b 'powerBI'\b0 in the central Excel file. If this sheet doesn't exist, it's created using headers from the 'Analysis' sheet.\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Bank Holiday Adjustments:\b0\  Calculations for the 'previous working day' (used for Daily reports and Auto-Run) automatically consider standard UK bank holidays and any custom bank holidays you've defined via the Options menu.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Power BI Sheet Update (Weekly Reports):\b0\  When processing a \b Weekly\b0\ report, data from the 'Analysis' sheet of the template is appended to a sheet named \b 'powerBI'\b0\ in the central Excel file. If this sheet doesn't exist, it's created using headers from the 'Analysis' sheet.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Bank Holiday Adjustments:\b0\  Calculations for the 'previous working day' (used for Daily reports and Auto-Run) automatically consider standard England/Wales bank holidays and any custom bank holidays you've defined via the Options menu.\par");
             helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
             helpMessageBuilder.AppendLine(@"\b\fs22 Troubleshooting Tips\b0\fs20\par");
             helpMessageBuilder.AppendLine(@"If you encounter issues, consider the following:\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b ""Config Error"" Status:\b0\  This usually means a critical file path (like the Crystal Report file or the Wrapper EXE) is missing or incorrect. Use \b Options -> View Configuration\b0 to check paths. Ensure all listed files/folders exist and are accessible.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b ""Config Error"" Status:\b0\  This usually means a critical file path (like the Crystal Report file or the Wrapper EXE) is missing or incorrect. Use \b Options -> View Configuration\b0\ to check paths. Ensure all listed files/folders exist and are accessible.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Report Generation Fails:\b0\  \par");
             helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'31\tab}i. Ensure the Crystal Report Wrapper service (a background .exe process) is running. The application attempts to start it, but if it fails, report generation won't work. Check Task Manager for `CrystalReportWrapper.exe`.\par");
             helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'32\tab}ii. Verify the Crystal Report file path in `appsettings.json` (via Options -> Edit appsettings.json) is correct and the `.rpt` file exists at that location.\par");
-            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'33\tab}iii. Check application logs (\b Options -> Open Logs Folder\b0 ) for specific error messages from the wrapper or pipe communication.\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'33\tab}iii. Check application logs (\b Options -> Open Logs Folder\b0\ ) for specific error messages from the wrapper or pipe communication.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Excel Processing Fails:\b0\  \par");
             helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'31\tab}i. Ensure the Excel template files exist in the configured 'TEMPLATE' directory and are not corrupted.\par");
             helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'32\tab}ii. Ensure the application has write permissions to the 'Raw Report Export' and 'Final Excel Save Location' directories.\par");
@@ -847,16 +829,15 @@ namespace conversionTest
             helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'32\tab}ii. Check the configured 'Auto-Run Hour' via \b Options -> Set Auto-Run Hour...\b0 .\par");
             helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'33\tab}iii. Review `appsettings.json` for the `AutoReport:LastRunDate`. If it's today's date, it won't run again until tomorrow.\par");
             helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'34\tab}iv. Ensure the application has permissions to write to `appsettings.json` to update `LastRunDate`.\par");
-            // Updated Excel Slicers/Pivot Tables troubleshooting point
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Excel Slicers/Pivot Tables Not Updating:\b0\  For reports requiring manual refresh (Monthly, Quarterly, etc.), you may need to manually refresh data. To do this, open the Excel file. In the \b 'OrderPivot'\b0\ sheet, right-click each PivotTable and any Slicers present, then select \b 'Refresh'\b0 from the context menu. Repeat this process for the \b 'Estimate Success PivotTable'\b0 sheet (or the similarly named sheet containing the main estimate success pivot table). After refreshing all necessary items, \b SAVE\b0\ and \b CLOSE\b0\ the Excel file.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Excel Slicers/Pivot Tables Not Updating:\b0\  For reports requiring manual refresh (Monthly, Quarterly, etc.), you may need to manually refresh data. To do this, open the Excel file. In the \b 'OrderPivot'\b0\ sheet, right-click each PivotTable and any Slicers present, then select \b 'Refresh'\b0\ from the context menu. Repeat this process for the \b 'Estimate Success PivotTable'\b0\ sheet (or the similarly named sheet containing the main estimate success pivot table). After refreshing all necessary items, \b SAVE\b0\ and \b CLOSE\b0\ the Excel file.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Check Logs:\b0\  The most detailed error information is usually in the log files. Access them via \b Options -> Open Logs Folder\b0\ . Look for files corresponding to the date the error occurred.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Contact IT Support:\b0\  If problems persist, please contact IT support with details of the error message and steps taken.\par");
             helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
             helpMessageBuilder.AppendLine(@"Thank you for using the Quote Conversion Automation Tool!\par");
             helpMessageBuilder.AppendLine(@"}");
 
-            string helpMessage = helpMessageBuilder.ToString();
 
+            string helpMessage = helpMessageBuilder.ToString();
             try
             {
                 using var helpForm = new HelpForm(helpTitle, helpMessage, darkModeToolStripMenuItem.Checked);
@@ -873,14 +854,12 @@ namespace conversionTest
         {
             if (_programmaticallyChangingDates) return;
 
-            // If date is changed manually, always switch to "Custom" report type.
-            // This will also trigger reportTypeComboBox_SelectedIndexChanged which handles UI updates.
             if (reportTypeComboBox.SelectedIndex != CustomReportIndex)
             {
                 Logger.LogDebug("DatePicker_ValueChanged: Manual date change detected. Setting Report Type to Custom.");
                 UIManager.SafeControlUpdate(reportTypeComboBox, () =>
                 {
-                    if (reportTypeComboBox.Items.Count > CustomReportIndex) // Ensure "Custom" item exists
+                    if (reportTypeComboBox.Items.Count > CustomReportIndex)
                     {
                         reportTypeComboBox.SelectedIndex = CustomReportIndex;
                     }
@@ -888,9 +867,6 @@ namespace conversionTest
             }
         }
 
-        // Other Menu Item Click Handlers (viewConfig, validateConfig, openLogs, editConfig, exit, manageBankHolidays, manageEmailRecipients)
-        // remain largely the same, ensure they are complete from previous versions.
-        // ... (previous menu item handlers)
         private void viewConfigToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Logger.LogInfo("Options -> View Configuration clicked.");
@@ -998,7 +974,7 @@ namespace conversionTest
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Logger.LogInfo("Options -> Exit clicked. Closing application.");
-            this.Close();
+            Close();
         }
 
         private void manageCustomBankHolidaysToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1031,11 +1007,8 @@ namespace conversionTest
 
         private void enable1ClickProcessingToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            // The Checked state is toggled automatically by WinForms for CheckOnClick menu items.
-            // We then update the UI based on this new state.
             Update1ClickProcessingModeUI();
-            // Reset button states to reflect the new mode and their default texts/enabled states.
-            ResetUIStateOnError(enable1ClickProcessingToolStripMenuItem.Checked ? "1-Click Process" : "Create Report");
+            ResetUIStateOnError(enable1ClickProcessingToolStripMenuItem.Checked ? "Generate, Process && Email Report" : "Create Report");
         }
 
         private async void setAutoRunHourToolStripMenuItem_Click(object sender, EventArgs e)
@@ -1061,9 +1034,7 @@ namespace conversionTest
                         Logger.LogInfo($"Auto-Run hour successfully updated to {newHour} in configuration and manager.");
                         FlexibleMessageBox.Show(this, $"Auto-Run hour has been set to {newHour}:00.\nThe change will take effect from the next daily check cycle.", "Auto-Run Hour Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                        string autoRunButtonText = $"{(dailyCheckTimer.Enabled ? "Disable" : "Enable")} Daily Auto Run @ {_currentAutoRunHour}:00";
-                        UIManager.SafeControlUpdate(toggleAutoRunButton, () => toggleAutoRunButton.Text = autoRunButtonText);
-                        toolTip1.SetToolTip(toggleAutoRunButton, $"Enable or disable the automated daily report generation. The report runs around {_currentAutoRunHour}:00 for the previous workday.");
+                        _uiManager.SetAutoRunHour(_currentAutoRunHour);
                         _uiManager.UpdateAutoRunUI(dailyCheckTimer.Enabled, false, darkModeToolStripMenuItem.Checked, $"Auto Run: {(dailyCheckTimer.Enabled ? $"Enabled (Next check ~{_currentAutoRunHour}:00)" : "Disabled")}");
                     }
                     else
@@ -1097,27 +1068,19 @@ namespace conversionTest
                 Logger.LogError("oneClickProcessButton is NULL in Update1ClickProcessingModeUI. This should not happen if InitializeComponent was successful.");
                 return;
             }
-            Logger.LogDebug($"oneClickProcessButton IsDisposed: {oneClickProcessButton.IsDisposed}, HandleCreated: {oneClickProcessButton.IsHandleCreated}, Parent: {(oneClickProcessButton.Parent?.Name ?? "null")}, In Form.Controls: {this.Controls.Contains(oneClickProcessButton)}");
-            Logger.LogDebug($"createReportButton Parent: {(createReportButton.Parent?.Name ?? "null")}, In Form.Controls: {this.Controls.Contains(createReportButton)}");
-            Logger.LogDebug($"processEmailButton Parent: {(processEmailButton.Parent?.Name ?? "null")}, In Form.Controls: {this.Controls.Contains(processEmailButton)}");
-
 
             UIManager.SafeControlUpdate(oneClickProcessButton, () =>
             {
                 oneClickProcessButton.Visible = oneClickEnabled;
-                Logger.LogDebug($"ATTEMPTED oneClickProcessButton.Visible set to: {oneClickEnabled}. ACTUAL oneClickProcessButton.Visible: {oneClickProcessButton.Visible}");
                 if (oneClickEnabled && oneClickProcessButton.Visible) oneClickProcessButton.BringToFront();
             });
             UIManager.SafeControlUpdate(createReportButton, () =>
             {
                 createReportButton.Visible = !oneClickEnabled;
-                Logger.LogDebug($"ATTEMPTED createReportButton.Visible set to: {!oneClickEnabled}. ACTUAL createReportButton.Visible: {createReportButton.Visible}");
-
             });
             UIManager.SafeControlUpdate(processEmailButton, () =>
             {
                 processEmailButton.Visible = !oneClickEnabled;
-                Logger.LogDebug($"ATTEMPTED processEmailButton.Visible set to: {!oneClickEnabled}. ACTUAL processEmailButton.Visible: {processEmailButton.Visible}");
             });
 
             if (oneClickEnabled)
@@ -1137,6 +1100,7 @@ namespace conversionTest
             {
                 string? previouslySelected = financialYearComboBox.SelectedItem?.ToString();
                 financialYearComboBox.Items.Clear();
+                // Assuming _excelProcessor.GetCurrentFinancialYear(true) returns "YYYY_YY" for May-April
                 string currentFY = _excelProcessor.GetCurrentFinancialYear(true);
                 if (!string.IsNullOrEmpty(currentFY))
                 {
@@ -1176,10 +1140,11 @@ namespace conversionTest
         {
             if (!financialYearComboBox.Visible || financialYearComboBox.SelectedItem == null)
             {
-                return true; // Not applicable or not selected, so valid in this context
+                return true;
             }
 
             string selectedFinYear = financialYearComboBox.SelectedItem.ToString()!;
+            // Ensure IsFinancialYearValid in ExcelCopyData uses May-April logic if it's validating against "YYYY_YY"
             if (!_excelProcessor.IsFinancialYearValid(selectedFinYear, startDatePicker.Value, endDatePicker.Value))
             {
                 DialogResult dr = FlexibleMessageBox.Show(this,
@@ -1209,46 +1174,36 @@ namespace conversionTest
             bool isOneClickMode = enable1ClickProcessingToolStripMenuItem.Checked;
             bool configValid = CheckConfigValidity();
 
-            // This block directly updates the Form's controls for text and enabled state
-            // based on the current 1-click mode.
-            UIManager.SafeControlUpdate(this, () => { // 'this' refers to Form1
+            UIManager.SafeControlUpdate(this, () =>
+            {
                 if (isOneClickMode)
                 {
                     oneClickProcessButton.Text = configValid ? mainButtonText : "Config Error";
                     oneClickProcessButton.Enabled = configValid;
-                    // Ensure other buttons are disabled (though they should be invisible)
                     createReportButton.Enabled = false;
                     processEmailButton.Enabled = false;
                 }
-                else // Standard 2-button mode
+                else
                 {
                     createReportButton.Text = configValid ? mainButtonText : "Config Error";
                     createReportButton.Enabled = configValid;
-                    processEmailButton.Text = "Process and Email"; // Reset text
-                    // Enable process button only if config is valid AND a raw report has been generated
+                    processEmailButton.Text = "Process and Email";
                     processEmailButton.Enabled = configValid && !string.IsNullOrEmpty(_generatedReportPath) && File.Exists(_generatedReportPath);
-                    // Ensure 1-click button is disabled (though it should be invisible)
                     oneClickProcessButton.Enabled = false;
                 }
             });
 
-            // Call UIManager's generic reset for other UI elements (status bar, view buttons etc.)
             _uiManager.ResetUIOnError(
-                mainButtonText, // This text is a fallback for UIManager if it needs a generic button text
+                mainButtonText,
                 configValid,
                 !string.IsNullOrEmpty(_generatedReportPath) && File.Exists(_generatedReportPath),
                 !string.IsNullOrEmpty(_generatedAnalysisFilePath) && File.Exists(_generatedAnalysisFilePath),
                 IsDailySelected(),
                 dailyCheckTimer.Enabled,
                 darkModeToolStripMenuItem.Checked,
-                // Determine if auto-run status is final for today
                 (autoRunStatusLabel.Text?.Contains("Completed") ?? false) || (autoRunStatusLabel.Text?.Contains("Done for") ?? false) || (autoRunStatusLabel.Text?.Contains("FAILED") ?? false),
                 autoRunStatusLabel.Text ?? ""
             );
-
-            // CRITICAL: After all other state resets, re-apply the visibility rules for 1-click mode.
-            // This ensures the correct buttons are visible based on the menu item's checked state.
-            Update1ClickProcessingModeUI();
         }
 
         private async Task SendCompletionEmailAsync(string attachmentPath, IProgress<string> progress, CancellationToken cancellationToken)
@@ -1264,7 +1219,7 @@ namespace conversionTest
             try
             {
                 var (to, cc) = GetEmailRecipients();
-                if (to.Count == 0 && cc.Count == 0 && !IsDebug) // In Debug, allow sending even if no "real" recipients
+                if (to.Count == 0 && cc.Count == 0 && !IsDebug)
                 {
                     Logger.LogWarning("No email recipients determined (and not in debug mode). Skipping email send.");
                     progress.Report("No recipients configured. Email not sent.");
@@ -1283,12 +1238,8 @@ namespace conversionTest
 
                 if (!emailSent && !cancellationToken.IsCancellationRequested)
                 {
-                    // Avoid throwing an exception that halts the flow if email is just one part of a larger process.
-                    // Log the error and perhaps update UI, but let the calling method decide on overall success.
                     Logger.LogError("Email sending failed. Check logs for details from EmailUtility. Continuing operation if possible.");
                     progress.Report("Email sending failed. Check logs.");
-                    // Consider how to signal this failure to the user without stopping everything if it's non-critical.
-                    // For now, we just log and report progress. The method doesn't throw here.
                 }
                 else if (emailSent)
                 {
@@ -1299,21 +1250,18 @@ namespace conversionTest
                 {
                     Logger.LogWarning("Email sending cancelled.");
                     progress.Report("Email sending cancelled.");
-                    // Do not throw here if cancellation is handled by the caller.
                 }
             }
-            catch (OperationCanceledException) // Should be caught by the caller ideally
+            catch (OperationCanceledException)
             {
                 Logger.LogWarning("Email sending operation was cancelled.");
                 progress.Report("Email sending cancelled.");
                 throw;
             }
-            catch (Exception ex) // Catch other unexpected exceptions during email prep/send
+            catch (Exception ex)
             {
                 Logger.LogError($"Error sending email: {ex.Message}", ex);
                 FlexibleMessageBox.Show(this, $"Failed to send email: {ex.Message}", "Email Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                // Depending on severity, you might re-throw or handle.
-                // If SendCompletionEmailAsync is part of a larger flow, re-throwing might be appropriate.
                 throw;
             }
         }
@@ -1322,7 +1270,7 @@ namespace conversionTest
         {
             Logger.LogTrace("Form1: Entering GetEmailRecipients, deferring to EmailRecipientManager...");
             bool isFemiOnly = sendToFemiOnlyCheckBox.Checked;
-            int currentReportType = reportTypeComboBox.SelectedIndex; // Assumes this is correctly set
+            int currentReportType = reportTypeComboBox.SelectedIndex;
 
             var recipients = _emailRecipientManager.GetRecipients(currentReportType, isFemiOnly, IsDebug);
 
@@ -1334,14 +1282,12 @@ namespace conversionTest
         private (string Subject, string Body) GetEmailSubjectAndBody(DateTime reportStartDate, DateTime reportEndDate)
         {
             string typeName = "Estimate Success Rate";
-            // Ensure reportTypeComboBox.Text is accessed on the UI thread if called from a background thread.
-            // However, this method is typically called from UI event handlers or tasks that originated there.
             string reportTypeString = "";
             UIManager.SafeControlUpdate(reportTypeComboBox, () => reportTypeString = reportTypeComboBox.Text);
 
 
-            int type = reportTypeComboBox.SelectedIndex; // This should be safe if called from UI context
-            bool femiOnlyChecked = sendToFemiOnlyCheckBox.Checked; // Also UI context
+            int type = reportTypeComboBox.SelectedIndex;
+            bool femiOnlyChecked = sendToFemiOnlyCheckBox.Checked;
 
             string greeting;
             if (IsDebug)
@@ -1379,26 +1325,30 @@ namespace conversionTest
                     rangeInfo = $"for {ReportHelper.GetQuarterString(reportStartDate)} {reportStartDate.Year}";
                     break;
                 case AnnualReportIndex:
-                    rangeInfo = $"for {reportStartDate.Year}";
+                    // For a May YYYY to April YYYY+1 financial year.
+                    // reportStartDate is May 1st of YYYY. reportEndDate is April 30th of YYYY+1.
+                    rangeInfo = $"for Financial Year {reportStartDate.Year}-{reportEndDate.Year}"; // e.g., "Financial Year 2023-2024"
+                    subjectPrefix = $"Annual {typeName}";
                     break;
-                case CustomReportIndex: // Custom report
+                case CustomReportIndex:
                     rangeInfo = $"for period {reportStartDate:dd MMM yy} to {reportEndDate:dd MMM yy}";
                     break;
-                default: // Fallback, should ideally not be reached if ComboBox is well-defined
+                default:
                     rangeInfo = $"for period {reportStartDate:dd MMM yy} to {reportEndDate:dd MMM yy}";
-                    subjectPrefix = $"Report {typeName}"; // Generic prefix if type is unknown
+                    subjectPrefix = $"Report {typeName}";
                     break;
             }
 
-            string subject = (type != CustomReportIndex && type != -1 ? "AUTOMATED: " : "") + // Add AUTOMATED unless custom or unselected
+            string subject = (type != CustomReportIndex && type != -1 ? "AUTOMATED: " : "") +
                              $"{subjectPrefix} Report ({reportEndDate:yyyy-MM-dd})";
+            if (type == AnnualReportIndex)
+            {
+                subject = (type != CustomReportIndex && type != -1 ? "AUTOMATED: " : "") +
+                          $"{subjectPrefix} Report ({reportStartDate.Year}-{reportEndDate.Year})";
+            }
 
-            string body = $"{greeting}\n\n" +
-                          $"Please find attached the {subjectPrefix.ToLower()} report {rangeInfo}.\n\n" +
-                          "This report includes quotes data for review.\n\n" +
-                          "Thank you,\n" +
-                          "Automation Service";
 
+            string body = $"{greeting}\n\nPlease find attached the {subjectPrefix.ToLower()} report {rangeInfo}.\n\nThis report includes quotes data for review.\n\nThank you,\nAutomation Service";
             return (subject, body);
         }
 

@@ -1,10 +1,10 @@
 ﻿// C# 10+ Features
 // Ensure this namespace matches your project structure, e.g., QuoteConversionReportAutomation
-namespace QuoteConversionReportAutomation
+namespace QuoteConversionReportAutomation.Helpers
 {
-    using conversionTest; // Added to access the static Logger class
     // Required using directives
     using Microsoft.Extensions.Configuration;
+    using QuoteConversionReportAutomation.Services.Logging;
     using System;
     using System.Collections.Generic;
     using System.IO;
@@ -151,7 +151,7 @@ namespace QuoteConversionReportAutomation
                 await smtpClient.SendMailAsync(mail, cancellationToken);
 
                 progress?.Report("Email sent successfully!");
-                string ccString = (ccAddresses != null && ccAddresses.Any(a => !string.IsNullOrWhiteSpace(a)))
+                string ccString = ccAddresses != null && ccAddresses.Any(a => !string.IsNullOrWhiteSpace(a))
                                 ? $", CC: {string.Join(";", ccAddresses.Where(a => !string.IsNullOrWhiteSpace(a)))}"
                                 : string.Empty;
                 Logger.LogInfo($"Email sent successfully to {string.Join(";", toAddresses.Where(a => !string.IsNullOrWhiteSpace(a)))}{ccString}. Subject: '{subject}'");

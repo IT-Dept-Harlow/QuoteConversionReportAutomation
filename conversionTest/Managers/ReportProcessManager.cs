@@ -1,15 +1,14 @@
 ﻿// C# 10+ Features
-using conversionTest;
-
 namespace QuoteConversionReportAutomation.Managers
 {
+    using QuoteConversionReportAutomation.Helpers;
+    using QuoteConversionReportAutomation.Services.Logging;
     // --- Using Statements ---
     using System;
     using System.Diagnostics;
     using System.IO;
     using System.Threading;
     using System.Threading.Tasks;
-    using QuoteConversionReportAutomation.Helpers;
 
     /// <summary>
     /// Manages the lifecycle (checking, launching, terminating) of the external

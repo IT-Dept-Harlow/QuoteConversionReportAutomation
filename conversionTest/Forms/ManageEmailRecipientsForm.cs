@@ -2,14 +2,15 @@
 // Make sure the namespace matches your project structure, e.g., QuoteConversionReportAutomation or conversionTest
 namespace QuoteConversionReportAutomation
 {
+    using QuoteConversionReportAutomation.Helpers;
+    using QuoteConversionReportAutomation.Managers;
+    using QuoteConversionReportAutomation.Models;
+    using QuoteConversionReportAutomation.Services.Logging;
     using System;
     using System.Collections.Generic;
     using System.Drawing;
     using System.Linq;
     using System.Windows.Forms;
-    using QuoteConversionReportAutomation.Helpers;
-    using QuoteConversionReportAutomation.Managers;
-    using QuoteConversionReportAutomation.Models;
 
     /// <summary>
     /// Form for managing user-defined email recipients.
@@ -52,7 +53,7 @@ namespace QuoteConversionReportAutomation
         {
             ApplyTheme();
             LoadSettingsToForm();
-            conversionTest.Logger.LogInfo("ManageEmailRecipientsForm loaded.");
+            Logger.LogInfo("ManageEmailRecipientsForm loaded.");
         }
 
         /// <summary>
@@ -65,8 +66,8 @@ namespace QuoteConversionReportAutomation
             Color controlBackColor = _isDarkMode ? DM_ControlBackColor : LM_ControlBackColor; // For TextBoxes
             Color buttonBackColor = _isDarkMode ? DM_ButtonBackColor : LM_ButtonBackColor;
 
-            this.BackColor = backColor;
-            this.ForeColor = foreColor;
+            BackColor = backColor;
+            ForeColor = foreColor;
 
             // Apply to all controls recursively
             UpdateControlThemeRecursive(this, backColor, foreColor, controlBackColor, buttonBackColor);
@@ -131,7 +132,7 @@ namespace QuoteConversionReportAutomation
             txtDebugTo.Text = currentSettings.DebugTo ?? string.Empty;
             txtDebugCC1.Text = currentSettings.DebugCC1 ?? string.Empty;
             txtDebugCC2.Text = currentSettings.DebugCC2 ?? string.Empty;
-            conversionTest.Logger.LogInfo("Loaded current email settings into ManageEmailRecipientsForm.");
+            Logger.LogInfo("Loaded current email settings into ManageEmailRecipientsForm.");
         }
 
         /// <summary>
@@ -140,7 +141,7 @@ namespace QuoteConversionReportAutomation
         /// </summary>
         private void BtnSave_Click(object sender, EventArgs e)
         {
-            conversionTest.Logger.LogInfo("Save button clicked on ManageEmailRecipientsForm.");
+            Logger.LogInfo("Save button clicked on ManageEmailRecipientsForm.");
             UserEmailSettings newSettings = new UserEmailSettings
             {
                 ProdAutoRunDailyTo = StringToEmailList(txtProdAutoRunDailyTo.Text),
@@ -168,7 +169,7 @@ namespace QuoteConversionReportAutomation
 
             if (!EmailRecipientManager.ValidateEmailAddresses(allEmailsToValidate, out List<string> invalidEmails))
             {
-                conversionTest.Logger.LogWarning($"Invalid email addresses found: {string.Join(", ", invalidEmails)}");
+                Logger.LogWarning($"Invalid email addresses found: {string.Join(", ", invalidEmails)}");
                 FlexibleMessageBox.Show(this, $"The following email addresses are invalid:\n\n{string.Join("\n", invalidEmails)}\n\nPlease correct them and try again.", "Invalid Email Addresses", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -179,14 +180,14 @@ namespace QuoteConversionReportAutomation
                 try
                 {
                     _emailRecipientManager.SaveUserOverrides(newSettings);
-                    conversionTest.Logger.LogInfo("User confirmed and email settings saved.");
+                    Logger.LogInfo("User confirmed and email settings saved.");
                     FlexibleMessageBox.Show(this, "Email recipient settings have been saved.", "Settings Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    this.DialogResult = DialogResult.OK; // Indicate settings were changed
-                    this.Close();
+                    DialogResult = DialogResult.OK; // Indicate settings were changed
+                    Close();
                 }
                 catch (Exception ex)
                 {
-                    conversionTest.Logger.LogError($"Failed to save email recipient settings: {ex.Message}", ex);
+                    Logger.LogError($"Failed to save email recipient settings: {ex.Message}", ex);
                     FlexibleMessageBox.Show(this, $"An error occurred while saving the settings:\n\n{ex.Message}", "Save Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
@@ -198,7 +199,7 @@ namespace QuoteConversionReportAutomation
         /// </summary>
         private void BtnRestoreDefaults_Click(object sender, EventArgs e)
         {
-            conversionTest.Logger.LogInfo("Restore Defaults button clicked on ManageEmailRecipientsForm.");
+            Logger.LogInfo("Restore Defaults button clicked on ManageEmailRecipientsForm.");
             DialogResult confirmRestore = FlexibleMessageBox.Show(this, "Are you sure you want to restore all email recipients to the application defaults?\n\nThis will remove any custom settings you have saved.", "Confirm Restore Defaults", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (confirmRestore == DialogResult.Yes)
             {
@@ -206,12 +207,12 @@ namespace QuoteConversionReportAutomation
                 {
                     _emailRecipientManager.ClearUserOverrides();
                     LoadSettingsToForm(); // Reload defaults into the form
-                    conversionTest.Logger.LogInfo("User confirmed and email settings restored to defaults.");
+                    Logger.LogInfo("User confirmed and email settings restored to defaults.");
                     FlexibleMessageBox.Show(this, "Email recipient settings have been restored to application defaults.", "Defaults Restored", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (Exception ex)
                 {
-                    conversionTest.Logger.LogError($"Failed to restore default email recipient settings: {ex.Message}", ex);
+                    Logger.LogError($"Failed to restore default email recipient settings: {ex.Message}", ex);
                     FlexibleMessageBox.Show(this, $"An error occurred while restoring default settings:\n\n{ex.Message}", "Restore Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
@@ -222,8 +223,8 @@ namespace QuoteConversionReportAutomation
         /// </summary>
         private void BtnClose_Click(object sender, EventArgs e)
         {
-            this.DialogResult = DialogResult.Cancel;
-            this.Close();
+            DialogResult = DialogResult.Cancel;
+            Close();
         }
 
         /// <summary>

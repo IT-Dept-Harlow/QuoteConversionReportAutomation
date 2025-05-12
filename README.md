@@ -6,6 +6,20 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ## ChangeLog
 
+## [1.8.0] - 2025-05-12
+
+### Changed
+- **Annual Report Dates**: Modified the "Annual" report type to use a financial year running from May 1st to April 30th, instead of a calendar year. This affects date calculations in `Form1.cs` and `ReportHelper.cs`, and the corresponding descriptions in email subjects/bodies and help text.
+- **Help Text**: Updated the help text for the "Annual" report type to reflect the May-April financial year.
+- **Email Content**: Adjusted the email subject and body for "Annual" reports to correctly state the financial year range (e.g., "Financial Year 2023-2024").
+- **Filename Logic**: Ensured that filename generation and expected path checks for "Annual" reports use a consistent date (the start of the financial year, e.g., May 1st) for clarity.
+
+### Fixed
+- Ensured UI controls (especially the Auto-Run button and main action buttons) are consistently re-enabled and their text/status updated correctly after an automated run cycle completes or is bypassed by the timer.
+- Removed a redundant UI update call when toggling the 1-Click processing mode to potentially improve responsiveness.
+
+---
+
 ## [1.7.9] - 2025-05-09
 
 ### Added
@@ -19,454 +33,479 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
     - Significantly updated and expanded the RTF help text to be more comprehensive, explaining all new features, automated processes, and detailed troubleshooting steps.
     - Corrected RTF formatting for better readability, including ensuring spaces appear correctly after bolded text followed by colons and fixing bullet point alignment.
     - Revised Excel refresh instructions in the help text to be more specific about right-clicking PivotTables and Slicers in the "OrderPivot" and "Estimate Success PivotTable" sheets.
-- **UI Manager**: Updated to correctly manage new UI elements related to 1-Click processing and skip email functionality.
+- **UI Manager**: Updated to correctly manage new UI elements related to 1-Click processing and skip email functionality. Also updated to correctly format the auto-run button text with the configured hour.
 - **AutoRunManager**: Modified to use and persist the configurable auto-run hour.
 - **Form1 Logic**:
     - Implemented event handlers and UI logic for the new 1-Click processing mode, skip email checkbox, and setting the auto-run hour.
-    - Ensured the `toggleAutoRunButton` text is updated on application load to reflect the currently configured auto-run hour.
+    - Ensured the `toggleAutoRunButton` text is updated on application load and when the hour is changed to reflect the currently configured auto-run hour.
 
 ### Fixed
-- Resolved various minor UI update and theming issues related to the new controls.
+- Resolved issue where the auto-run button text might not update correctly to "Disable..." when toggled.
 - Corrected RTF formatting for help text to ensure proper spacing and bullet point rendering.
 
 ---
 
-## ChangeLog
+## [1.7.4] - 2025-05-09
 
-### Version 1.7.4
+### Added
+- **Email Recipient Management Feature**:
+    - Added a new "Manage Email Recipients" option under the "Options" menu in `Form1.cs`.
+    - This opens a new `ManageEmailRecipientsForm` which allows users to:
+        - View current email recipients for different report types and scenarios (Production: AutoRun Daily, Femi Only, Team; Debug: To, CC1, CC2).
+        - Edit these recipient lists (multiple emails can be entered, separated by commas or semicolons).
+        - Save their custom recipient settings. These overrides are stored in a `user_email_settings.json` file in the user's `AppData\Roaming\HarlowSolutions\QuoteConversionReportAutomation` directory.
+        - Restore all recipients to the application defaults defined in `appsettings.json` (this deletes the user override file).
+    - Introduced `UserEmailSettings.cs` as the data model for storing user-defined recipient lists.
+    - Created `EmailRecipientManager.cs` to:
+        - Load default recipients from `appsettings.json`.
+        - Load user-defined overrides from `user_email_settings.json`.
+        - Provide the effective email recipients by merging defaults with overrides (overrides take precedence).
+        - Save user overrides to `user_email_settings.json`.
+        - Clear user overrides to restore defaults.
+        - Validate email address formats.
+    - The `ManageEmailRecipientsForm` includes theming support (Dark/Light mode) consistent with the main application.
 
-* **Email Recipient Management Feature**
-    * Added a new "Manage Email Recipients" option under the "Options" menu in `Form1.cs`.
-    * This opens a new `ManageEmailRecipientsForm` which allows users to:
-        * View current email recipients for different report types and scenarios (Production: AutoRun Daily, Femi Only, Team; Debug: To, CC1, CC2).
-        * Edit these recipient lists (multiple emails can be entered, separated by commas or semicolons).
-        * Save their custom recipient settings. These overrides are stored in a `user_email_settings.json` file in the user's `AppData\Roaming\HarlowSolutions\QuoteConversionReportAutomation` directory.
-        * Restore all recipients to the application defaults defined in `appsettings.json` (this deletes the user override file).
-    * Introduced `UserEmailSettings.cs` as the data model for storing user-defined recipient lists.
-    * Created `EmailRecipientManager.cs` to:
-        * Load default recipients from `appsettings.json`.
-        * Load user-defined overrides from `user_email_settings.json`.
-        * Provide the effective email recipients by merging defaults with overrides (overrides take precedence).
-        * Save user overrides to `user_email_settings.json`.
-        * Clear user overrides to restore defaults.
-        * Validate email address formats.
-    * Updated `Form1.GetEmailRecipients()` to use `EmailRecipientManager` to determine To/CC lists, thus incorporating user overrides.
-    * Updated `AutoRunManager.cs` constructor to accept `EmailRecipientManager` and use it to fetch recipients for automated daily reports.
-    * The `ManageEmailRecipientsForm` includes theming support (Dark/Light mode) consistent with the main application.
-
-* **Bug Fixes & Refinements**
-    * **`Form1.cs`:**
-        * Corrected calls for `GetPreviousWorkday` to use `ReportHelper.GetPreviousWorkday` instead of `BankHolidayHelper.GetPreviousWorkday`.
-        * Refactored `createReportButton_Click` and `processEmailButton_Click` event handlers from `async Task` back to `async void` to resolve CS0407 designer errors. The core asynchronous logic was moved into new `private async Task PerformCreateReportAsync()` and `private async Task PerformProcessAndEmailAsync()` helper methods. The `generateAndSendButton_Click` method was updated to `await` these new helper methods.
-        * Corrected references to `autoRunStatusLabel.Text` (from `_autoRunStatusLabel.Text`) to use the control's property directly.
-        * Corrected the configuration key for `ExcelTemplateBaseDir` from `settings:TemplateBaseDir` to `settings:ExcelTemplateFolder` to match `appsettings.json`.
-        * Updated help text to include the new "Manage Email Recipients" feature.
-    * **`AutoRunManager.cs`:**
-        * Updated the constructor to accept `EmailRecipientManager` as a dependency.
-        * Modified `RunAutomatedDailyReportAsync` to use the injected `EmailRecipientManager` for determining email recipients for automated daily reports, replacing the local `GetAutoRunEmailRecipients()` method.
-    * Updated application version to `1.7.4`.
+### Changed
+- **Form1.cs**:
+    - Updated `GetEmailRecipients()` to use `EmailRecipientManager` to determine To/CC lists, thus incorporating user overrides.
+    - Corrected calls for `GetPreviousWorkday` to use `ReportHelper.GetPreviousWorkday` instead of `BankHolidayHelper.GetPreviousWorkday`.
+    - Refactored `createReportButton_Click` and `processEmailButton_Click` event handlers from `async Task` back to `async void`. Core async logic moved to new `PerformCreateReportAsync()` and `PerformProcessAndEmailAsync()` methods.
+    - Corrected references to `autoRunStatusLabel.Text`.
+    - Corrected configuration key for `ExcelTemplateBaseDir` to `settings:ExcelTemplateFolder`.
+    - Updated help text to include the new "Manage Email Recipients" feature.
+- **AutoRunManager.cs**:
+    - Updated constructor to accept `EmailRecipientManager`.
+    - Modified `RunAutomatedDailyReportAsync` to use injected `EmailRecipientManager` for email recipients.
+- **Application Version**: Updated to `1.7.4`.
 
 ---
 
-### Version 1.7.2
+## [1.7.2] - 2025-05-09
 
-* **Power BI Data Export Refinements (ExcelCopyData.cs)**
-    * Renamed `CopyAnalysisDataToWeeklyReportAsync` method to `CopyAnalysisDataToPowerBIReportAsync` to better reflect its purpose of preparing data for a Power BI source file.
-    * Modified `CopyAnalysisDataToPowerBIReportAsync` to always use a hardcoded sheet name: `"powerBI"` (defined by a new constant `PowerBISheetName`). This standardizes the output sheet for Power BI consumption.
-    * The logic for creating the target sheet now specifically checks for and creates a sheet named `"powerBI"` if it doesn't exist in the destination workbook (typically `weekly report quotes conversion merged.xlsx`).
-    * Removed the `selectedFinYear` parameter from `CopyAnalysisDataToPowerBIReportAsync` as the financial year is no longer used to determine the target sheet name within this specific method.
-    * Updated the call to `CopyAnalysisDataToPowerBIReportAsync` within `ProcessPostCopyOperationsAsync` to reflect the method name change and the removal of the `selectedFinYear` parameter for sheet naming purposes.
-    * Updated XML comments and inline logging messages to align with these changes.
-
----
-
-### Version 1.7.1
-
-* **Custom Bank Holiday Management UI**
-    * Added a new "Manage Custom Bank Holidays" option in the "Options" menu.
-    * This opens a new form (`ManageBankHolidaysForm`) allowing users to:
-        * View existing custom one-off and recurring bank holidays.
-        * Add new one-off bank holidays (specifying date and description).
-        * Add new recurring bank holidays (specifying day, month, and description).
-        * Remove selected custom one-off or recurring bank holidays.
-    * Custom bank holidays added by the user are now persisted in a `custom_bank_holidays.json` file located in the application's base directory. This file is loaded at startup and updated whenever changes are made via the new management form.
-    * The `BankHolidayHelper.cs` was updated with methods to load, save, add, and remove these custom holidays from the JSON file, and to clear its internal cache when modifications occur.
-    * The main application help text was updated to include information about this new feature.
-
-* **UI Theming & Rendering Fixes**
-    * Resolved issues with `MenuStrip` theming when switching between dark and light modes, ensuring sub-menus and item backgrounds/foregrounds render correctly and consistently. This involved refining the `DarkModeMenuRenderer`, `DarkModeColorTable`, and the `ApplyTheme` and `UpdateMenuItemsTheme` methods in `UIManager.cs`.
-    * Fixed CS0120 errors in `DarkModeMenuRenderer` by correctly making color fields used in the base constructor call `static readonly`.
-    * Corrected RTF formatting for the help text in `Form1.cs` to ensure it displays correctly in the `HelpForm`, primarily by using `StringBuilder` and ensuring proper C# escaping for RTF control words.
-
-* **Code & Functionality Refinements**
-    * Updated the `GetEmailRecipients()` method in `Form1.cs` to the user-provided version for accurate email distribution logic based on report type, "Send to Femi Only" checkbox, and build mode (Debug/Release).
-    * Corrected a CS7036 error in `Form1.cs` related to a missing `ToolStripProgressBar` argument in the `UIManager` constructor call, after the progress bar functionality was intentionally removed. The `UIManager` constructor and `Form1.cs` instantiation were aligned.
-    * Incremented application version to v1.7.1.
+### Changed
+- **Power BI Data Export Refinements (ExcelCopyData.cs)**:
+    - Renamed `CopyAnalysisDataToWeeklyReportAsync` to `CopyAnalysisDataToPowerBIReportAsync`.
+    - Modified `CopyAnalysisDataToPowerBIReportAsync` to always use a hardcoded sheet name: `"powerBI"`.
+    - Logic for creating the target sheet now specifically checks for and creates `"powerBI"` sheet if non-existent.
+    - Removed `selectedFinYear` parameter from `CopyAnalysisDataToPowerBIReportAsync` for sheet naming.
+    - Updated call to `CopyAnalysisDataToPowerBIReportAsync` in `ProcessPostCopyOperationsAsync`.
+    - Aligned XML comments and logging.
 
 ---
 
-### Version 1.7.0
+## [1.7.1] - 2025-05-07
 
-* **Bank Holiday Integration & Previous Workday Logic**
-    * Integrated comprehensive bank holiday calculations (`BankHolidayHelper.cs`) into the `GetPreviousWorkday` logic used by `ReportHelper.cs` and `AutoRunManager.cs`.
-    * This enhancement ensures that Daily reports and the auto-run Daily report feature now accurately determine the previous working day by correctly skipping:
-        * Weekends (Saturdays and Sundays).
-        * Standard bank holidays for **England and Wales**.
-        * Moving bank holidays (e.g., Good Friday, Easter Monday, Spring, and Summer bank holidays which depend on Easter's date or are proclaimed).
-        * Bank holidays that fall on a weekend, which are then observed on the following Monday (or Tuesday if Monday itself is a bank holiday, e.g., Christmas/Boxing Day scenarios).
-    * Updated `Form1.cs` to utilize the enhanced `ReportHelper.GetPreviousWorkday` for UI date calculations for the "Daily" report type.
-    * Help text in `Form1.cs` updated to reflect the new bank holiday considerations for daily reports, including details on how they are calculated.
+### Added
+- **Custom Bank Holiday Management UI**:
+    - "Manage Custom Bank Holidays" option in "Options" menu.
+    - New `ManageBankHolidaysForm` for viewing, adding (one-off/recurring), and removing custom bank holidays.
+    - Persistence of custom bank holidays in `custom_bank_holidays.json`.
+- **BankHolidayHelper.cs**: Updated to load, save, add, remove, and clear custom holidays from JSON.
+- **Help Text**: Updated to include custom bank holiday management.
 
-* **UI Enhancements & Menu Options**
-    * Added `ToolTip` support throughout `Form1.cs` and `Form1.Designer.cs`, providing helpful hints and descriptions for various UI controls to improve user experience.
-    * Revamped "Options" menu in `Form1.cs` and `Form1.Designer.cs` with new functionalities:
-        * "View Configuration": Replaced "Check Configuration". Shows a detailed breakdown of current configuration paths (Crystal Report, Wrapper EXE, Template, Export, Save, and Log directories) and their existence status in a message box.
-        * "Validate Configuration": Performs a quick validation of essential configuration paths (Crystal Report and Wrapper EXE) and updates the main status bar with "Configuration OK." or an error message.
-        * "Open Logs Folder": Opens the user-specific application log directory in File Explorer.
-        * "Edit appsettings.json": Opens the main `appsettings.json` configuration file for manual editing using the default system application.
-        * "Exit": Added an option to close the application.
-    * Updated application help text to include information about these new menu options.
+### Changed
+- **UI Theming & Rendering**:
+    - Refined `DarkModeMenuRenderer`, `DarkModeColorTable`, `ApplyTheme`, and `UpdateMenuItemsTheme` in `UIManager.cs` for consistent `MenuStrip` theming.
+- **Form1.cs**: Updated `GetEmailRecipients()` to user-provided version.
+- **Application Version**: Incremented to v1.7.1.
 
-* **UI Theming & Rendering (Initial Fixes)**
-    * Addressed initial issues with `MenuStrip` theming when switching between dark and light modes.
-    * Implemented a custom `DarkModeMenuRenderer` and `DarkModeColorTable` in `UIManager.cs`.
-    * Corrected `StatusStrip` item layout in `Form1.Designer.cs`.
-
-* **Code & Functionality Refinements**
-    * Corrected event handler subscriptions in `Form1.cs` for new menu items to prevent them from firing twice.
-    * Aligned log path determination logic in `Form1.cs` (for "View Configuration" and "Open Logs Folder" features) to correctly use the `settings:LogDirectory` configuration key, consistent with `Logger.cs`.
-    * Ensured that `UIManager.cs` correctly handles updates to `ToolStripItems` (like `ToolStripStatusLabel`) by invoking updates on their parent `StatusStrip` or `MenuStrip` when necessary for thread safety.
-    * Incremented application version to v1.7.0.
+### Fixed
+- **UI Theming**: Resolved `MenuStrip` rendering issues in dark/light modes.
+- **CS0120 Errors**: Corrected `static readonly` for color fields in `DarkModeMenuRenderer`.
+- **RTF Formatting**: Ensured correct help text display in `HelpForm`.
+- **CS7036 Error**: Aligned `UIManager` constructor call in `Form1.cs` regarding removed `ToolStripProgressBar`.
 
 ---
 
-### Version 1.6.5
+## [1.7.0] - 2025-05-07
 
-* **Bug Fixes & Improvements**
-    * Fixed issue where the application would use the date it was initially opened for UI calculations (like default date ranges and financial year) instead of the current date if left running over midnight.
-    * Modified `Form1` to remove the stored `_today` field and related `_financialYear` field.
-    * Updated `reportTypeComboBox_SelectedIndexChanged` and `PopulateFinancialYearDropdown` to always use `DateTime.Today` for calculating default date ranges and the current financial year, ensuring the UI reflects the actual current date.
-    * Ensured `processEmailButton_Click` gets the correct financial year dynamically before processing.
-    * Removed Financial Year dropdown from daily reports as it's not used.
-    * Updated Help text (`HelpForm`) to accurately state that default date ranges and financial year selections are calculated based on the *current date* when the report type is changed, not the application start date. Also improved RTF formatting for folder path examples.
-    * Fixed issue where AutoRun failed with "Access Denied" because `AutoRunManager.cs` was not correctly combining relative paths from configuration (`RawReportExportBaseDir`, `ExcelFinalSaveLocation`, `ExcelTemplateBaseDir`) with the user's profile path. Updated `AutoRunManager.cs` to construct full paths correctly, matching `Form1.cs`.
+### Added
+- **Bank Holiday Integration**: Integrated comprehensive bank holiday calculations for England and Wales into `GetPreviousWorkday` logic, accounting for weekends, standard holidays, moving holidays, and observed days.
+- **UI Enhancements & Menu Options**:
+    - `ToolTip` support throughout `Form1.cs` and `Form1.Designer.cs`.
+    - Revamped "Options" menu:
+        - "View Configuration": Shows detailed configuration paths and status.
+        - "Validate Configuration": Quick check of essential configs, updates status bar.
+        - "Open Logs Folder": Opens user-specific log directory.
+        - "Edit appsettings.json": Opens main config file.
+        - "Exit": Closes the application.
+- **Help Text**: Updated to include bank holiday details and new menu options.
 
----
+### Changed
+- **Form1.cs**: Utilizes enhanced `ReportHelper.GetPreviousWorkday`.
+- **UI Theming**: Implemented custom `DarkModeMenuRenderer` and `DarkModeColorTable` in `UIManager.cs`.
+- **Log Path Logic**: Aligned log path determination in `Form1.cs` with `Logger.cs`.
+- **UIManager.cs**: Ensured thread-safe updates for `ToolStripItems`.
+- **Application Version**: Incremented to v1.7.0.
 
-### Version 1.6.4
-
-* **New Features**
-    * Replaced help message box with a dedicated, resizable `HelpForm` with RTF support and basic theme awareness (dark/light mode).
-    * Added automatic archiving for old report files on application startup:
-        * **Final Reports:** Archives entire previous year folders (e.g., `...\Estimates\Weekly Reports\2024`) into a central `Archive` folder (e.g., `...\Estimates\Archive\Weekly Reports\2024`), merging contents if the destination year folder already exists.
-        * **Raw Reports:** Archives files older than a configurable number of days (default 30, set via `settings:ArchiveRawOlderThanDays`) into an `Archive\YYYY-MM` subfolder within their respective report type folder (e.g., `...\Exports\Daily Reports\Archive\2025-03`).
-* **Refactoring**
-    * Removed redundant file cleanup/archiving logic from the `CrystalReportWrapper` project (`RunCrystalReportClass.cs`).
-* **Bug Fixes & Improvements**
-    * Passed dark mode theme setting to the new `HelpForm`.
-    * Updated help text to include information about automated features (folder creation, archiving, sheet creation).
-
----
-
-### Version 1.6.3
-
-* **New Features**
-    * Added automatic archiving for old log files on application startup (moves files older than 30 days to `Logs\[User]\Archive\YYYY\MM\WeekN`). *(Note: This was previously documented under v1.1.1 but implemented more robustly here)*.
-* **Bug Fixes & Improvements**
-    * Fixed folder creation logic for Quarterly reports in `FolderCreation.cs` to include the quarter subfolder (e.g., "Jan to Mar").
-    * Ensured `FolderCreation.cs` and `ExcelCopyData.cs` use the `reportDate` for consistent folder path generation.
+### Fixed
+- **UI Theming**: Addressed initial `MenuStrip` theming issues.
+- **Event Handlers**: Corrected subscriptions for new menu items in `Form1.cs`.
+- **StatusStrip Layout**: Corrected item layout in `Form1.Designer.cs`.
 
 ---
 
-### Version 1.6.2
+## [1.6.5] - 2025-05-01
 
-* **Logging Improvements**
-    * Added configurable minimum logging level via `appsettings.json` (`settings:LogLevel` for Release, `settings:LogLevelDebug` for Debug).
-    * Updated `Logger.cs` to read and apply the configured minimum log level.
-    * Refined logging levels used in `ExcelCopyData.cs` and `Logger.cs` for better granularity (using `LogTrace` for finer details, adjusting `LogDebug`, `LogError`, `LogCritical` usage).
-    * Replaced most `Debug.WriteLine` calls in `Logger.cs` with appropriate level-based logging.
+### Changed
+- **Date Calculation**: Modified `Form1` to use `DateTime.Today` for UI calculations (default date ranges, financial year) instead of application start date.
+- **Financial Year**: Removed Financial Year dropdown from daily reports.
+- **Help Text**: Updated to reflect dynamic date calculations.
+- **AutoRunManager.cs**: Corrected path construction for `RawReportExportBaseDir`, `ExcelFinalSaveLocation`, `ExcelTemplateBaseDir` by combining with user profile path.
 
----
-
-### Version 1.6.1
-
-* **New Features**
-    * Added "Custom" report type, automatically selected when date pickers are manually changed.
-    * Implemented specific folder structure (`Custom Reports\YYYY\YYYY-MM-DD_HHMMSS`) and filename format (`{EndDate}_{Timestamp}_Estimate_Success_Rate_Custom.xlsx`) for Custom reports.
-    * Added distinct email subject/body content for Custom reports.
-    * Added `Trace` logging level to `Logger` class (active only in DEBUG builds).
-* **Refactoring**
-    * Consolidated folder creation logic into the static `FolderCreation` class, removing duplication from `ExcelCopyData`.
-* **Bug Fixes & Improvements**
-    * Fixed issue where AutoRun could fail due to file lock when attaching the report to email (implemented reading attachment to memory stream).
-    * Corrected DEBUG mode email recipient logic for the "Send to Femi Only" checkbox based on user clarification.
-    * Fixed issue where manual refresh prompt (`FlexibleMessageBox`) could appear behind the main window and freeze the application (specified owner window).
-    * Corrected status messages after report creation and during manual Excel refresh wait to be more informative.
-    * Fixed folder creation logic for Monthly and Quarterly reports to include year/month or year/quarter subfolders.
-    * Restored missing help text content.
+### Fixed
+- **UI Date Issue**: Application now uses current date for UI calculations if left running over midnight.
+- **AutoRun Access Denied**: Resolved issue by correctly constructing full paths for AutoRun file operations.
 
 ---
 
-### Version 1.6.0
+## [1.6.4] - 2025-04-29
 
-* **Refactoring**
-    * Refactored large `Form1.cs` into smaller, focused classes: `UIManager`, `ReportProcessManager`, `NamedPipeCommunicator`, `AutoRunManager`.
-    * Created static `ReportHelper` class for utility functions (date calculations, file operations).
-    * Changed `ExcelCopyData` to be a non-static class requiring instantiation.
-* **Bug Fixes & Improvements**
-    * Resolved various initial bugs related to the refactoring, including non-static method calls, protection levels, and `IProgress<T>` type mismatches during status reporting.
+### Added
+- **HelpForm**: Replaced help message box with a dedicated, resizable `HelpForm` with RTF support and theme awareness.
+- **Report Archiving**: Automatic archiving for old report files on startup:
+    - Final Reports: Archives previous year folders into a central `Archive` folder.
+    - Raw Reports: Archives files older than configurable days into `Archive\YYYY-MM` subfolders.
+- **Help Text**: Updated to include automated features.
 
----
+### Changed
+- **Refactoring**: Removed redundant file cleanup/archiving from `CrystalReportWrapper`.
 
-### Version 1.5.0
-
-* **Bug Fixes & Improvements**
-    * Refactored `FlexibleMessageBox.cs` to use the latest C# features.
-    * Fixed bug where Rich Text was not showing in the message box.
+### Fixed
+- **HelpForm Theming**: Passed dark mode setting to `HelpForm`.
 
 ---
 
-### Version 1.4.10
+## [1.6.3] - 2025-04-29
 
-* **Bug Fixes & Improvements**
-    * Fixed UI state management after manual report runs:
-        * Auto-Run toggle button now remains enabled during manual report creation/processing.
-        * Create/Process buttons correctly reset their enabled state after successful completion (Create enabled, Process disabled).
-        * View Report/Analysis buttons now correctly remain visible and enabled if their corresponding files exist, only resetting when the report type is changed.
-        * Main status label reliably resets to "Ready" after a 5-second delay following completion or error messages.
-* **UI Improvements**
-    * Integrated `FlexibleMessageBox` for displaying user messages (e.g., Help, errors, confirmations).
-* **Code Cleanup**
-    * Removed unused `using` statements. Added `Microsoft.Win32`.
+### Added
+- **Log Archiving**: Automatic archiving for old log files on startup (older than 30 days to `Logs\[User]\Archive\YYYY\MM\WeekN`).
+
+### Fixed
+- **Folder Creation**: Corrected logic for Quarterly reports in `FolderCreation.cs` to include quarter subfolder.
+- **Path Generation**: Ensured `FolderCreation.cs` and `ExcelCopyData.cs` use `reportDate` for consistent folder paths.
 
 ---
 
-### Version 1.4.9
+## [1.6.2] - 2025-04-29
 
-* **Bug Fixes & Improvements**
-    * Fixed UI state issues after manual report runs.
-    * Main status label now resets to "Ready" more reliably.
-* **UI Improvements**
-    * Integrated `FlexibleMessageBox`.
-* **Code Cleanup**
-    * Removed unused `using` statements. Added `Microsoft.Win32`.
-
----
-
-### Version 1.4.8
-
-* **Bug Fixes & Improvements**
-    * Improved AutoRun status display logic.
-    * Fixed main status label reset.
-* **Other**
-    * Reverted automated run check hour to 8 AM.
+### Changed
+- **Logging**:
+    - Added configurable minimum logging level via `appsettings.json`.
+    - Updated `Logger.cs` to read and apply configured log level.
+    - Refined logging levels in `ExcelCopyData.cs` and `Logger.cs`.
+    - Replaced most `Debug.WriteLine` in `Logger.cs` with level-based logging.
 
 ---
 
-### Version 1.4.7
+## [1.6.1] - 2025-04-29
 
-* **Bug Fixes & Improvements**
-    * Reverted AutoRun check hour to 8 AM.
-    * Fixed AutoRun status display logic.
-    * Ensured main status label resets correctly.
+### Added
+- **"Custom" Report Type**: Automatically selected on manual date changes.
+- **Custom Report Structure**: Specific folder (`Custom Reports\YYYY\YYYY-MM-DD_HHMMSS`) and filename (`{EndDate}_{Timestamp}_Estimate_Success_Rate_Custom.xlsx`) format.
+- **Custom Report Email**: Distinct email subject/body.
+- **Trace Logging**: Added `Trace` level to `Logger` (DEBUG builds only).
 
----
+### Changed
+- **Refactoring**: Consolidated folder creation into static `FolderCreation` class.
 
-### Version 1.4.6
-
-* **UI Improvements & Configuration**
-    * Adjusted dark mode `CheckBox` background.
-    * Added Slicer refresh tip to Help.
-    * Added "AUTOMATED:" prefix to email subjects.
-    * Updated button text.
-
----
-
-### Version 1.4.5
-
-* **Bug Fixes & Improvements**
-    * Improved `CheckBox` visibility in dark mode.
-    * Updated `UpdateControlColors`.
+### Fixed
+- **AutoRun File Lock**: Resolved issue by reading email attachment to memory stream.
+- **Debug Email Recipients**: Corrected "Send to Femi Only" logic for DEBUG mode.
+- **MessageBox Focus**: Ensured `FlexibleMessageBox` (manual refresh prompt) appears in front.
+- **Status Messages**: Improved clarity for report creation and manual refresh.
+- **Folder Creation**: Corrected Monthly/Quarterly report folder logic.
+- **Help Text**: Restored missing content.
 
 ---
 
-### Version 1.4.4
+## [1.6.0] - 2025-04-29
 
-* **Bug Fixes & Improvements**
-    * Modified `dailyCheckTimer_Tick` logic for continuous running.
-    * Added flags for daily check status management.
+### Changed
+- **Refactoring**:
+    - Decomposed `Form1.cs` into `UIManager`, `ReportProcessManager`, `NamedPipeCommunicator`, `AutoRunManager`.
+    - Created static `ReportHelper` for utilities.
+    - Changed `ExcelCopyData` to a non-static class.
 
----
-
-### Version 1.4.3
-
-* **Bug Fixes & Improvements**
-    * Modified `dailyCheckTimer_Tick` logic to stop timer after daily completion. *(Superseded)*
+### Fixed
+- **Refactoring Bugs**: Resolved initial issues from refactoring (method calls, protection levels, `IProgress<T>` mismatches).
 
 ---
 
-### Version 1.4.2
+## [1.5.0] - 2025-04-28
 
-* **Bug Fixes**
-    * Corrected `ExcelCopyData` method calls in `Form1.cs`.
+### Changed
+- **FlexibleMessageBox.cs**: Refactored to use latest C# features.
 
----
-
-### Version 1.4.1
-
-* **Bug Fixes**
-    * Fixed `dailyCheckTimer_Tick` restart logic.
-    * Ensured `toggleAutoRunButton` re-enables correctly.
+### Fixed
+- **Rich Text Display**: Corrected issue where Rich Text was not showing in `FlexibleMessageBox`.
 
 ---
 
-### Version 1.4.0
+## [1.4.10] - 2025-04-27
 
-* **Refactoring**
-    * Changed `appsettings.json` handling for `LastRunDate`.
-    * Updated configuration reads to use `IConfiguration`.
+### Fixed
+- **UI State Management**:
+    - Auto-Run toggle button remains enabled during manual report operations.
+    - Create/Process buttons correctly reset enabled state after completion.
+    - View Report/Analysis buttons visibility/enabled state correctly maintained.
+    - Main status label reliably resets to "Ready".
+- **Code Cleanup**: Removed unused `using` statements. Added `Microsoft.Win32`.
 
----
-
-### Version 1.3.9
-
-* **New Features**
-    * Implemented `LastRunDate` read/save for AutoRun.
-    * Added UI control disabling during AutoRun.
-* **Bug Fixes**
-    * Corrected AutoRun time check.
-    * Improved `appsettings.json` error handling.
+### Changed
+- **UI**: Integrated `FlexibleMessageBox` for user messages.
 
 ---
 
-### Version 1.3.8
+## [1.4.9] - 2025-04-27
 
-* **New Features**
-    * Added `MenuStrip` with "Options" and "Help".
-    * Moved Dark Mode to menu.
-* **Bug Fixes**
-    * Corrected AutoRun status label updates.
-    * Fixed `SafeControlUpdate` for `ToolStripStatusLabel`.
-    * Improved status reporting clarity.
-* **UI Improvements**
-    * Status label reset.
-    * Auto-Run button color logic.
+### Fixed
+- **UI State**: Corrected UI state issues after manual report runs.
+- **Status Label**: Main status label now resets to "Ready" more reliably.
+
+### Changed
+- **UI**: Integrated `FlexibleMessageBox`.
+- **Code Cleanup**: Removed unused `using` statements. Added `Microsoft.Win32`.
 
 ---
 
-### Version 1.3.6
+## [1.4.8] - 2025-04-27
 
-* **New Features**
-    * Added Auto-Run feature.
-    * Auto-run emails only Paul for Daily reports.
+### Changed
+- **AutoRun**: Reverted automated run check hour to 8 AM.
 
----
-
-### Version 1.3.5
-
-* **New Features**
-    * Added "Daily" report type.
-    * Specific folder structure for Daily reports.
-    * Special email rule for Daily reports (Release mode).
-    * Added Dark Mode toggle.
-* **Bug Fixes**
-    * Resolved Excel file corruption issue.
-    * Fixed ambiguous reference errors.
-    * Corrected date format string in email.
-    * Corrected weekly date range calculation.
-    * Removed DPAPI encryption.
-    * Fixed `CopyAnalysisDataToWeeklyReportAsync`.
-    * Corrected filename population in `Analysis` sheet.
-* **UI Improvements**
-    * Added label for Daily report email recipient.
-    * Dynamic visibility for "Femi Only" checkbox.
+### Fixed
+- **AutoRun Status**: Improved display logic.
+- **Status Label**: Fixed main status label reset.
 
 ---
 
-### Version 1.2.5
+## [1.4.7] - 2025-04-27
 
-* **Refactoring & Modernization**
-    * Refactored to .NET 8 and latest C# features.
-    * Moved email client variables to `appsettings.json`.
-    * Improved performance, especially Excel row deletion.
+### Changed
+- **AutoRun**: Reverted AutoRun check hour to 8 AM.
 
----
-
-### Version 1.1.1
-
-* **New Features**
-    * Added archiving for old log files.
-* **Bug Fixes**
-    * Fixed bug with creating new sheets in weekly Power BI source.
-    * Fixed `startDatePicker` re-enabling.
-    * Fixed "View Analysis" button.
-* **Refactoring**
-    * Modularized code base.
-    * Moved Email client variables to `App.config`.
+### Fixed
+- **AutoRun Status**: Corrected display logic.
+- **Status Label**: Ensured main status label resets correctly.
 
 ---
 
-### Version 1.1.0
+## [1.4.6] - 2025-04-27
 
-* **New Features**
-    * Added report type selection (Weekly, Monthly, etc.).
-    * Added financial year picking.
-    * Automatic file/folder structure creation.
-    * "Send to Femi Only" option.
-    * Check for existing final report file.
-    * Retry logic for locked files.
-    * Automatic FY sheet creation in Power BI source.
-    * Dynamic email text.
-    * Option to skip email sending.
-* **Bug Fixes**
-    * Fixed bug skipping row 2 in source data.
-    * Fixed email date formatting.
+### Changed
+- **UI**:
+    - Adjusted dark mode `CheckBox` background.
+    - Added Slicer refresh tip to Help.
+    - Added "AUTOMATED:" prefix to email subjects.
+    - Updated button text.
 
 ---
 
-### Version 1.0.5
+## [1.4.5] - 2025-04-26
 
-* **New Features**
-    * Checks for running Excel processes.
-    * Prompt to send email after processing.
-* **Performance Fixes & Refactoring**
-    * Performance and modularity improvements.
+### Fixed
+- **UI**: Improved `CheckBox` visibility in dark mode.
+- **Theming**: Updated `UpdateControlColors`.
 
 ---
 
-### Version 1.0.4
+## [1.4.4] - 2025-04-26
 
-* **Performance Fixes**
-    * Changed Excel data copying to use `Range.Copy`.
-* **Bug Fixes**
-    * Fixed email sending logic bugs.
-
----
-
-### Version 1.0.3
-
-* **New Features**
-    * Added options to run report monthly. *(Superseded)*
+### Changed
+- **AutoRun**: Modified `dailyCheckTimer_Tick` logic for continuous running.
+- **State Management**: Added flags for daily check status.
 
 ---
 
-### Version 1.0.2
+## [1.4.3] - 2025-04-26
 
-* **Bug Fixes**
-    * Fixed issues with async Excel data copying.
-
----
-
-### Version 1.0.1
-
-* **New Features**
-    * Added status tracking via status bar.
-* **Performance Fixes**
-    * Made operations asynchronous.
+### Fixed
+- **AutoRun**: Modified `dailyCheckTimer_Tick` logic to stop timer after daily completion. *(Superseded)*
 
 ---
 
-### Version 1.0.0
+## [1.4.2] - 2025-04-26
 
-* **Initial Release**
-    * Automates weekly estimates report creation and emailing.
+### Fixed
+- **ExcelCopyData**: Corrected method calls in `Form1.cs`.
+
+---
+
+## [1.4.1] - 2025-04-26
+
+### Fixed
+- **AutoRun**:
+    - Corrected `dailyCheckTimer_Tick` restart logic.
+    - Ensured `toggleAutoRunButton` re-enables correctly.
+
+---
+
+## [1.4.0] - 2025-04-25
+
+### Changed
+- **Configuration**:
+    - Modified `appsettings.json` handling for `LastRunDate`.
+    - Updated configuration reads to use `IConfiguration`.
+
+---
+
+## [1.3.9] - 2025-04-25
+
+### Added
+- **AutoRun**:
+    - Implemented `LastRunDate` read/save.
+    - UI control disabling during AutoRun.
+
+### Fixed
+- **AutoRun**: Corrected time check.
+- **Configuration**: Improved `appsettings.json` error handling.
+
+---
+
+## [1.3.8] - 2025-04-25
+
+### Added
+- **UI**:
+    - `MenuStrip` with "Options" and "Help".
+    - Moved Dark Mode to menu.
+
+### Fixed
+- **AutoRun**: Corrected status label updates.
+- **UI**:
+    - Fixed `SafeControlUpdate` for `ToolStripStatusLabel`.
+    - Improved status reporting clarity.
+    - Corrected Auto-Run button color logic.
+- **Status Label**: Ensured reset.
+
+
+---
+
+## [1.3.6] - 2025-04-24
+
+### Added
+- **AutoRun**: Implemented feature.
+- **Email**: Auto-run emails only Paul for Daily reports.
+
+---
+
+## [1.3.5] - 2025-04-24
+
+### Added
+- **"Daily" Report Type**: Implemented.
+- **Folder Structure**: Specific structure for Daily reports.
+- **Email Rule**: Special rule for Daily reports (Release mode).
+- **Dark Mode**: Added toggle.
+
+### Fixed
+- **Excel**: Resolved file corruption issue.
+- **Compilation**: Fixed ambiguous reference errors.
+- **Email**: Corrected date format string.
+- **Date Calculation**: Corrected weekly date range.
+- **Security**: Removed DPAPI encryption.
+- **ExcelCopyData**: Fixed `CopyAnalysisDataToWeeklyReportAsync`.
+- **Analysis Sheet**: Corrected filename population.
+
+### Changed
+- **UI**:
+    - Added label for Daily report email recipient.
+    - Dynamic visibility for "Femi Only" checkbox.
+
+---
+
+## [1.2.5] - 2025-04-24
+
+### Changed
+- **Refactoring & Modernization**:
+    - Refactored to .NET 8 and latest C# features.
+    - Moved email client variables to `appsettings.json`.
+    - Improved performance, especially Excel row deletion.
+
+---
+
+## [1.1.1] - 2025-04-17
+
+### Added
+- **Log Archiving**: Implemented.
+
+### Fixed
+- **Excel**: Corrected bug with creating new sheets in weekly Power BI source.
+- **UI**:
+    - Fixed `startDatePicker` re-enabling.
+    - Fixed "View Analysis" button.
+
+### Changed
+- **Refactoring**:
+    - Modularized code base.
+    - Moved Email client variables to `App.config`.
+
+---
+
+## [1.1.0] - 2025-04-16
+
+### Added
+- **Report Types**: Selection (Weekly, Monthly, etc.).
+- **Financial Year**: Picking implemented.
+- **File Structure**: Automatic file/folder creation.
+- **"Send to Femi Only"**: Option added.
+- **File Check**: Check for existing final report file.
+- **File Lock**: Retry logic for locked files.
+- **Power BI**: Automatic FY sheet creation in source.
+- **Email**: Dynamic text.
+- **Skip Email**: Option added.
+
+### Fixed
+- **Data Copy**: Corrected bug skipping row 2 in source data.
+- **Email**: Fixed date formatting.
+
+---
+
+## [1.0.5] - 2025-04-11
+
+### Added
+- **Excel**: Checks for running Excel processes.
+- **Email**: Prompt to send email after processing.
+
+### Changed
+- **Performance & Refactoring**: Improvements.
+
+---
+
+## [1.0.4] - 2025-04-11
+
+### Changed
+- **Performance**: Excel data copying now uses `Range.Copy`.
+
+### Fixed
+- **Email**: Corrected sending logic bugs.
+
+---
+
+## [1.0.3] - 2025-04-02
+
+### Added
+- **Report Type**: Options to run report monthly. *(Superseded)*
+
+---
+
+## [1.0.2] - 2025-04-02
+
+### Fixed
+- **Excel**: Corrected issues with async data copying.
+
+---
+
+## [1.0.1] - 2025-04-01
+
+### Added
+- **UI**: Status tracking via status bar.
+
+### Changed
+- **Performance**: Made operations asynchronous.
+
+---
+
+## [1.0.0] - 2025-04-01
+
+### Added
+- **Initial Release**: Automates weekly estimates report creation and emailing.

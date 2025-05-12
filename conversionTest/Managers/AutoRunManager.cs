@@ -1,22 +1,19 @@
 ﻿// C# 10+ Features
-using conversionTest; // Assuming Logger is in this namespace or globally available
-
 namespace QuoteConversionReportAutomation.Managers
 {
+    using Microsoft.Extensions.Configuration; // For IConfiguration
+    using Newtonsoft.Json; // For reading/writing appsettings
+    using Newtonsoft.Json.Linq;
+    using QuoteConversionReportAutomation.Helpers;
+    using QuoteConversionReportAutomation.Services.Communication;
+    using QuoteConversionReportAutomation.Services.Excel;
+    using QuoteConversionReportAutomation.Services.Logging;
     // --- Using Statements ---
     using System;
-    using System.Collections.Generic;
-    using System.Diagnostics;
     using System.Globalization;
     using System.IO;
     using System.Threading;
     using System.Threading.Tasks;
-    using Microsoft.Extensions.Configuration; // For IConfiguration
-    using Newtonsoft.Json; // For reading/writing appsettings
-    using Newtonsoft.Json.Linq;
-    using ReportWrapperCommon; // For ReportRequest/Response
-    using QuoteConversionReportAutomation;
-    using QuoteConversionReportAutomation.Helpers;
 
 
     /// <summary>
@@ -422,7 +419,7 @@ namespace QuoteConversionReportAutomation.Managers
         {
             string reportTypeName = "Estimate Success Rate";
             // Use configuration for greeting, fallback if not present
-            string greeting = IsDebug ? "Hi Debug," : (_configuration["settings:ProductionEmails:AutoRunDailyGreeting"] ?? "Hi Paul S,");
+            string greeting = IsDebug ? "Hi Debug," : (_configuration["settings:ProductionEmails:AutoRunDailyGreeting"] ?? "Hi Paul,");
             string dateRangeInfo = $"for {reportDate:dd MMM yy}";
             string subjectPrefix = $"Daily {reportTypeName}"; // Keep it specific to Daily
 

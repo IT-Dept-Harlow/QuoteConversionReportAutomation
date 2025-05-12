@@ -1,26 +1,47 @@
 ﻿// C# 10+ Features
-using conversionTest; // Assuming Logger is in this namespace or globally available
-
 // Ensure this namespace matches your project structure
 namespace QuoteConversionReportAutomation.Helpers
 {
+    using QuoteConversionReportAutomation.Services.Logging;
     // --- Using Statements ---
     using System;
+    using System.Collections.Generic; // Required for List
     using System.Diagnostics; // For Process
+    using System.Globalization; // Required for CultureInfo
     using System.IO;          // For File, Path
-    // using System.Threading;   // For CancellationToken - Not directly used in this version of ReportHelper
-    // using System.Threading.Tasks; // For Task - Not directly used in this version of ReportHelper
+    using System.Linq;        // Required for LINQ
     using System.Windows.Forms; // For MessageBoxButtons, DialogResult etc. (used by FlexibleMessageBox)
-    using QuoteConversionReportAutomation.Helpers;
 
     /// <summary>
     /// Provides static helper methods for common tasks like date calculations,
     /// string formatting, and basic file/process operations used across the application.
     /// GetPreviousWorkday now considers bank holidays.
+    /// GetFinancialYearDates calculates financial year start and end dates (defaulting to May-April).
     /// </summary>
     public static class ReportHelper
     {
         #region Date Calculation Helpers
+
+        /// <summary>
+        /// Calculates the start and end dates of a financial year.
+        /// The financial year is defined by its starting year and the month/day it begins.
+        /// For example, if financialYearStartYear is 2023, startMonth is 5 (May), startDay is 1,
+        /// it represents the financial year from May 1, 2023, to April 30, 2024.
+        /// </summary>
+        /// <param name="financialYearStartYear">The calendar year in which the financial year starts (e.g., 2023 for FY May 2023 - April 2024).</param>
+        /// <param name="startMonth">The month the financial year starts (default is 5 for May).</param>
+        /// <param name="startDay">The day of the month the financial year starts (default is 1).</param>
+        /// <returns>A tuple containing the start (DateFrom) and end (DateTo) dates of the specified financial year.</returns>
+        public static (DateTime DateFrom, DateTime DateTo) GetFinancialYearDates(int financialYearStartYear, int startMonth = 5, int startDay = 1)
+        {
+            Logger.LogTrace($"ReportHelper.GetFinancialYearDates: Calculating for FY starting in {financialYearStartYear}, month {startMonth}, day {startDay}");
+            DateTime dateFrom = new DateTime(financialYearStartYear, startMonth, startDay);
+            // The end date is one day before the start of the next financial year.
+            DateTime dateTo = new DateTime(financialYearStartYear + 1, startMonth, startDay).AddDays(-1);
+            Logger.LogDebug($"ReportHelper.GetFinancialYearDates: Calculated FY (starting {startMonth}/{startDay}) {financialYearStartYear}-{financialYearStartYear + 1} as {dateFrom:yyyy-MM-dd} to {dateTo:yyyy-MM-dd}");
+            return (dateFrom, dateTo);
+        }
+
 
         /// <summary>
         /// Calculates the previous working day, skipping weekends and bank holidays.
@@ -33,59 +54,44 @@ namespace QuoteConversionReportAutomation.Helpers
             Logger.LogTrace($"ReportHelper.GetPreviousWorkday: Calculating previous workday for {currentDate:yyyy-MM-dd}");
             DateTime previousDay = currentDate.AddDays(-1);
 
-            // Loop backwards until a non-weekend, non-bank holiday is found
             while (true)
             {
-                // Check for weekends first
                 if (previousDay.DayOfWeek == DayOfWeek.Saturday)
                 {
                     Logger.LogTrace($"ReportHelper.GetPreviousWorkday: {previousDay:yyyy-MM-dd} is Saturday, moving to Friday.");
-                    previousDay = previousDay.AddDays(-1); // Move to Friday
+                    previousDay = previousDay.AddDays(-1);
                 }
                 else if (previousDay.DayOfWeek == DayOfWeek.Sunday)
                 {
                     Logger.LogTrace($"ReportHelper.GetPreviousWorkday: {previousDay:yyyy-MM-dd} is Sunday, moving to Friday.");
-                    previousDay = previousDay.AddDays(-2); // Move to Friday (from Sunday)
+                    previousDay = previousDay.AddDays(-2);
                 }
 
-                // Now check if the (potentially adjusted) previousDay is a bank holiday
-                // Ensure BankHolidayHelper is initialized (typically done at app startup)
                 if (!BankHolidayHelper.IsBankHoliday(previousDay))
                 {
-                    // Not a weekend and not a bank holiday, so this is our workday
                     Logger.LogInfo($"ReportHelper.GetPreviousWorkday: Previous workday for {currentDate:yyyy-MM-dd} is {previousDay:yyyy-MM-dd}.");
                     return previousDay;
                 }
                 else
                 {
                     Logger.LogTrace($"ReportHelper.GetPreviousWorkday: {previousDay:yyyy-MM-dd} is a bank holiday. Checking day before.");
-                    // If it was a bank holiday, subtract another day and check again in the next iteration
                     previousDay = previousDay.AddDays(-1);
                 }
             }
         }
 
         /// <summary>
-        /// Calculates the date range for the Monthly report type based on common business logic.
-        /// If run early in the month (<= 15th), it returns the range for the *previous* full month.
-        /// Otherwise, it returns the range from the start of the *current* month up to the given date.
+        /// Calculates the date range for the Monthly report type, returning the *previous* full month.
         /// </summary>
         /// <param name="referenceDate">The date used as a reference (usually Today).</param>
-        /// <returns>A tuple containing the start date (DateFrom) and end date (DateTo) for the monthly period.</returns>
+        /// <returns>A tuple containing the start date (DateFrom) and end date (DateTo) for the previous month.</returns>
         public static (DateTime DateFrom, DateTime DateTo) CalculateMonthlyRange(DateTime referenceDate)
         {
-            DateTime dateFrom, dateTo;
-            if (referenceDate.Day <= 15)
-            {
-                DateTime firstDayOfCurrentMonth = new(referenceDate.Year, referenceDate.Month, 1);
-                dateTo = firstDayOfCurrentMonth.AddDays(-1);
-                dateFrom = dateTo.AddDays(1).AddMonths(-1);
-            }
-            else
-            {
-                dateFrom = new DateTime(referenceDate.Year, referenceDate.Month, 1);
-                dateTo = referenceDate;
-            }
+            // Corrected logic: Always returns the previous full month.
+            DateTime firstDayOfCurrentMonth = new(referenceDate.Year, referenceDate.Month, 1);
+            DateTime dateTo = firstDayOfCurrentMonth.AddDays(-1); // Last day of previous month
+            DateTime dateFrom = dateTo.AddDays(1).AddMonths(-1); // First day of previous month
+
             Logger.LogDebug($"ReportHelper.CalculateMonthlyRange for {referenceDate:yyyy-MM-dd}: From {dateFrom:yyyy-MM-dd} To {dateTo:yyyy-MM-dd}");
             return (dateFrom, dateTo);
         }
@@ -99,8 +105,8 @@ namespace QuoteConversionReportAutomation.Helpers
         {
             int currentQuarter = (referenceDate.Month - 1) / 3 + 1;
             DateTime firstDayOfCurrentQuarter = new(referenceDate.Year, (currentQuarter - 1) * 3 + 1, 1);
-            DateTime dateTo = firstDayOfCurrentQuarter.AddDays(-1);
-            DateTime dateFrom = firstDayOfCurrentQuarter.AddMonths(-3);
+            DateTime dateTo = firstDayOfCurrentQuarter.AddDays(-1); // Last day of previous quarter
+            DateTime dateFrom = firstDayOfCurrentQuarter.AddMonths(-3); // First day of previous quarter
             Logger.LogDebug($"ReportHelper.CalculateQuarterlyRange for {referenceDate:yyyy-MM-dd}: From {dateFrom:yyyy-MM-dd} To {dateTo:yyyy-MM-dd}");
             return (dateFrom, dateTo);
         }
@@ -145,7 +151,7 @@ namespace QuoteConversionReportAutomation.Helpers
         /// </summary>
         /// <param name="filePath">The full path to the file to open.</param>
         /// <param name="fileTypeDescription">A user-friendly description of the file type (e.g., "raw report output", "processed analysis file").</param>
-        public static void OpenFileWithDefaultApp(string filePath, string fileTypeDescription)
+        public static void OpenFileWithDefaultApp(string? filePath, string fileTypeDescription)
         {
             if (string.IsNullOrWhiteSpace(filePath))
             {
@@ -208,23 +214,28 @@ namespace QuoteConversionReportAutomation.Helpers
             Logger.LogInfo($"Found {processes.Length} '{processName}' processes. Attempting to terminate...");
             foreach (var process in processes)
             {
-                using (process)
+                using (process) // Ensure process resources are disposed
                 {
                     try
                     {
                         if (!process.HasExited)
                         {
                             Logger.LogInfo($"Attempting to terminate '{processName}' process ID: {process.Id} (MainWindowTitle: '{process.MainWindowTitle}')");
-                            process.Kill(true);
-                            if (process.WaitForExit(5000))
+                            process.Kill(true); // Attempt to kill the entire process tree
+                            if (process.WaitForExit(5000)) // Wait up to 5 seconds
                                 Logger.LogInfo($"Successfully terminated '{processName}' process ID: {process.Id}");
                             else
                                 Logger.LogWarning($"'{processName}' process ID: {process.Id} did not terminate within 5 seconds after Kill.");
                         }
                     }
-                    catch (InvalidOperationException ex) when (ex.Message.Contains("Process has exited"))
+                    catch (InvalidOperationException ex) when (ex.Message.Contains("Process has exited") || ex.Message.Contains("No process is associated"))
                     {
-                        Logger.LogInfo($"'{processName}' process ID: {process.Id} already exited.");
+                        // These exceptions can occur if the process exits between the HasExited check and Kill/WaitForExit
+                        Logger.LogInfo($"'{processName}' process ID: {process.Id} likely already exited or no longer accessible.");
+                    }
+                    catch (System.ComponentModel.Win32Exception ex) when ((uint)ex.ErrorCode == 0x80004005 && ex.NativeErrorCode == 5) // Access is denied
+                    {
+                        Logger.LogWarning($"Access denied when trying to terminate '{processName}' process ID: {process.Id}. It might be a system process or require higher privileges.");
                     }
                     catch (Exception ex)
                     {

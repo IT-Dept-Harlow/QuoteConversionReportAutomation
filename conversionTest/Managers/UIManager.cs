@@ -1,14 +1,14 @@
 ﻿// C# 10+ Features
-using conversionTest; // Assuming Logger is in this namespace or globally available
-
 namespace QuoteConversionReportAutomation.Managers
 {
+    using Microsoft.Win32; // For Registry access
+    using QuoteConversionReportAutomation.Services.Excel;
+    using QuoteConversionReportAutomation.Services.Logging;
     // --- Using Statements ---
     using System;
     using System.Drawing;
-    using System.Windows.Forms;
-    using Microsoft.Win32; // For Registry access
     using System.Threading.Tasks; // For Task.Delay
+    using System.Windows.Forms;
 
     #region Custom Menu Renderer for Dark Mode 
 
@@ -134,6 +134,7 @@ namespace QuoteConversionReportAutomation.Managers
     /// Manages UI updates, theme application, and control state for Form1.
     /// ProgressBar functionality has been removed from this version.
     /// Now aware of 1-Click processing button and Skip Email checkbox.
+    /// Stores and uses the current auto-run hour for UI elements.
     /// </summary>
     public class UIManager
     {
@@ -147,7 +148,6 @@ namespace QuoteConversionReportAutomation.Managers
         private readonly ToolStripMenuItem _darkModeMenuItem;
         private readonly Button _createReportButton;
         private readonly Button _processEmailButton;
-        private readonly Button _generateAndSendButton; // Original combined button
         private readonly Button _oneClickProcessButton; // New 1-Click button
         private readonly Button _toggleAutoRunButton;
         private readonly Button _viewReportButton;
@@ -165,6 +165,7 @@ namespace QuoteConversionReportAutomation.Managers
         // --- State ---
         private bool _isDarkMode = false;
         private DarkModeMenuRenderer? _darkModeRenderer;
+        private int _currentAutoRunHour = 8; // Default hour, will be updated by Form1
 
         // --- Theme Colors ---
         private static readonly Color DM_BackColor = Color.FromArgb(45, 45, 48);
@@ -196,7 +197,6 @@ namespace QuoteConversionReportAutomation.Managers
             Form parentForm, MenuStrip menuStrip, StatusStrip statusStrip,
             ToolStripStatusLabel statusLabel, ToolStripStatusLabel autoRunStatusLabel,
             ToolStripMenuItem darkModeMenuItem, Button createReportButton, Button processEmailButton,
-            Button generateAndSendButton, // Original combined button
             Button oneClickProcessButton, // New 1-Click button
             Button toggleAutoRunButton, Button viewReportButton, Button viewAnalysisButton,
             ComboBox reportTypeComboBox, DateTimePicker startDatePicker, DateTimePicker endDatePicker,
@@ -213,7 +213,6 @@ namespace QuoteConversionReportAutomation.Managers
             _darkModeMenuItem = darkModeMenuItem ?? throw new ArgumentNullException(nameof(darkModeMenuItem));
             _createReportButton = createReportButton ?? throw new ArgumentNullException(nameof(createReportButton));
             _processEmailButton = processEmailButton ?? throw new ArgumentNullException(nameof(processEmailButton));
-            _generateAndSendButton = generateAndSendButton ?? throw new ArgumentNullException(nameof(generateAndSendButton));
             _oneClickProcessButton = oneClickProcessButton ?? throw new ArgumentNullException(nameof(oneClickProcessButton)); // Store new button
             _toggleAutoRunButton = toggleAutoRunButton ?? throw new ArgumentNullException(nameof(toggleAutoRunButton));
             _viewReportButton = viewReportButton ?? throw new ArgumentNullException(nameof(viewReportButton));
@@ -247,7 +246,8 @@ namespace QuoteConversionReportAutomation.Managers
             Color menuForeColor = isDarkMode ? DM_MenuForeColor : LM_ForeColor;
             Color statusStripBackColor = isDarkMode ? DM_StatusStripBackColor : LM_StatusStripBackColor;
 
-            SafeControlUpdate(_parentForm, () => {
+            SafeControlUpdate(_parentForm, () =>
+            {
                 UpdateControlThemeRecursive(_parentForm, backColor, foreColor, controlBackColor, buttonBackColor);
 
                 _menuStrip.BackColor = menuBackColor;
@@ -270,7 +270,11 @@ namespace QuoteConversionReportAutomation.Managers
                 UpdateMenuItemsTheme(_menuStrip.Items, menuBackColor, menuForeColor);
             });
 
-            bool isTimerEnabled = _toggleAutoRunButton.Text.StartsWith("Disable"); // Or check timer.Enabled directly if accessible
+            // Determine current timer state based on internal state or button text if needed
+            // For simplicity, assume Form1 passes the correct state via UpdateAutoRunUI call parameters
+            bool isTimerEnabled = false; // Placeholder - Form1 should call UpdateAutoRunUI with correct state
+            SafeControlUpdate(_toggleAutoRunButton, () => isTimerEnabled = _toggleAutoRunButton.Text.StartsWith("Disable"));
+
             bool isAutoRunStatusFinal = _autoRunStatusLabel.Text.Contains("Completed") || _autoRunStatusLabel.Text.Contains("FAILED") || _autoRunStatusLabel.Text.Contains("Done for");
             UpdateAutoRunUI(isTimerEnabled, isAutoRunStatusFinal, isDarkMode, _autoRunStatusLabel.Text);
 
@@ -289,7 +293,8 @@ namespace QuoteConversionReportAutomation.Managers
 
             foreach (Control control in parentControl.Controls)
             {
-                SafeControlUpdate(control, () => {
+                SafeControlUpdate(control, () =>
+                {
                     if (control == _toggleAutoRunButton) // Special case for toggleAutoRunButton
                     {
                         control.ForeColor = AutoRunButtonForeColor; // Keep its specific ForeColor
@@ -377,7 +382,8 @@ namespace QuoteConversionReportAutomation.Managers
         /// </summary>
         public void UpdateStatusMain(string message)
         {
-            SafeToolStripItemUpdate(_statusLabel, () => {
+            SafeToolStripItemUpdate(_statusLabel, () =>
+            {
                 _statusLabel.Text = message;
             });
         }
@@ -407,7 +413,6 @@ namespace QuoteConversionReportAutomation.Managers
         {
             SafeControlUpdate(_createReportButton, () => { _createReportButton.Enabled = enable; });
             SafeControlUpdate(_processEmailButton, () => { _processEmailButton.Enabled = enable; });
-            SafeControlUpdate(_generateAndSendButton, () => { _generateAndSendButton.Enabled = enable; });
             SafeControlUpdate(_oneClickProcessButton, () => { _oneClickProcessButton.Enabled = enable; }); // Include 1-Click button
         }
 
@@ -442,11 +447,8 @@ namespace QuoteConversionReportAutomation.Managers
                 _createReportButton.Text = configValid ? button1Text : "Config Error"; // Fallback text for createReportButton
                 _createReportButton.Enabled = configValid; // General enablement
 
-                _processEmailButton.Text = "Process and Email";
+                _processEmailButton.Text = "Process && Email";
                 _processEmailButton.Enabled = rawReportExists;
-
-                _generateAndSendButton.Text = "Generate && Send"; // Old button
-                _generateAndSendButton.Enabled = configValid;
 
                 _oneClickProcessButton.Enabled = configValid; // General enablement, Form1 might override text
 
@@ -471,14 +473,16 @@ namespace QuoteConversionReportAutomation.Managers
                     !currentMainStatus.StartsWith("Auto Run:") &&
                     !currentMainStatus.StartsWith("Configuration O") &&
                     !currentMainStatus.StartsWith("Configuration E") &&
-                    !currentMainStatus.Contains("Completed Successfully"))
+                    !currentMainStatus.Contains("Successfully"))
                 {
-                    _ = Task.Delay(5000).ContinueWith(t => {
-                        SafeToolStripItemUpdate(_statusLabel, () => {
+                    _ = Task.Delay(5000).ContinueWith(t =>
+                    {
+                        SafeToolStripItemUpdate(_statusLabel, () =>
+                        {
                             if (_statusLabel.Text == currentMainStatus &&
                                 !(_statusLabel.Text ?? string.Empty).StartsWith("Auto Run:") &&
                                 !(_statusLabel.Text ?? string.Empty).StartsWith("Configuration") &&
-                                !(_statusLabel.Text ?? string.Empty).Contains("Completed Successfully"))
+                                !(_statusLabel.Text ?? string.Empty).Contains("Successfully"))
                             {
                                 _statusLabel.Text = "Ready";
                             }
@@ -508,7 +512,6 @@ namespace QuoteConversionReportAutomation.Managers
             // UIManager ensures general states are reset.
             SafeControlUpdate(_createReportButton, () => _createReportButton.Enabled = configValid); // Re-enable if in 2-button mode
             SafeControlUpdate(_processEmailButton, () => _processEmailButton.Enabled = false); // Process button usually disabled after completion
-            SafeControlUpdate(_generateAndSendButton, () => _generateAndSendButton.Enabled = configValid);
             SafeControlUpdate(_oneClickProcessButton, () => _oneClickProcessButton.Enabled = configValid); // Re-enable if in 1-button mode
         }
 
@@ -526,13 +529,10 @@ namespace QuoteConversionReportAutomation.Managers
                 _createReportButton.Text = configValid ? "Create Report" : "Config Error";
                 _createReportButton.Enabled = configValid;
 
-                _processEmailButton.Text = "Process and Email";
+                _processEmailButton.Text = "Process && Email";
                 _processEmailButton.Enabled = false; // Typically disabled until raw report is made
 
-                _generateAndSendButton.Text = "Generate && Send"; // Old button
-                _generateAndSendButton.Enabled = configValid;
-
-                _oneClickProcessButton.Text = configValid ? "1-Click Process" : "Config Error"; // Default text
+                _oneClickProcessButton.Text = configValid ? "Generate, Process && Email Report" : "Config Error"; // Default text
                 _oneClickProcessButton.Enabled = configValid;
 
 
@@ -576,34 +576,62 @@ namespace QuoteConversionReportAutomation.Managers
         #endregion
 
         #region Auto Run UI
+
         /// <summary>
-        /// Updates the UI elements related to the auto-run feature.
+        /// Sets the current auto-run hour used for UI display.
+        /// </summary>
+        /// <param name="hour">The hour (0-23) for the auto-run check.</param>
+        public void SetAutoRunHour(int hour)
+        {
+            if (hour >= 0 && hour <= 23)
+            {
+                _currentAutoRunHour = hour;
+                Logger.LogDebug($"UIManager: Auto-run hour set to {_currentAutoRunHour}");
+            }
+            else
+            {
+                Logger.LogWarning($"UIManager: Invalid hour ({hour}) passed to SetAutoRunHour. Keeping current value ({_currentAutoRunHour}).");
+            }
+        }
+
+        /// <summary>
+        /// Updates the UI elements related to the auto-run feature, using the stored hour.
         /// </summary>
         public void UpdateAutoRunUI(bool enable, bool isFinalStatusForToday, bool isDarkMode, string statusText = "")
         {
-            SafeControlUpdate(_toggleAutoRunButton, () => {
+            SafeControlUpdate(_toggleAutoRunButton, () =>
+            {
                 if (_toggleAutoRunButton.IsDisposed) return;
-                // The text might now include the hour, which Form1.cs can update if it changes
-                // For now, keep the generic text or let Form1 update it.
-                // _toggleAutoRunButton.Text = enable ? "Disable Daily Auto Run @ 8 AM" : "Enable Daily Auto Run @ 8 AM";
-                if (string.IsNullOrEmpty(_toggleAutoRunButton.Text) || !_toggleAutoRunButton.Text.Contains(":")) // Basic check if hour is already in text
-                {
-                    _toggleAutoRunButton.Text = enable ? "Disable Daily Auto Run" : "Enable Daily Auto Run";
-                }
+
+                // Use the stored _currentAutoRunHour to format the text
+                _toggleAutoRunButton.Text = enable ? $"Disable Daily Auto Run @ {_currentAutoRunHour}:00"
+                                                   : $"Enable Daily Auto Run @ {_currentAutoRunHour}:00";
+
                 _toggleAutoRunButton.BackColor = enable ? AutoRunEnabledColor : AutoRunDisabledColor;
                 _toggleAutoRunButton.ForeColor = AutoRunButtonForeColor;
+
+                // Update tooltip as well
+                _toolTip.SetToolTip(_toggleAutoRunButton, $"Enable or disable the automated daily report generation. The report runs around {_currentAutoRunHour}:00 for the previous workday.");
+
             });
 
-            SafeToolStripItemUpdate(_autoRunStatusLabel, () => {
+            SafeToolStripItemUpdate(_autoRunStatusLabel, () =>
+            {
                 if (_autoRunStatusLabel.IsDisposed) return;
                 string currentStatusText = _autoRunStatusLabel.Text ?? string.Empty;
                 string textToShow = statusText;
                 if (string.IsNullOrEmpty(textToShow)) // If no specific status text is provided
                 {
                     // Determine text based on enable state and if a final status for today is already set
-                    textToShow = enable ? (isFinalStatusForToday ? currentStatusText : "Auto Run: Enabled")
+                    textToShow = enable ? (isFinalStatusForToday ? currentStatusText : $"Auto Run: Enabled (Next check ~{_currentAutoRunHour}:00)")
                                         : (isFinalStatusForToday ? currentStatusText : "Auto Run: Disabled");
                 }
+                // Ensure the status label also reflects the hour if it's enabled and not yet run/failed
+                else if (enable && !isFinalStatusForToday && !textToShow.Contains("FAILED") && !textToShow.Contains("ERROR") && !textToShow.Contains(":"))
+                {
+                    textToShow = $"Auto Run: Enabled (Next check ~{_currentAutoRunHour}:00)";
+                }
+
                 _autoRunStatusLabel.Text = textToShow;
                 _autoRunStatusLabel.ForeColor = (enable && !isFinalStatusForToday && !textToShow.Contains("FAILED") && !textToShow.Contains("ERROR")) ? Color.Green : (isDarkMode ? DM_ForeColor : LM_ForeColor);
                 if (textToShow.Contains("FAILED") || textToShow.Contains("ERROR")) _autoRunStatusLabel.ForeColor = Color.Red;

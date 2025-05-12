@@ -1,12 +1,7 @@
 ﻿// C# 10+ Features
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Channels;
-using System.Threading.Tasks;
-using conversionTest; // For Logger
+using QuoteConversionReportAutomation.Services.Logging; // For Logger
 
-namespace QuoteConversionReportAutomation
+namespace QuoteConversionReportAutomation.Managers
 {
     /// <summary>
     /// Provides static methods for archiving old report files.

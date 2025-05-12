@@ -1,16 +1,7 @@
 ﻿// C# 10+ Features
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-using conversionTest;
 using QuoteConversionReportAutomation.Helpers; // Assuming Logger is in this namespace
+using System.Data;
+using System.Globalization;
 
 namespace QuoteConversionReportAutomation
 {
@@ -43,7 +34,7 @@ namespace QuoteConversionReportAutomation
         {
             InitializeComponent();
             _isDarkMode = isDarkMode;
-            this.Load += ManageBankHolidaysForm_Load;
+            Load += ManageBankHolidaysForm_Load;
         }
 
         /// <summary>
@@ -75,10 +66,10 @@ namespace QuoteConversionReportAutomation
             Color controlBackColor = _isDarkMode ? DM_ControlBackColor : LM_ControlBackColor;
             Color buttonBackColor = _isDarkMode ? DM_ButtonBackColor : LM_ButtonBackColor;
 
-            this.BackColor = backColor;
-            this.ForeColor = foreColor;
+            BackColor = backColor;
+            ForeColor = foreColor;
 
-            foreach (Control control in this.Controls)
+            foreach (Control control in Controls)
             {
                 ApplyThemeToControlRecursive(control, backColor, foreColor, controlBackColor, buttonBackColor);
             }

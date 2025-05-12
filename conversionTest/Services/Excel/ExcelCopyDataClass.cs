@@ -1,18 +1,11 @@
 ﻿// C# 10+ Features (using file-scoped namespace, global using directives if applicable elsewhere)
-using conversionTest; // Assuming Logger is in this namespace or globally available
 using OfficeOpenXml; // EPPlus library for Excel manipulation
 using OfficeOpenXml.Table.PivotTable;
 using QuoteConversionReportAutomation.Helpers;
-using System;
-using System.Collections.Generic;
+using QuoteConversionReportAutomation.Services.Logging;
 using System.Diagnostics; // Added for Stopwatch
-using System.Globalization; // Added for CultureInfo if needed for month names
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace QuoteConversionReportAutomation // File-scoped namespace
+namespace QuoteConversionReportAutomation.Services.Excel // File-scoped namespace
 {
     /// <summary>
     /// Represents progress information for Excel operations.
@@ -131,7 +124,7 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
 
                 // 1. Determine and Create Report-Specific Folder using FolderCreation utility
                 Logger.LogTrace("ProcessExcelReportAsync: Determining output folder using FolderCreation..."); // Trace: Internal step
-                DateTime folderTimestampDate = (reportType == CustomReportIndex) ? DateTime.Now : reportDate;
+                DateTime folderTimestampDate = reportType == CustomReportIndex ? DateTime.Now : reportDate;
                 fullOutputFolderPath = FolderCreation.CreateReportSpecificFolder(reportType, baseFileSaveLocation, folderTimestampDate); // Use static method
                 if (fullOutputFolderPath == null)
                 {
@@ -360,7 +353,7 @@ namespace QuoteConversionReportAutomation // File-scoped namespace
                     Logger.LogWarning($"GetExpectedFinalFilePath called without a specific reportDate for non-custom report. Defaulting to Today for filename generation: {reportDate:yyyy-MM-dd}");
                 }
 
-                DateTime folderTimestampDate = (reportType == CustomReportIndex) ? DateTime.Now : reportDate;
+                DateTime folderTimestampDate = reportType == CustomReportIndex ? DateTime.Now : reportDate;
                 string? folderPath = FolderCreation.GetReportSpecificFolderPath(reportType, baseFileSaveLocation, folderTimestampDate); // Use static method
                 if (folderPath != null)
                 {

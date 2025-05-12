@@ -4,6 +4,7 @@ using conversionTest;
 namespace QuoteConversionReportAutomation;
 
 using Microsoft.Extensions.Configuration;
+using QuoteConversionReportAutomation.Services.Logging;
 using System;
 using System.Diagnostics;
 using System.IO;

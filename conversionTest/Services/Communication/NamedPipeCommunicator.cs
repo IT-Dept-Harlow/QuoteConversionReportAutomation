@@ -1,8 +1,8 @@
 ﻿// C# 10+ Features
-using conversionTest;
-
-namespace QuoteConversionReportAutomation
+namespace QuoteConversionReportAutomation.Services.Communication
 {
+    using Newtonsoft.Json; // For JSON serialization/deserialization
+    using QuoteConversionReportAutomation.Services.Logging;
     // --- Using Statements ---
     using System;
     using System.IO;
@@ -10,8 +10,6 @@ namespace QuoteConversionReportAutomation
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
-    using Newtonsoft.Json; // For JSON serialization/deserialization
-    using ReportWrapperCommon; // For ReportRequest and ReportResponse
 
     /// <summary>
     /// Handles communication with the Crystal Report Wrapper service via Named Pipes.

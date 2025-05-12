@@ -4,14 +4,14 @@
 namespace QuoteConversionReportAutomation.Managers
 {
     using Microsoft.Extensions.Configuration;
+    using QuoteConversionReportAutomation.Helpers;
+    using QuoteConversionReportAutomation.Models;
+    using QuoteConversionReportAutomation.Services.Logging;
     using System;
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Text.Json; // Requires System.Text.Json NuGet package if not already included
-    using conversionTest;
-    using QuoteConversionReportAutomation.Helpers;
-    using QuoteConversionReportAutomation.Models;
 
     /// <summary>
     /// Manages loading, saving, and providing email recipient lists,
@@ -51,7 +51,7 @@ namespace QuoteConversionReportAutomation.Managers
             _userSettingsFilePath = Path.Combine(appDataPath, companyFolder, appFolder, "user_email_settings.json");
 
             _userOverrides = LoadUserOverrides();
-            conversionTest.Logger.LogInfo($"EmailRecipientManager initialized. User overrides loaded from: {_userSettingsFilePath}");
+            Logger.LogInfo($"EmailRecipientManager initialized. User overrides loaded from: {_userSettingsFilePath}");
         }
 
         /// <summary>
@@ -74,7 +74,7 @@ namespace QuoteConversionReportAutomation.Managers
                         var settings = JsonSerializer.Deserialize<UserEmailSettings>(json);
                         if (settings != null)
                         {
-                            conversionTest.Logger.LogInfo("Successfully loaded user email overrides.");
+                            Logger.LogInfo("Successfully loaded user email overrides.");
                             return settings;
                         }
                     }
@@ -82,9 +82,9 @@ namespace QuoteConversionReportAutomation.Managers
             }
             catch (Exception ex)
             {
-                conversionTest.Logger.LogError($"Error loading user email overrides from '{_userSettingsFilePath}': {ex.Message}", ex);
+                Logger.LogError($"Error loading user email overrides from '{_userSettingsFilePath}': {ex.Message}", ex);
             }
-            conversionTest.Logger.LogInfo("No user email overrides found or file was empty/invalid. Using application defaults.");
+            Logger.LogInfo("No user email overrides found or file was empty/invalid. Using application defaults.");
             return new UserEmailSettings(); // Return empty settings if file not found or error
         }
 
@@ -101,7 +101,7 @@ namespace QuoteConversionReportAutomation.Managers
                 if (!string.IsNullOrEmpty(directoryPath) && !Directory.Exists(directoryPath))
                 {
                     Directory.CreateDirectory(directoryPath);
-                    conversionTest.Logger.LogInfo($"Created directory for user email settings: {directoryPath}");
+                    Logger.LogInfo($"Created directory for user email settings: {directoryPath}");
                 }
 
                 var options = new JsonSerializerOptions { WriteIndented = true };
@@ -111,11 +111,11 @@ namespace QuoteConversionReportAutomation.Managers
                     File.WriteAllText(_userSettingsFilePath, json);
                 }
                 _userOverrides = settingsToSave; // Update in-memory cache
-                conversionTest.Logger.LogInfo($"User email overrides saved to '{_userSettingsFilePath}'.");
+                Logger.LogInfo($"User email overrides saved to '{_userSettingsFilePath}'.");
             }
             catch (Exception ex)
             {
-                conversionTest.Logger.LogError($"Error saving user email overrides to '{_userSettingsFilePath}': {ex.Message}", ex);
+                Logger.LogError($"Error saving user email overrides to '{_userSettingsFilePath}': {ex.Message}", ex);
                 // Optionally, re-throw or handle more gracefully (e.g., inform the user)
                 throw;
             }
@@ -133,14 +133,14 @@ namespace QuoteConversionReportAutomation.Managers
                     if (File.Exists(_userSettingsFilePath))
                     {
                         File.Delete(_userSettingsFilePath);
-                        conversionTest.Logger.LogInfo($"User email overrides file '{_userSettingsFilePath}' deleted.");
+                        Logger.LogInfo($"User email overrides file '{_userSettingsFilePath}' deleted.");
                     }
                 }
                 _userOverrides = new UserEmailSettings(); // Reset in-memory cache to empty
             }
             catch (Exception ex)
             {
-                conversionTest.Logger.LogError($"Error clearing user email overrides file '{_userSettingsFilePath}': {ex.Message}", ex);
+                Logger.LogError($"Error clearing user email overrides file '{_userSettingsFilePath}': {ex.Message}", ex);
                 throw;
             }
         }
@@ -194,7 +194,7 @@ namespace QuoteConversionReportAutomation.Managers
         /// <returns>A tuple containing (List<string> To, List<string> Cc).</returns>
         public (List<string> To, List<string> Cc) GetRecipients(int reportTypeIndex, bool isFemiOnlyChecked, bool isDebugBuild)
         {
-            conversionTest.Logger.LogTrace("EmailRecipientManager: Entering GetRecipients...");
+            Logger.LogTrace("EmailRecipientManager: Entering GetRecipients...");
             UserEmailSettings currentSettings = GetCurrentEffectiveSettings(); // Gets merged settings
 
             List<string> toAddresses = new List<string>();
@@ -208,41 +208,41 @@ namespace QuoteConversionReportAutomation.Managers
                 // Special rule for Daily Release
                 toAddresses.AddRange(currentSettings.ProdAutoRunDailyTo ?? Enumerable.Empty<string>());
                 ccAddresses.AddRange(currentSettings.ProdAutoRunDailyCC ?? Enumerable.Empty<string>());
-                conversionTest.Logger.LogInfo("EmailRecipientManager: RELEASE Build & Daily Report. Using ProdAutoRunDaily recipients.");
+                Logger.LogInfo("EmailRecipientManager: RELEASE Build & Daily Report. Using ProdAutoRunDaily recipients.");
             }
             else
             {
                 if (isDebugBuild)
                 {
-                    conversionTest.Logger.LogInfo("EmailRecipientManager: DEBUG Build. Using debug email recipients.");
+                    Logger.LogInfo("EmailRecipientManager: DEBUG Build. Using debug email recipients.");
                     if (!string.IsNullOrWhiteSpace(currentSettings.DebugTo)) toAddresses.Add(currentSettings.DebugTo);
 
                     if (isFemiOnlyChecked)
                     {
-                        conversionTest.Logger.LogDebug("EmailRecipientManager: DEBUG Build: Femi checkbox CHECKED. Adding DebugCC1 and DebugCC2.");
+                        Logger.LogDebug("EmailRecipientManager: DEBUG Build: Femi checkbox CHECKED. Adding DebugCC1 and DebugCC2.");
                         if (!string.IsNullOrWhiteSpace(currentSettings.DebugCC1)) ccAddresses.Add(currentSettings.DebugCC1);
                         if (!string.IsNullOrWhiteSpace(currentSettings.DebugCC2)) ccAddresses.Add(currentSettings.DebugCC2);
                     }
                     else
                     {
-                        conversionTest.Logger.LogDebug("EmailRecipientManager: DEBUG Build: Femi checkbox NOT CHECKED. Adding DebugCC1 only.");
+                        Logger.LogDebug("EmailRecipientManager: DEBUG Build: Femi checkbox NOT CHECKED. Adding DebugCC1 only.");
                         if (!string.IsNullOrWhiteSpace(currentSettings.DebugCC1)) ccAddresses.Add(currentSettings.DebugCC1);
                     }
                 }
                 else // RELEASE Build Recipients (for non-Daily reports)
                 {
-                    conversionTest.Logger.LogInfo($"EmailRecipientManager: RELEASE Build (Non-Daily/Custom): SendToFemiOnly = {isFemiOnlyChecked}");
+                    Logger.LogInfo($"EmailRecipientManager: RELEASE Build (Non-Daily/Custom): SendToFemiOnly = {isFemiOnlyChecked}");
                     if (isFemiOnlyChecked)
                     {
                         toAddresses.AddRange(currentSettings.ProdFemiTo ?? Enumerable.Empty<string>());
                         ccAddresses.AddRange(currentSettings.ProdFemiCC ?? Enumerable.Empty<string>());
-                        conversionTest.Logger.LogInfo("EmailRecipientManager: Sending to Femi list (ProdFemiTo/CC).");
+                        Logger.LogInfo("EmailRecipientManager: Sending to Femi list (ProdFemiTo/CC).");
                     }
                     else
                     {
                         toAddresses.AddRange(currentSettings.ProdTeamTo ?? Enumerable.Empty<string>());
                         ccAddresses.AddRange(currentSettings.ProdTeamCC ?? Enumerable.Empty<string>());
-                        conversionTest.Logger.LogInfo("EmailRecipientManager: Sending to Team list (ProdTeamTo/CC).");
+                        Logger.LogInfo("EmailRecipientManager: Sending to Team list (ProdTeamTo/CC).");
                     }
                 }
             }
@@ -254,9 +254,9 @@ namespace QuoteConversionReportAutomation.Managers
             // Ensure CCs are not also in To
             ccAddresses = ccAddresses.Except(toAddresses, StringComparer.OrdinalIgnoreCase).ToList();
 
-            conversionTest.Logger.LogDebug($"EmailRecipientManager: Final To Addresses: {string.Join("; ", toAddresses)}");
-            conversionTest.Logger.LogDebug($"EmailRecipientManager: Final CC Addresses: {string.Join("; ", ccAddresses)}");
-            conversionTest.Logger.LogTrace("EmailRecipientManager: Exiting GetRecipients.");
+            Logger.LogDebug($"EmailRecipientManager: Final To Addresses: {string.Join("; ", toAddresses)}");
+            Logger.LogDebug($"EmailRecipientManager: Final CC Addresses: {string.Join("; ", ccAddresses)}");
+            Logger.LogTrace("EmailRecipientManager: Exiting GetRecipients.");
             return (toAddresses, ccAddresses);
         }
 

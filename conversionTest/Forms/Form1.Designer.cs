@@ -38,7 +38,6 @@ namespace conversionTest
             endDateLabel = new Label();
             createReportButton = new Button();
             processEmailButton = new Button();
-            generateAndSendButton = new Button();
             oneClickProcessButton = new Button();
             viewReportButton = new Button();
             viewAnalysisButton = new Button();
@@ -88,6 +87,7 @@ namespace conversionTest
             startDatePicker.Size = new Size(200, 22);
             startDatePicker.TabIndex = 0;
             toolTip1.SetToolTip(startDatePicker, "Select the start date for the report period. Modifying this will set the Report Type to 'Custom'.");
+            startDatePicker.ValueChanged += DatePicker_ValueChanged;
             // 
             // endDatePicker
             // 
@@ -96,6 +96,7 @@ namespace conversionTest
             endDatePicker.Size = new Size(200, 22);
             endDatePicker.TabIndex = 1;
             toolTip1.SetToolTip(endDatePicker, "Select the end date for the report period. Modifying this will set the Report Type to 'Custom'.");
+            endDatePicker.ValueChanged += DatePicker_ValueChanged;
             // 
             // startDateLabel
             // 
@@ -142,15 +143,6 @@ namespace conversionTest
             processEmailButton.UseVisualStyleBackColor = true;
             processEmailButton.Click += processEmailButton_Click;
             // 
-            // generateAndSendButton
-            // 
-            generateAndSendButton.Location = new Point(0, 0);
-            generateAndSendButton.Name = "generateAndSendButton";
-            generateAndSendButton.Size = new Size(75, 23);
-            generateAndSendButton.TabIndex = 19;
-            generateAndSendButton.Text = "Gen & Send";
-            generateAndSendButton.Visible = false;
-            // 
             // oneClickProcessButton
             // 
             oneClickProcessButton.FlatStyle = FlatStyle.System;
@@ -162,29 +154,32 @@ namespace conversionTest
             oneClickProcessButton.Text = "Generate, Process && Email Report";
             toolTip1.SetToolTip(oneClickProcessButton, "Performs all steps: generates the raw report, processes it into the final analysis, and emails it (unless skipped).");
             oneClickProcessButton.UseVisualStyleBackColor = true;
+            oneClickProcessButton.Click += oneClickProcessButton_Click;
             // 
             // viewReportButton
             // 
+            viewReportButton.AutoSize = true;
             viewReportButton.FlatStyle = FlatStyle.System;
             viewReportButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
             viewReportButton.Location = new Point(175, 339);
             viewReportButton.Name = "viewReportButton";
-            viewReportButton.Size = new Size(75, 23);
+            viewReportButton.Size = new Size(92, 23);
             viewReportButton.TabIndex = 8;
-            viewReportButton.Text = "View File";
+            viewReportButton.Text = "View Raw File";
             toolTip1.SetToolTip(viewReportButton, "Click to open the generated raw report file.");
             viewReportButton.UseVisualStyleBackColor = true;
             viewReportButton.Click += viewReportButton_Click;
             // 
             // viewAnalysisButton
             // 
+            viewAnalysisButton.AutoSize = true;
             viewAnalysisButton.FlatStyle = FlatStyle.System;
             viewAnalysisButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            viewAnalysisButton.Location = new Point(386, 339);
+            viewAnalysisButton.Location = new Point(349, 339);
             viewAnalysisButton.Name = "viewAnalysisButton";
-            viewAnalysisButton.Size = new Size(75, 23);
+            viewAnalysisButton.Size = new Size(122, 23);
             viewAnalysisButton.TabIndex = 9;
-            viewAnalysisButton.Text = "View File";
+            viewAnalysisButton.Text = "View Processed File";
             toolTip1.SetToolTip(viewAnalysisButton, "Click to open the final processed analysis file.");
             viewAnalysisButton.UseVisualStyleBackColor = true;
             viewAnalysisButton.Click += viewAnalysisButton_Click;
@@ -360,6 +355,7 @@ namespace conversionTest
             enable1ClickProcessingToolStripMenuItem.Size = new Size(240, 22);
             enable1ClickProcessingToolStripMenuItem.Text = "Enable &1-Click Processing";
             enable1ClickProcessingToolStripMenuItem.ToolTipText = "Toggle between 2-button and 1-button processing mode.";
+            enable1ClickProcessingToolStripMenuItem.Click += enable1ClickProcessingToolStripMenuItem_Click;
             // 
             // toolStripSeparator6
             // 
@@ -372,6 +368,7 @@ namespace conversionTest
             setAutoRunHourToolStripMenuItem.Size = new Size(240, 22);
             setAutoRunHourToolStripMenuItem.Text = "Set Auto-Run &Hour...";
             setAutoRunHourToolStripMenuItem.ToolTipText = "Change the hour at which the daily auto-run task executes.";
+            setAutoRunHourToolStripMenuItem.Click += setAutoRunHourToolStripMenuItem_Click;
             // 
             // toolStripSeparator3
             // 
@@ -483,7 +480,6 @@ namespace conversionTest
             Controls.Add(menuStrip1);
             Controls.Add(viewAnalysisButton);
             Controls.Add(viewReportButton);
-            Controls.Add(generateAndSendButton);
             Controls.Add(processEmailButton);
             Controls.Add(createReportButton);
             Controls.Add(endDateLabel);
@@ -517,7 +513,6 @@ namespace conversionTest
         private System.Windows.Forms.Label endDateLabel;
         private System.Windows.Forms.Button createReportButton;
         private System.Windows.Forms.Button processEmailButton;
-        private System.Windows.Forms.Button generateAndSendButton;
         private System.Windows.Forms.Button oneClickProcessButton; // New field
         private System.Windows.Forms.Button viewReportButton;
         private System.Windows.Forms.Button viewAnalysisButton;

@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Linq;
+﻿using QuoteConversionReportAutomation.Services.Logging;
 using System.Text.Json; // Requires System.Text.Json NuGet package if not already referenced
-using conversionTest;
 
 namespace QuoteConversionReportAutomation.Helpers
 {

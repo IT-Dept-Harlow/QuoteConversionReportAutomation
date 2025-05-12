@@ -1,7 +1,7 @@
 ﻿// Shared classes for request/response structure (Use this file in BOTH projects)
 // Place this in a shared location or copy it to both the .NET 8 and .NET 4.8 projects.
 // Ensure namespaces match or are accessible in both.
-namespace ReportWrapperCommon
+namespace QuoteConversionReportAutomation.Services.Communication
 {
     public class ReportRequest
     {

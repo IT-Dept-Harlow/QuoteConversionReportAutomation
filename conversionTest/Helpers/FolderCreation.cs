@@ -1,8 +1,6 @@
 ﻿// C# 10+ Features
-using conversionTest;
-using System;
+using QuoteConversionReportAutomation.Services.Logging;
 using System.Globalization; // Added for month formatting
-using System.IO;
 
 namespace QuoteConversionReportAutomation.Helpers
 {
