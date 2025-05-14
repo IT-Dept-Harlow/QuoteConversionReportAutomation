@@ -1,7 +1,4 @@
-﻿// EmailRecipientManager.cs
-// New file to be added to your project
-// Make sure the namespace matches your project structure, e.g., QuoteConversionReportAutomation
-namespace QuoteConversionReportAutomation.Managers
+﻿namespace QuoteConversionReportAutomation.Managers
 {
     using Microsoft.Extensions.Configuration;
     using QuoteConversionReportAutomation.Helpers;
@@ -11,7 +8,7 @@ namespace QuoteConversionReportAutomation.Managers
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
-    using System.Text.Json; // Requires System.Text.Json NuGet package if not already included
+    using System.Text.Json; 
 
     /// <summary>
     /// Manages loading, saving, and providing email recipient lists,

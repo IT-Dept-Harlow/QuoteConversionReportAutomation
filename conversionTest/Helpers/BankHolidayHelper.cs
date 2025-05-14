@@ -1,5 +1,5 @@
 ﻿using QuoteConversionReportAutomation.Services.Logging;
-using System.Text.Json; // Requires System.Text.Json NuGet package if not already referenced
+using System.Text.Json;
 
 namespace QuoteConversionReportAutomation.Helpers
 {

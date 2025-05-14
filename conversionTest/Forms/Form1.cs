@@ -675,7 +675,7 @@ namespace conversionTest
 
             bool originallyEnabled = dailyCheckTimer.Enabled;
             dailyCheckTimer.Stop();
-            Logger.LogInfo("Daily Check Timer Ticked.");
+            Logger.LogDebug("Daily Check Timer Ticked.");
 
             try
             {
@@ -693,7 +693,7 @@ namespace conversionTest
                 if (originallyEnabled)
                 {
                     dailyCheckTimer.Start();
-                    Logger.LogInfo("Daily Check Timer Restarted.");
+                    Logger.LogDebug("Daily Check Timer Restarted.");
 
                     Logger.LogDebug("dailyCheckTimer_Tick: Calling ResetUIStateOnError after auto-run check.");
                     ResetUIStateOnError(oneClickProcessButton.Visible ? "Generate, Process && Email Report" : "Create Report");
@@ -751,7 +751,101 @@ namespace conversionTest
             helpMessageBuilder.AppendLine(@"\par");
             helpMessageBuilder.AppendLine(@"\b\fs22 Welcome!\b0\fs20\par");
             helpMessageBuilder.AppendLine(@"This tool automates the generation, processing, and emailing of Estimate Success Rate reports, streamlining your workflow.\par");
-            // ... (rest of the RTF help text generation, ensuring it uses FlexibleMessageBox.ShowRtf if needed within HelpForm) ...
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"\b\fs22 How to Use the Application\b0\fs20\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"\b 1. Select Report Type:\b0\  \par");
+            helpMessageBuilder.AppendLine(@"Choose the desired report period from the \b Report Type\b0\ dropdown menu. The options are:\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Daily:\b0\  Generates a report for the {\i previous working day}. This automatically accounts for weekends (Saturday, Sunday) and official bank holidays (England & Wales, including custom-managed ones). It correctly handles holidays that fall on weekends and dynamic holidays like Easter.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Weekly:\b0\  Sets the 'To' date to today and the 'From' date to 15 days prior. {\i (Note: For Weekly reports, data is also appended to a 'powerBI' sheet in a central Excel file for Power BI integration.)}\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Monthly:\b0\  Calculates the 'From' and 'To' dates for the {\i previous full calendar month}.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Quarterly:\b0\  Calculates the 'From' and 'To' dates for the {\i previous full calendar quarter}.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Annual:\b0\  Sets the 'From' and 'To' dates for the {\i previous full financial year (May 1st - April 30th)}.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Custom:\b0\  Allows you to manually set any 'From' and 'To' date range.\par");
+            helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1 When you select a standard report type (Daily, Weekly, etc.), the 'From' and 'To' dates will adjust automatically based on the {\i current date}.\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"\b 2. Adjust Dates (Optional for 'Custom' Report Type):\b0\  \par");
+            helpMessageBuilder.AppendLine(@"You can manually change the \b Enter From Date\b0\ and \b Enter To Date\b0\ fields. If you modify these dates after selecting a standard report type, the \b Report Type\b0\ will automatically switch to \b Custom\b0.\par");
+            helpMessageBuilder.AppendLine(@"\b 3. Financial Year (If Applicable):\b0\  \par");
+            helpMessageBuilder.AppendLine(@"For \b Weekly\b0\ and \b Daily\b0\ reports (or if manually made visible for Custom), ensure the correct \b Financial Year\b0\ is selected from its dropdown. It usually defaults based on the current date.\par");
+            helpMessageBuilder.AppendLine(@"\b 4. Report Processing Options:\b0\  \par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Send to only Femi?:\b0\  (Checkbox, visible for non-Daily reports) Check this to restrict the email recipient list primarily to Femi (and relevant IT CCs depending on Debug/Release mode). Uncheck to send to the broader configured team for that report type.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Skip Sending Email:\b0\  (Checkbox) If checked, the application will generate and process the report but will skip the final step of sending the completion email. This is useful if you only need the files locally.\par");
+            helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
+            helpMessageBuilder.AppendLine(@"\b 5. Choose Your Processing Mode (via Options Menu):\b0\  \par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Standard 2-Button Mode (Default):\b0\  \par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'31\tab}i. Click the \b Create Report\b0\ button. This generates the raw data export from the reporting system. Wait for the status bar to indicate ""Report Created"".\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'32\tab}ii. Once the raw report is ready, the \b Create Analysis & Send Email\b0\ button becomes active. Click it to process the raw data, create the final analysis Excel file, and (if not skipped) email it to the configured recipients.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b 1-Click Processing Mode:\b0\  \par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'31\tab}i. Go to \b Options -> Enable 1-Click Processing\b0\ (a checkmark will appear next to it).\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'32\tab}ii. The two buttons will be replaced by a single button: \b Generate, Process & Email Report\b0\ . Clicking this button performs all steps sequentially: creates the raw report, processes it into the final analysis, and (if not skipped) emails it.\par");
+            helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
+            helpMessageBuilder.AppendLine(@"\b 6. Manual Excel Refresh (for Monthly, Quarterly, Annual, Custom reports):\b0\  \par");
+            helpMessageBuilder.AppendLine(@"For these report types, after the analysis file is generated (and before emailing), you will be prompted to:\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} Open the generated Excel file.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} {\i Enable Editing} if prompted by Excel.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} In the Excel file, navigate to the \b 'OrderPivot'\b0\ sheet. Right-click on each PivotTable and any Slicers present, then select \b 'Refresh'\b0\ from the context menu.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} Repeat this process for the \b 'Estimate Success PivotTable'\b0\ sheet (or similarly named sheet containing the main estimate success pivot).\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b SAVE\b0\ the Excel file.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b CLOSE\b0\ Excel.\par");
+            helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1 The application will wait for you to close Excel before proceeding to the email step (if not skipped).\par");
+            helpMessageBuilder.AppendLine(@"\par");
+            helpMessageBuilder.AppendLine(@"\b 7. View Generated Files (Optional):\b0\  \par");
+            helpMessageBuilder.AppendLine(@"After the relevant steps are completed, buttons may appear below the main action buttons:\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b View File\b0\ (below ""Create Report"" area): Opens the generated raw report Excel file.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b View File\b0\ (below ""Process & Email"" area): Opens the final processed analysis Excel file.\par");
+            helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
+            helpMessageBuilder.AppendLine(@"\b\fs22 Options Menu Explained\b0\fs20\par");
+            helpMessageBuilder.AppendLine(@"The \b Options\b0\ menu provides access to various settings and tools:\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Enable 1-Click Processing:\b0\  (Checkable) Toggles between the standard 2-button operation and the single 1-Click button for report generation and processing.\par");
+            helpMessageBuilder.AppendLine($@"    \pard\fi-360\li720{{\pntext\f1\'B7\tab}} \b Set Auto-Run Hour...:\b0\  Allows you to change the hour (0-23) at which the automated daily report task attempts to run. The current configured hour is approximately \b {_currentAutoRunHour}:00\b0 .\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Dark Mode:\b0\  (Checkable) Toggles the application's visual theme between light and dark mode.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b View Configuration:\b0\  Displays a summary of critical file paths and settings used by the application, and whether they are valid.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Validate Configuration:\b0\  Performs a quick check of essential configurations and updates the status bar with the result.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Manage Custom Bank Holidays:\b0\  Opens a window to add or remove custom one-off or recurring bank holidays that affect the 'previous working day' calculation for Daily reports.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Manage Email Recipients:\b0\  Opens a window to customize the To/CC email lists for different report types and scenarios (e.g., Daily Auto-Run, Femi-Only, Team reports).\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Open Logs Folder:\b0\  Opens the directory where the application stores its detailed log files. Useful for troubleshooting.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Edit appsettings.json:\b0\  Opens the main configuration file (`appsettings.json`) in your default text editor. {\i Use with extreme caution, as incorrect changes can break the application.}\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Exit:\b0\  Closes the application.\par");
+            helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
+            helpMessageBuilder.AppendLine(@"\b\fs22 Auto-Run Feature\b0\fs20\par");
+            helpMessageBuilder.AppendLine(@"Located on the left side of the main window, the \b Enable/Disable Daily Auto Run\b0\ button controls the automated daily report generation.\par");
+            helpMessageBuilder.AppendLine($@"    \pard\fi-360\li720{{\pntext\f1\'B7\tab}} \b Functionality:\b0\  When enabled, the application will check daily around the configured hour (e.g., {_currentAutoRunHour}:00). If the \b Daily\b0\ report for the {{\i previous working day}} (accounting for weekends and bank holidays) has not yet been run for the current calendar day, the system will automatically generate the raw report, process it into the analysis file, and email it to the configured 'AutoRun Daily' recipients.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Status:\b0\  The status of the Auto-Run feature (e.g., Enabled, Disabled, Running, Completed for today, Failed) is displayed on the right side of the status bar at the bottom of the window.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Configuration:\b0\  The hour for the auto-run check can be changed via \b Options -> Set Auto-Run Hour...\b0\ . The last successful run date is stored in `appsettings.json` to prevent duplicate runs on the same day.\par");
+            helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
+            helpMessageBuilder.AppendLine(@"\b\fs22 Automated Background Features\b0\fs20\par");
+            helpMessageBuilder.AppendLine(@"The application performs several tasks automatically:\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Folder Creation:\b0\  Automatically creates necessary subfolders for storing raw reports and final analysis files, organized by report type (Daily, Weekly, etc.) and date/month/year as appropriate.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Log Archiving:\b0\  On startup, old application log files are archived to a subfolder to keep the main log directory tidy.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Report Archiving:\b0\  On startup, older raw report export files/folders and final processed Excel files/folders (beyond a configurable number of days, typically 30) are moved to an 'Archived' subfolder within their respective base directories.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Power BI Sheet Update (Weekly Reports):\b0\  When processing a \b Weekly\b0\ report, data from the 'Analysis' sheet of the template is appended to a sheet named \b 'powerBI'\b0\ in the central Excel file. If this sheet doesn't exist, it's created using headers from the 'Analysis' sheet.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Bank Holiday Adjustments:\b0\  Calculations for the 'previous working day' (used for Daily reports and Auto-Run) automatically consider standard England/Wales bank holidays and any custom bank holidays you've defined via the Options menu.\par");
+            helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
+            helpMessageBuilder.AppendLine(@"\b\fs22 Troubleshooting Tips\b0\fs20\par");
+            helpMessageBuilder.AppendLine(@"If you encounter issues, consider the following:\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b ""Config Error"" Status:\b0\  This usually means a critical file path (like the Crystal Report file or the Wrapper EXE) is missing or incorrect. Use \b Options -> View Configuration\b0\ to check paths. Ensure all listed files/folders exist and are accessible.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Report Generation Fails:\b0\  \par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'31\tab}i. Ensure the Crystal Report Wrapper service (a background .exe process) is running. The application attempts to start it, but if it fails, report generation won't work. Check Task Manager for `CrystalReportWrapper.exe`.\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'32\tab}ii. Verify the Crystal Report file path in `appsettings.json` (via Options -> Edit appsettings.json) is correct and the `.rpt` file exists at that location.\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'33\tab}iii. Check application logs (\b Options -> Open Logs Folder\b0\ ) for specific error messages from the wrapper or pipe communication.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Excel Processing Fails:\b0\  \par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'31\tab}i. Ensure the Excel template files exist in the configured 'TEMPLATE' directory and are not corrupted.\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'32\tab}ii. Ensure the application has write permissions to the 'Raw Report Export' and 'Final Excel Save Location' directories.\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'33\tab}iii. For Weekly reports, ensure the central Power BI source Excel file is accessible and not locked by another user/process if data needs to be appended to the 'powerBI' sheet.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Email Sending Fails:\b0\  \par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'31\tab}i. Check SMTP settings in `appsettings.json` (server, port, credentials if used).\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'32\tab}ii. Ensure your network connection is active and allows SMTP traffic.\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'33\tab}iii. Verify email recipients are correctly configured via \b Options -> Manage Email Recipients\b0 .\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Auto-Run Not Working as Expected:\b0\  \par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'31\tab}i. Confirm it's enabled via the button and status bar.\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'32\tab}ii. Check the configured 'Auto-Run Hour' via \b Options -> Set Auto-Run Hour...\b0 .\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'33\tab}iii. Review `appsettings.json` for the `AutoReport:LastRunDate`. If it's today's date, it won't run again until tomorrow.\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f0\'34\tab}iv. Ensure the application has permissions to write to `appsettings.json` to update `LastRunDate`.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Excel Slicers/Pivot Tables Not Updating:\b0\  For reports requiring manual refresh (Monthly, Quarterly, etc.), you may need to manually refresh data. To do this, open the Excel file. In the \b 'OrderPivot'\b0\ sheet, right-click each PivotTable and any Slicers present, then select \b 'Refresh'\b0\ from the context menu. Repeat this process for the \b 'Estimate Success PivotTable'\b0\ sheet (or the similarly named sheet containing the main estimate success pivot table). After refreshing all necessary items, \b SAVE\b0\ and \b CLOSE\b0\ the Excel file.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Check Logs:\b0\  The most detailed error information is usually in the log files. Access them via \b Options -> Open Logs Folder\b0\ . Look for files corresponding to the date the error occurred.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab} \b Contact IT Support:\b0\  If problems persist, please contact IT support with details of the error message and steps taken.\par");
+            helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\par");
             helpMessageBuilder.AppendLine(@"Thank you for using the Quote Conversion Automation Tool!\par");
             helpMessageBuilder.AppendLine(@"}");
 
