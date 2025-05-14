@@ -1,7 +1,10 @@
 ﻿// C# 10+ Features
-using QuoteConversionReportAutomation.Helpers; // Assuming Logger is in this namespace
+using QuoteConversionReportAutomation.Helpers;
+using QuoteConversionReportAutomation.Managers; // Required to access UIManager
+using QuoteConversionReportAutomation.Services.Logging; // Assuming Logger is here
 using System.Data;
 using System.Globalization;
+
 
 namespace QuoteConversionReportAutomation
 {
@@ -9,21 +12,22 @@ namespace QuoteConversionReportAutomation
     /// Form to manage custom one-off and recurring bank holidays.
     /// Allows users to add, view, and remove custom bank holidays.
     /// Changes are persisted via BankHolidayHelper.
+    /// Title bar and basic form theme are applied via UIManager.
     /// </summary>
     public partial class ManageBankHolidaysForm : Form
     {
-        private bool _isDarkMode;
+        private readonly bool _isDarkMode; // Stores the theme state passed from the parent form
 
-        // Define theme colors (can be shared or passed if more complex theming is needed)
-        private static readonly Color DM_BackColor = Color.FromArgb(45, 45, 48);
-        private static readonly Color DM_ForeColor = Color.White;
+        // Theme Colors for child controls (consistent with UIManager's control/button colors)
+        // Form's direct BackColor/ForeColor will be set by UIManager.ApplyThemeToExternalForm
         private static readonly Color DM_ControlBackColor = Color.FromArgb(60, 60, 63);
         private static readonly Color DM_ButtonBackColor = Color.FromArgb(80, 80, 80);
+        private static readonly Color DM_ControlForeColor = Color.White; // General foreground for controls in dark mode
+        private static readonly Color DM_ListViewHeaderBackColor = Color.FromArgb(70, 70, 73); // Slightly different for ListView header
 
-        private static readonly Color LM_BackColor = SystemColors.Control;
-        private static readonly Color LM_ForeColor = SystemColors.ControlText;
         private static readonly Color LM_ControlBackColor = SystemColors.Window;
         private static readonly Color LM_ButtonBackColor = SystemColors.Control;
+        private static readonly Color LM_ControlForeColor = SystemColors.ControlText; // General foreground for controls in light mode
 
 
         /// <summary>
@@ -34,16 +38,27 @@ namespace QuoteConversionReportAutomation
         {
             InitializeComponent();
             _isDarkMode = isDarkMode;
-            Load += ManageBankHolidaysForm_Load;
+
+            this.ShowIcon = false;
+            this.StartPosition = FormStartPosition.CenterParent;
+            // The Load event handler is connected in the designer or can be added here if not:
+            // this.Load += ManageBankHolidaysForm_Load; 
         }
 
         /// <summary>
         /// Handles the Load event of the form.
-        /// Populates controls and loads existing custom bank holidays.
+        /// Applies the theme (including title bar via UIManager), populates controls, and loads existing custom bank holidays.
         /// </summary>
         private void ManageBankHolidaysForm_Load(object sender, EventArgs e)
         {
-            ApplyTheme();
+            Logger.LogInfo($"ManageBankHolidaysForm loading. Initial DarkMode state: {_isDarkMode}");
+
+            // Apply the overall form theme (title bar, main BackColor/ForeColor) using UIManager.
+            UIManager.ApplyThemeToExternalForm(this, _isDarkMode);
+
+            // Apply theme specifically to the child controls of this form.
+            ApplyChildControlTheme(_isDarkMode);
+
             PopulateMonthComboBox();
             LoadOneOffHolidays();
             LoadRecurringHolidays();
@@ -54,82 +69,168 @@ namespace QuoteConversionReportAutomation
                 cmbRecurringMonth.SelectedIndex = DateTime.Today.Month - 1; // Default to current month
             }
             dtpOneOffDate.Value = DateTime.Today; // Default to today for new one-off
+            Logger.LogInfo("ManageBankHolidaysForm loaded and themed.");
         }
 
         /// <summary>
-        /// Applies the current theme (dark or light) to the form and its controls.
+        /// Applies the current theme (dark or light) specifically to the child controls of this form.
+        /// The main form's BackColor, ForeColor, and title bar are handled by UIManager.ApplyThemeToExternalForm.
         /// </summary>
-        private void ApplyTheme()
+        private void ApplyChildControlTheme(bool isDarkModeEnabled)
         {
-            Color backColor = _isDarkMode ? DM_BackColor : LM_BackColor;
-            Color foreColor = _isDarkMode ? DM_ForeColor : LM_ForeColor;
-            Color controlBackColor = _isDarkMode ? DM_ControlBackColor : LM_ControlBackColor;
-            Color buttonBackColor = _isDarkMode ? DM_ButtonBackColor : LM_ButtonBackColor;
+            // Determine colors for child controls based on the theme
+            Color controlBackColor = isDarkModeEnabled ? DM_ControlBackColor : LM_ControlBackColor;
+            Color buttonBackColor = isDarkModeEnabled ? DM_ButtonBackColor : LM_ButtonBackColor;
+            Color controlForeColor = isDarkModeEnabled ? DM_ControlForeColor : LM_ControlForeColor;
+            // Form's direct BackColor and ForeColor are already set by UIManager.ApplyThemeToExternalForm
 
-            BackColor = backColor;
-            ForeColor = foreColor;
-
-            foreach (Control control in Controls)
-            {
-                ApplyThemeToControlRecursive(control, backColor, foreColor, controlBackColor, buttonBackColor);
-            }
+            // Apply to all controls recursively within this form
+            UpdateControlThemeRecursive(this, controlBackColor, buttonBackColor, controlForeColor, isDarkModeEnabled);
         }
 
         /// <summary>
-        /// Recursively applies theme colors to a control and its children.
+        /// Recursive helper to apply theme colors to child controls.
         /// </summary>
-        private void ApplyThemeToControlRecursive(Control parentControl, Color backColor, Color foreColor, Color controlBackColor, Color buttonBackColor)
+        private void UpdateControlThemeRecursive(Control parentControl, Color controlBackColor, Color buttonBackColor, Color controlForeColor, bool isDarkMode)
         {
-            parentControl.BackColor = backColor;
-            parentControl.ForeColor = foreColor;
-
-            if (parentControl is Button button)
+            // For the form itself, its BackColor/ForeColor is set by UIManager.ApplyThemeToExternalForm.
+            // For child controls, we apply specific theming.
+            if (parentControl != this) // Don't re-apply to the form itself here
             {
-                button.BackColor = buttonBackColor;
-                button.ForeColor = foreColor;
-                button.FlatStyle = FlatStyle.System; // Or FlatStyle.Flat for more custom look
-            }
-            else if (parentControl is TextBox || parentControl is ComboBox || parentControl is DateTimePicker || parentControl is NumericUpDown || parentControl is ListView)
-            {
-                parentControl.BackColor = controlBackColor;
-                parentControl.ForeColor = foreColor;
-                if (parentControl is ListView lv) // Specific for ListView
+                parentControl.ForeColor = controlForeColor; // Set ForeColor for most children
+                                                            // Background for containers like GroupBox or Panel should match the form's background
+                if (parentControl is GroupBox || parentControl is Panel || parentControl is TabControl || parentControl is TabPage)
                 {
-                    lv.OwnerDraw = _isDarkMode; // Enable owner draw for dark mode to handle selection colors better
-                    if (_isDarkMode)
+                    parentControl.BackColor = this.BackColor;
+                }
+                else if (!(parentControl is Button || parentControl is TextBox || parentControl is ComboBox ||
+                           parentControl is DateTimePicker || parentControl is NumericUpDown || parentControl is ListView ||
+                           parentControl is Label)) // Avoid re-coloring specific controls handled below
+                {
+                    // Fallback for other simple controls if any
+                    parentControl.BackColor = controlBackColor;
+                }
+            }
+
+
+            foreach (Control control in parentControl.Controls)
+            {
+                if (control is Button button)
+                {
+                    button.BackColor = buttonBackColor;
+                    button.ForeColor = controlForeColor;
+                    button.FlatStyle = FlatStyle.Flat;
+                    button.FlatAppearance.BorderColor = isDarkMode ? Color.DarkGray : SystemColors.ControlDarkDark;
+                    button.FlatAppearance.BorderSize = 1;
+                }
+                else if (control is TextBox tb)
+                {
+                    tb.BackColor = controlBackColor;
+                    tb.ForeColor = controlForeColor;
+                    tb.BorderStyle = isDarkMode ? BorderStyle.FixedSingle : BorderStyle.Fixed3D;
+                }
+                else if (control is ComboBox cb)
+                {
+                    cb.BackColor = controlBackColor;
+                    cb.ForeColor = controlForeColor;
+                    cb.FlatStyle = FlatStyle.Flat; // Or System for better OS consistency if preferred
+                }
+                else if (control is DateTimePicker dtp)
+                {
+                    dtp.BackColor = controlBackColor;
+                    dtp.ForeColor = controlForeColor;
+                    // Calendar theming (basic)
+                    dtp.CalendarMonthBackground = controlBackColor;
+                    dtp.CalendarForeColor = controlForeColor;
+                    dtp.CalendarTitleBackColor = isDarkMode ? DM_ButtonBackColor : LM_ButtonBackColor; // Use button color for title
+                    dtp.CalendarTitleForeColor = controlForeColor;
+                    dtp.CalendarTrailingForeColor = isDarkMode ? Color.Gray : SystemColors.GrayText;
+                }
+                else if (control is NumericUpDown nud)
+                {
+                    nud.BackColor = controlBackColor;
+                    nud.ForeColor = controlForeColor;
+                }
+                else if (control is ListView lv)
+                {
+                    lv.BackColor = controlBackColor;
+                    lv.ForeColor = controlForeColor;
+                    lv.OwnerDraw = isDarkMode; // Enable owner draw for dark mode for better selection/header
+                    if (isDarkMode)
                     {
-                        lv.DrawItem += ListView_DrawItem;
-                        lv.DrawSubItem += ListView_DrawSubItem;
-                        lv.DrawColumnHeader += ListView_DrawColumnHeader;
+                        // Remove existing handlers before adding to prevent duplicates if called multiple times
+                        lv.DrawItem -= ListView_DrawItem_Dark;
+                        lv.DrawSubItem -= ListView_DrawSubItem_Dark;
+                        lv.DrawColumnHeader -= ListView_DrawColumnHeader_Dark;
+                        // Add new handlers
+                        lv.DrawItem += ListView_DrawItem_Dark;
+                        lv.DrawSubItem += ListView_DrawSubItem_Dark;
+                        lv.DrawColumnHeader += ListView_DrawColumnHeader_Dark;
                     }
                     else
                     {
-                        lv.DrawItem -= ListView_DrawItem;
-                        lv.DrawSubItem -= ListView_DrawSubItem;
-                        lv.DrawColumnHeader -= ListView_DrawColumnHeader;
+                        // Remove dark mode handlers if they were attached
+                        lv.DrawItem -= ListView_DrawItem_Dark;
+                        lv.DrawSubItem -= ListView_DrawSubItem_Dark;
+                        lv.DrawColumnHeader -= ListView_DrawColumnHeader_Dark;
+                    }
+                    lv.BorderStyle = isDarkMode ? BorderStyle.FixedSingle : BorderStyle.Fixed3D;
+                }
+                else if (control is Label)
+                {
+                    control.BackColor = Color.Transparent;
+                    control.ForeColor = controlForeColor;
+                }
+                else if (control is GroupBox gb)
+                {
+                    gb.ForeColor = controlForeColor;
+                    gb.BackColor = this.BackColor;
+                    if (gb.Controls.Count > 0)
+                    {
+                        UpdateControlThemeRecursive(gb, controlBackColor, buttonBackColor, controlForeColor, isDarkMode);
                     }
                 }
-            }
-            else if (parentControl is GroupBox gb)
-            {
-                gb.ForeColor = foreColor; // GroupBox title color
-            }
-
-
-            foreach (Control childControl in parentControl.Controls)
-            {
-                ApplyThemeToControlRecursive(childControl, backColor, foreColor, controlBackColor, buttonBackColor);
+                else if (control is Panel || control is TabControl || control is TabPage)
+                {
+                    control.BackColor = this.BackColor;
+                    control.ForeColor = controlForeColor;
+                    if (control.Controls.Count > 0)
+                    {
+                        UpdateControlThemeRecursive(control, controlBackColor, buttonBackColor, controlForeColor, isDarkMode);
+                    }
+                }
+                // If there are other specific control types, add their theming here.
             }
         }
 
 
         #region ListView Owner Draw for Dark Mode
-        private void ListView_DrawColumnHeader(object? sender, DrawListViewColumnHeaderEventArgs e)
+        private void ListView_DrawColumnHeader_Dark(object? sender, DrawListViewColumnHeaderEventArgs e)
         {
-            if (_isDarkMode)
+            // Only apply custom drawing if in dark mode
+            if (_isDarkMode && sender is ListView lv)
             {
-                e.Graphics.FillRectangle(new SolidBrush(DM_ControlBackColor), e.Bounds);
-                TextRenderer.DrawText(e.Graphics, e.Header.Text, e.Font, e.Bounds, DM_ForeColor, TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
+                e.Graphics.FillRectangle(new SolidBrush(DM_ListViewHeaderBackColor), e.Bounds); // Use a specific dark header color
+                TextRenderer.DrawText(e.Graphics, e.Header.Text, e.Font, e.Bounds, DM_ControlForeColor, TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
+                // Optionally draw a border for the header
+                // e.Graphics.DrawRectangle(Pens.DarkGray, e.Bounds.X, e.Bounds.Y, e.Bounds.Width -1, e.Bounds.Height -1);
+            }
+            else
+            {
+                e.DrawDefault = true; // Let the system draw it for light mode
+            }
+        }
+
+        private void ListView_DrawItem_Dark(object? sender, DrawListViewItemEventArgs e)
+        {
+            // Only apply custom drawing if in dark mode
+            if (_isDarkMode && sender is ListView lv)
+            {
+                e.DrawBackground(); // This handles the selection background correctly based on system colors or OwnerDraw settings
+                                    // For dark mode, if you want a custom selection color not tied to system highlight, you'd fill it here.
+                                    // e.g., if (e.Item.Selected) e.Graphics.FillRectangle(new SolidBrush(Color.FromArgb(90,90,90)), e.Bounds);
+                                    // else e.Graphics.FillRectangle(new SolidBrush(DM_ControlBackColor), e.Bounds);
+                                    // Text is drawn by DrawSubItem
             }
             else
             {
@@ -137,33 +238,26 @@ namespace QuoteConversionReportAutomation
             }
         }
 
-        private void ListView_DrawItem(object? sender, DrawListViewItemEventArgs e)
+        private void ListView_DrawSubItem_Dark(object? sender, DrawListViewSubItemEventArgs e)
         {
-            if (_isDarkMode)
+            // Only apply custom drawing if in dark mode
+            if (_isDarkMode && sender is ListView lv)
             {
-                e.DrawBackground(); // Draws the background (selection or default)
-                // e.DrawText(); // Default text drawing might not use the right color for selected items
-            }
-            else
-            {
-                e.DrawDefault = true;
-            }
-        }
-
-        private void ListView_DrawSubItem(object? sender, DrawListViewSubItemEventArgs e)
-        {
-            if (_isDarkMode)
-            {
-                // If selected, use system highlight text color, otherwise use dark mode forecolor
-                Color textColor = e.Item.Selected ? SystemColors.HighlightText : DM_ForeColor;
+                Color textColor;
                 if (e.Item.Selected)
                 {
-                    e.Graphics.FillRectangle(SystemBrushes.Highlight, e.Bounds); // Use system highlight for selection background
+                    // For selected items, use a color that contrasts with the system highlight or your custom selection background.
+                    // SystemColors.HighlightText is usually a good choice.
+                    textColor = SystemColors.HighlightText;
+                    // The background for selected items is drawn by e.DrawBackground() in ListView_DrawItem
+                    // or you can fill it here if you want full control over selection color.
+                    // e.Graphics.FillRectangle(SystemBrushes.Highlight, e.Bounds); // If DrawBackground isn't doing what you want for selection
                 }
                 else
                 {
-                    // Use the ListView's dark background color
-                    e.Graphics.FillRectangle(new SolidBrush(DM_ControlBackColor), e.Bounds);
+                    textColor = DM_ControlForeColor; // Default dark mode text color
+                    // Fill background for non-selected items if not handled by DrawItem or if DrawItem's e.DrawBackground isn't desired
+                    // e.Graphics.FillRectangle(new SolidBrush(DM_ControlBackColor), e.Bounds); 
                 }
                 TextRenderer.DrawText(e.Graphics, e.SubItem.Text, e.SubItem.Font, e.Bounds, textColor, TextFormatFlags.VerticalCenter | TextFormatFlags.Left);
             }
@@ -227,7 +321,7 @@ namespace QuoteConversionReportAutomation
         {
             if (string.IsNullOrWhiteSpace(txtOneOffDescription.Text))
             {
-                MessageBox.Show("Please enter a description for the one-off holiday.", "Input Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                FlexibleMessageBox.Show(this, "Please enter a description for the one-off holiday.", "Input Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtOneOffDescription.Focus();
                 return;
             }
@@ -237,11 +331,10 @@ namespace QuoteConversionReportAutomation
             {
                 LoadOneOffHolidays(); // Refresh the list
                 txtOneOffDescription.Clear();
-                // Optionally, provide feedback to the user
             }
             else
             {
-                MessageBox.Show($"A custom one-off holiday for {selectedDate:yyyy-MM-dd} already exists.", "Duplicate Holiday", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                FlexibleMessageBox.Show(this, $"A custom one-off holiday for {selectedDate:yyyy-MM-dd} already exists.", "Duplicate Holiday", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
@@ -252,14 +345,14 @@ namespace QuoteConversionReportAutomation
         {
             if (lstOneOffHolidays.SelectedItems.Count == 0)
             {
-                MessageBox.Show("Please select a one-off holiday to remove.", "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                FlexibleMessageBox.Show(this, "Please select a one-off holiday to remove.", "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             ListViewItem selectedItem = lstOneOffHolidays.SelectedItems[0];
             if (selectedItem.Tag is DateTime holidayDate)
             {
-                if (MessageBox.Show($"Are you sure you want to remove the holiday on {holidayDate:yyyy-MM-dd} ({selectedItem.SubItems[1].Text})?",
+                if (FlexibleMessageBox.Show(this, $"Are you sure you want to remove the holiday on {holidayDate:yyyy-MM-dd} ({selectedItem.SubItems[1].Text})?",
                                      "Confirm Removal", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                 {
                     if (BankHolidayHelper.RemoveCustomOneOffHoliday(holidayDate))
@@ -277,13 +370,13 @@ namespace QuoteConversionReportAutomation
         {
             if (cmbRecurringMonth.SelectedItem == null)
             {
-                MessageBox.Show("Please select a month for the recurring holiday.", "Input Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                FlexibleMessageBox.Show(this, "Please select a month for the recurring holiday.", "Input Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 cmbRecurringMonth.Focus();
                 return;
             }
             if (string.IsNullOrWhiteSpace(txtRecurringDescription.Text))
             {
-                MessageBox.Show("Please enter a description for the recurring holiday.", "Input Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                FlexibleMessageBox.Show(this, "Please enter a description for the recurring holiday.", "Input Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 txtRecurringDescription.Focus();
                 return;
             }
@@ -295,11 +388,10 @@ namespace QuoteConversionReportAutomation
             {
                 LoadRecurringHolidays(); // Refresh the list
                 txtRecurringDescription.Clear();
-                // Optionally, provide feedback to the user
             }
             else
             {
-                MessageBox.Show($"A custom recurring holiday for Day {day}, Month {month} already exists.", "Duplicate Holiday", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                FlexibleMessageBox.Show(this, $"A custom recurring holiday for Day {day}, Month {month} already exists.", "Duplicate Holiday", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
@@ -310,14 +402,14 @@ namespace QuoteConversionReportAutomation
         {
             if (lstRecurringHolidays.SelectedItems.Count == 0)
             {
-                MessageBox.Show("Please select a recurring holiday to remove.", "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                FlexibleMessageBox.Show(this, "Please select a recurring holiday to remove.", "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             ListViewItem selectedItem = lstRecurringHolidays.SelectedItems[0];
             if (selectedItem.Tag is RecurringHolidayEntry holidayEntry)
             {
-                if (MessageBox.Show($"Are you sure you want to remove the recurring holiday: {holidayEntry.Day} {CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(holidayEntry.Month)} ({holidayEntry.Description})?",
+                if (FlexibleMessageBox.Show(this, $"Are you sure you want to remove the recurring holiday: {holidayEntry.Day} {CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(holidayEntry.Month)} ({holidayEntry.Description})?",
                                     "Confirm Removal", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                 {
                     if (BankHolidayHelper.RemoveCustomRecurringHoliday(holidayEntry.Day, holidayEntry.Month))

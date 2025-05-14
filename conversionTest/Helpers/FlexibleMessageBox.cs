@@ -1,5 +1,9 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
+using System.Drawing;
 using System.Globalization;
+using System.Linq;
+using System.Windows.Forms;
 
 namespace QuoteConversionReportAutomation.Helpers
 {
@@ -212,7 +216,7 @@ namespace QuoteConversionReportAutomation.Helpers
             // Do not modify it manually, as changes might be overwritten.
             // Use the designer view in Visual Studio to modify the form's layout.
 
-            private readonly System.ComponentModel.IContainer? components = null;
+            private System.ComponentModel.IContainer components = null;
             private Button button1;
             private RichTextBox richTextBoxMessage;
             private Panel panelButtons; // Renamed for clarity
@@ -382,7 +386,7 @@ namespace QuoteConversionReportAutomation.Helpers
             private enum LanguageID { en, de, es, it }
 
             // Store button texts in a dictionary for easier lookup
-            private static readonly Dictionary<LanguageID, string[]> ButtonTexts = new()
+            private static readonly Dictionary<LanguageID, string[]> ButtonTexts = new Dictionary<LanguageID, string[]>
             {
                 { LanguageID.en, new[] { "OK", "Cancel", "&Yes", "&No", "&Abort", "&Retry", "&Ignore" } }, // Fallback
                 { LanguageID.de, new[] { "OK", "Abbrechen", "&Ja", "&Nein", "&Abbrechen", "&Wiederholen", "&Ignorieren" } },
@@ -792,47 +796,49 @@ namespace QuoteConversionReportAutomation.Helpers
             internal static DialogResult Show(IWin32Window? owner, string textOrRtf, string caption, MessageBoxButtons buttons, MessageBoxIcon icon, MessageBoxDefaultButton defaultButton, bool isRtf)
             {
                 // Using statement ensures the form is disposed even if exceptions occur
-                using var form = new FlexibleMessageBoxForm();
-                form._isRtf = isRtf;
-                form._defaultButton = defaultButton;
-
-                // Set base properties
-                form.Text = caption ?? string.Empty; // Use empty string if caption is null
-                form.Font = FONT; // Use the static font property
-
-                // Set message content (must be done before sizing)
-                form.richTextBoxMessage.Font = form.Font; // Ensure RichTextBox uses the correct font
-                if (isRtf)
+                using (var form = new FlexibleMessageBoxForm())
                 {
-                    try
+                    form._isRtf = isRtf;
+                    form._defaultButton = defaultButton;
+
+                    // Set base properties
+                    form.Text = caption ?? string.Empty; // Use empty string if caption is null
+                    form.Font = FONT; // Use the static font property
+
+                    // Set message content (must be done before sizing)
+                    form.richTextBoxMessage.Font = form.Font; // Ensure RichTextBox uses the correct font
+                    if (isRtf)
                     {
-                        form.richTextBoxMessage.Rtf = textOrRtf;
+                        try
+                        {
+                            form.richTextBoxMessage.Rtf = textOrRtf;
+                        }
+                        catch (ArgumentException ex)
+                        {
+                            // Handle invalid RTF - show as plain text instead
+                            Debug.WriteLine($"Invalid RTF format: {ex.Message}. Displaying as plain text.");
+                            form.richTextBoxMessage.Text = textOrRtf;
+                            form._isRtf = false; // Treat as plain text now
+                        }
                     }
-                    catch (ArgumentException ex)
+                    else
                     {
-                        // Handle invalid RTF - show as plain text instead
-                        Debug.WriteLine($"Invalid RTF format: {ex.Message}. Displaying as plain text.");
                         form.richTextBoxMessage.Text = textOrRtf;
-                        form._isRtf = false; // Treat as plain text now
                     }
+
+                    // Configure UI elements (order matters for layout calculations)
+                    form.SetDialogIcon(icon);
+                    form.SetDialogButtons(buttons); // Sets button visibility, text, and CancelButton
+
+                    // Calculate and set size *after* content and buttons are set
+                    form.SetDialogSizes(icon);
+
+                    // Set position *after* size is determined
+                    SetDialogStartPosition(form, owner);
+
+                    // Show the dialog modally
+                    return form.ShowDialog(owner);
                 }
-                else
-                {
-                    form.richTextBoxMessage.Text = textOrRtf;
-                }
-
-                // Configure UI elements (order matters for layout calculations)
-                form.SetDialogIcon(icon);
-                form.SetDialogButtons(buttons); // Sets button visibility, text, and CancelButton
-
-                // Calculate and set size *after* content and buttons are set
-                form.SetDialogSizes(icon);
-
-                // Set position *after* size is determined
-                SetDialogStartPosition(form, owner);
-
-                // Show the dialog modally
-                return form.ShowDialog(owner);
             }
             #endregion
 

@@ -6,6 +6,17 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ## ChangeLog
 
+## [1.8.1] - 2025-05-14
+
+### Changed
+- **Theming**: Modified so Title bar is now in the correct theme mode, also made menu bar and status strip different colours to help them stand out.
+- **HelpForm**: RTF container now follows theme.
+
+### Fixed
+- Ensured UI Controls are set to the correct theme colours.
+
+---
+
 ## [1.8.0] - 2025-05-12
 
 ### Changed

@@ -1,10 +1,12 @@
 ﻿// C# 10 File-Scoped Namespace
 namespace QuoteConversionReportAutomation.Helpers; // Or a more general namespace like YourProject.Security
 
+using conversionTest;
 using QuoteConversionReportAutomation.Services.Logging;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows.Forms; // Required for MessageBox

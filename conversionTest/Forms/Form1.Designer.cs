@@ -139,7 +139,6 @@ namespace conversionTest
             processEmailButton.TabIndex = 6;
             processEmailButton.Text = "Create Analysis &\r\nSend Email";
             toolTip1.SetToolTip(processEmailButton, "Click to process the generated raw report, create the final analysis, and email it.");
-            processEmailButton.UseMnemonic = false;
             processEmailButton.UseVisualStyleBackColor = true;
             processEmailButton.Click += processEmailButton_Click;
             // 
