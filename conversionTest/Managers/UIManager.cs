@@ -533,7 +533,6 @@ namespace QuoteConversionReportAutomation.Managers
                 {
                     Logger.LogDebug($"ApplyThemeToExternalForm: Temporarily changing FormBorderStyle for '{formToTheme.Name}'. Original: {originalBorderStyle}");
                     formToTheme.FormBorderStyle = FormBorderStyle.None;
-                    // Application.DoEvents(); // Generally avoid. If flicker is an issue, consider other ways or accept minor delay.
                     formToTheme.FormBorderStyle = originalBorderStyle;
                     Logger.LogDebug($"ApplyThemeToExternalForm: FormBorderStyle for '{formToTheme.Name}' restored to {originalBorderStyle}.");
                 }
