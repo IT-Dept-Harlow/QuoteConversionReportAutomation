@@ -6,6 +6,122 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ## ChangeLog
 
+## [1.8.8] - 2025-05-20
+
+### Added
+- **Configurable Email Greetings via UI**:
+    - Introduced a new "Manage Email Greetings" option under the "Options" menu in `Form1.cs`.
+    - This opens a new `ManageGreetingsForm.cs` which allows users to:
+        - View and edit greetings for all email scenarios (Automated Standard Daily, Manual Standard Daily, Automated 5-Day Report, Manual Femi-Only, Manual Team, and Debug Default).
+        - Save custom greetings. User-defined greetings are stored in `user_greeting_settings.json` in the user's `AppData\Roaming\HarlowSolutions\QuoteConversionReportAutomation` directory.
+        - Restore all greetings to application defaults (from `appsettings.json`) by clearing user overrides.
+    - Created `GreetingManager.cs` to handle the logic of loading default greetings from `appsettings.json`, loading user-defined overrides, saving overrides, and providing the effective greeting for any given context.
+    - Added `UserGreetingSettings.cs` model to represent the structure of user-defined greeting overrides.
+
+### Changed
+- **Email Greeting Logic (`Form1.cs`, `AutoRunManager.cs`)**:
+    - Both `Form1.cs` (for manual reports) and `AutoRunManager.cs` (for automated reports) now utilize the new `GreetingManager` to fetch email greetings. This ensures that greetings respect `appsettings.json` defaults and any user-configured overrides.
+- **Configuration (`appsettings.json`)**:
+    - Email greetings have been reorganized and grouped under `EmailGreetings` sub-objects within the `settings:ProductionEmails` and `settings:DebugEmails` sections for improved clarity and structure.
+- **UI Conditional Visibility**:
+    - In `ManageEmailRecipientsForm.cs`, the UI fields related to Debug email recipients are now hidden if the application is not running in a DEBUG build configuration.
+    - Similarly, in the new `ManageGreetingsForm.cs`, the UI field for the "Debug Default Greeting" is hidden if not in a DEBUG build.
+- **Application Version**: Incremented to `1.8.8` in `Form1.cs`.
+
+### Fixed
+- **Compile Error in `AutoRunManager.cs`**: Resolved a `CS0103` error where `ProdEmailGreetingsSectionKey` was referenced out of context after the introduction of `GreetingManager`. The `GreetingManager` now fully encapsulates the logic for retrieving greeting strings, including their paths in `appsettings.json`.
+- **Ambiguity Error in `ManageEmailRecipientsForm.cs`**: Removed redundant private field declarations for UI controls that were already defined in the `ManageEmailRecipientsForm.Designer.cs` file, resolving compiler ambiguity errors.
+
+---
+
+## [1.8.7] - 2025-05-20 
+
+### Added
+- **Configurable Manual Standard Daily Email Recipients**:
+    - Users can now configure specific 'To' and 'CC' recipients for manually run Standard Daily reports separately from automated daily reports.
+    - Added new fields ("Manual Std. Daily TO:", "Manual Std. Daily CC:") to the `ManageEmailRecipientsForm.cs` UI.
+    - Corresponding settings (`ManualRunDailyTo`, `ManualRunDailyCC`) added to `settings:ProductionEmails` in `appsettings.json` to store defaults.
+    - `UserEmailSettings.cs` model updated with `ProdManualRunDailyTo` and `ProdManualRunDailyCC` properties.
+- **Menu Item for Greeting Management**: Added "Manage Email Greetings" to the Options menu in `Form1.Designer.cs` (handler implemented in `Form1.cs`).
+
+### Changed
+- **Email Recipient Logic (`EmailRecipientManager.cs`)**:
+    - `GetRecipients` method updated to strictly use debug recipients (`DebugEmails:To`, `CC1`, `CC2`) for *all* report types and contexts (manual or automated) when in `DEBUG` build mode.
+    - In `RELEASE` mode, for manually run Standard Daily reports (`DailyReportIndex`), recipients are now fetched from the new `ProdManualRunDailyTo` and `ProdManualRunDailyCC` configurations.
+- **Email Greeting Logic (`Form1.cs`)**:
+    - The email greeting for manually run Standard Daily reports in `RELEASE` mode is now fetched from a configurable key (`settings:ProductionEmails:EmailGreetings:ManualStdDaily`) via `GreetingManager`.
+- **UI Labels (`Form1.cs`)**: Updated `emailRecipientLabel` text for "Daily" report type to reflect configurable lists.
+- **Application Version**: Incremented to `1.8.7`.
+
+### Fixed
+- **ComboBox Text Matching**: Corrected `GetSelectedReportTypeIndex` in `Form1.cs` to match exact ComboBox item text (e.g., "Daily" instead of "Daily Report").
+
+---
+
+## [1.8.5] - 2025-05-20 
+
+### Changed
+- **Data Processing (`ExcelCopyData.cs`)**:
+    - Ensured intensive filtering operations in `FilterDataSheetAsync` and `FilterAnalysisSheetForZeroEstimatesAsync` (specifically for "Daily (5days >= £1000)" report) are explicitly run on background threads using `Task.Run` to prevent UI hanging.
+    - Corrected formula propagation in `ExtractUniqueCustomersAsync` to ensure relative formulas in template columns (like B and C) are correctly copied and adjusted for new rows, rather than being overwritten or cleared prematurely.
+- **Application Version**: Incremented to `1.8.5`.
+
+### Fixed
+- **UI Hanging**: Addressed UI hanging during "Daily (5days >= £1000)" report generation by ensuring filtering loops in `ExcelCopyData.cs` run on background threads.
+- **Excel Formula Propagation**: Corrected logic in `ExcelCopyData.cs` to properly copy and adjust relative formulas from the template's "Analysis" sheet to new rows, particularly for columns B and C.
+- **Stack Overflow**: Fixed a stack overflow error during form theming (especially `HelpForm`) by correcting recursive calls in `UIManager.cs`. The instance `ApplyTheme` method now correctly handles its own form's title bar theming without incorrectly calling the static `ApplyThemeToExternalForm` on itself.
+
+---
+
+## [1.8.4] - 2025-05-20
+
+### Added
+- **New Report Type**: "Daily (5days >= £1000)" report option added.
+    - Generates a report covering the previous five working days, accounting for weekends and bank holidays.
+    - After initial raw data copy to the "DATA" sheet, it filters this sheet in-place to retain only rows where 'Net Value' (Column H) is £1000 or greater.
+    - The "Analysis" sheet is then populated with unique customers derived from this filtered data.
+- **Configurable Auto-Run Reports**:
+    - New "Options" sub-menu ("Configure Auto-Run Reports") added to `Form1.cs`.
+    - Provides checkable sub-menu items to individually enable/disable:
+        - "Enable Standard Daily Auto Report"
+        - "Enable Daily (5days >= £1000) Auto Report"
+    - These toggle settings are saved to and loaded from `appsettings.json` (`AutoReport:EnableStandardDailyAutoReport` and `AutoReport:EnableDaily5Day1kAutoReport`).
+- **Email Configuration for New Report**:
+    - Added specific, configurable email recipients (To/CC) for the automated "Daily (5days >= £1000)" report.
+    - `ManageEmailRecipientsForm.cs` updated with new UI fields to allow user configuration of these recipient lists.
+    - Initial default "To" for this automated report set to `chrisp@harlowsolutions.co.uk`.
+
+### Changed
+- **Auto-Run Logic (`AutoRunManager.cs`)**:
+    - Modified to attempt running both the standard daily report and the new "Daily (5days >= £1000)" report during the auto-run cycle, provided each is enabled via its respective setting in `appsettings.json`.
+    - Each automated report now uses its own specifically configured recipient list.
+- **Data Processing (`ExcelCopyData.cs`)**:
+    - Filtering logic for the "Daily (5days >= £1000)" report now occurs by:
+        1. Performing a full copy of the 5-day raw data to the "DATA" sheet.
+        2. Filtering the "DATA" sheet *in-place* by deleting rows where Net Value (Column H) is less than £1000.
+        3. Proceeding with unique customer extraction for the "Analysis" sheet based on the filtered "DATA" sheet.
+    - Ensured intensive filtering operations in `FilterDataSheetAsync` and `FilterAnalysisSheetForZeroEstimatesAsync` are explicitly run on background threads using `Task.Run` to prevent UI hanging.
+    - Corrected formula propagation in `ExtractUniqueCustomersAsync` to ensure relative formulas in template columns (like B and C) are correctly copied and adjusted for new rows, rather than being overwritten or cleared prematurely.
+- **Email Recipient Management (`EmailRecipientManager.cs`)**:
+    - The `GetRecipients` method now includes an `isAutoRunContext` parameter to correctly select recipients for manual vs. automated report runs.
+    - `Form1.cs` updated to call `GetRecipients` with `isAutoRunContext: false` for manually triggered reports.
+- **Configuration (`appsettings.json`)**:
+    - Added `EnableStandardDailyAutoReport: true` and `EnableDaily5Day1kAutoReport: true` under the `AutoReport` section.
+    - Added `AutoRunDaily5Day1kTo` and `AutoRunDaily5Day1kCC` lists under `settings.ProductionEmails`.
+- **Help Text (`Form1.cs`)**: Updated to describe the new "Configure Auto-Run Reports" menu and the behavior of the "Daily (5days >= £1000)" report.
+- **Application Version**: Incremented to `1.8.4`.
+
+### Fixed
+- **UI Hanging**: Addressed UI hanging during "Daily (5days >= £1000)" report generation by ensuring filtering loops in `ExcelCopyData.cs` run on background threads.
+- **Excel Formula Propagation**: Corrected logic in `ExcelCopyData.cs` to properly copy and adjust relative formulas from the template's "Analysis" sheet to new rows, particularly for columns B and C.
+- **`ExcelCopyData.cs`**:
+    - Corrected the arguments for the `DeleteRow` method in the EPPlus library to prevent errors.
+    - Resolved a scope issue related to `ExcelTemplateBaseDir` when checking for monthly templates during pivot table refresh logic for custom reports; now uses `templateFilePathUsed` passed down to `ProcessPostCopyOperationsAsync`.
+- **UI**: Ensured `GetSelectedReportTypeIndex` in `Form1.cs` uses case-insensitive matching for robustness and handles various ComboBox states correctly.
+- **Stack Overflow**: Fixed a stack overflow error during form theming (especially `HelpForm`) by correcting recursive calls in `UIManager.cs`. The instance `ApplyTheme` method now correctly handles its own form's title bar theming without incorrectly calling the static `ApplyThemeToExternalForm` on itself.
+
+---
+
 ## [1.8.1] - 2025-05-14
 
 ### Changed

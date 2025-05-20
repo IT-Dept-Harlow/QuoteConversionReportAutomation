@@ -1,4 +1,5 @@
-﻿// C# 10+ Features
+﻿// ReportHelper.cs
+// C# 10+ Features
 // Ensure this namespace matches your project structure
 namespace QuoteConversionReportAutomation.Helpers
 {
@@ -17,6 +18,7 @@ namespace QuoteConversionReportAutomation.Helpers
     /// string formatting, and basic file/process operations used across the application.
     /// GetPreviousWorkday now considers bank holidays.
     /// GetFinancialYearDates calculates financial year start and end dates (defaulting to May-April).
+    /// Added GetNthPreviousWorkday for calculating a date N working days prior.
     /// </summary>
     public static class ReportHelper
     {
@@ -36,7 +38,6 @@ namespace QuoteConversionReportAutomation.Helpers
         {
             Logger.LogTrace($"ReportHelper.GetFinancialYearDates: Calculating for FY starting in {financialYearStartYear}, month {startMonth}, day {startDay}");
             DateTime dateFrom = new DateTime(financialYearStartYear, startMonth, startDay);
-            // The end date is one day before the start of the next financial year.
             DateTime dateTo = new DateTime(financialYearStartYear + 1, startMonth, startDay).AddDays(-1);
             Logger.LogDebug($"ReportHelper.GetFinancialYearDates: Calculated FY (starting {startMonth}/{startDay}) {financialYearStartYear}-{financialYearStartYear + 1} as {dateFrom:yyyy-MM-dd} to {dateTo:yyyy-MM-dd}");
             return (dateFrom, dateTo);
@@ -56,29 +57,68 @@ namespace QuoteConversionReportAutomation.Helpers
 
             while (true)
             {
+                // Check for Saturday
                 if (previousDay.DayOfWeek == DayOfWeek.Saturday)
                 {
                     Logger.LogTrace($"ReportHelper.GetPreviousWorkday: {previousDay:yyyy-MM-dd} is Saturday, moving to Friday.");
-                    previousDay = previousDay.AddDays(-1);
+                    previousDay = previousDay.AddDays(-1); // Move to Friday
                 }
+                // Check for Sunday
                 else if (previousDay.DayOfWeek == DayOfWeek.Sunday)
                 {
                     Logger.LogTrace($"ReportHelper.GetPreviousWorkday: {previousDay:yyyy-MM-dd} is Sunday, moving to Friday.");
-                    previousDay = previousDay.AddDays(-2);
+                    previousDay = previousDay.AddDays(-2); // Move to Friday (from Sunday)
                 }
 
+                // Check if the current 'previousDay' is a bank holiday
                 if (!BankHolidayHelper.IsBankHoliday(previousDay))
                 {
-                    Logger.LogInfo($"ReportHelper.GetPreviousWorkday: Previous workday for {currentDate:yyyy-MM-dd} is {previousDay:yyyy-MM-dd}.");
+                    // If it's not a weekend (already handled) and not a bank holiday, it's a working day.
+                    Logger.LogDebug($"ReportHelper.GetPreviousWorkday: Previous workday for {currentDate:yyyy-MM-dd} is {previousDay:yyyy-MM-dd}.");
                     return previousDay;
                 }
                 else
                 {
+                    // If it's a bank holiday, log it and subtract another day to check again.
                     Logger.LogTrace($"ReportHelper.GetPreviousWorkday: {previousDay:yyyy-MM-dd} is a bank holiday. Checking day before.");
                     previousDay = previousDay.AddDays(-1);
                 }
             }
         }
+
+        /// <summary>
+        /// Calculates the Nth previous working day from a given date, skipping weekends and bank holidays.
+        /// </summary>
+        /// <param name="currentDate">The date to calculate from (usually Today).</param>
+        /// <param name="n">The number of working days to go back (e.g., 5 for the 5th previous working day).</param>
+        /// <returns>The DateTime representing the Nth previous workday.</returns>
+        public static DateTime GetNthPreviousWorkday(DateTime currentDate, int n)
+        {
+            if (n <= 0)
+            {
+                Logger.LogWarning($"GetNthPreviousWorkday called with n <= 0 ({n}). Returning currentDate.");
+                // Consider if throwing ArgumentOutOfRangeException is more appropriate if n must be positive.
+                // For now, returning currentDate if n is not positive, to avoid infinite loops or unexpected behavior.
+                return currentDate;
+            }
+
+            Logger.LogTrace($"ReportHelper.GetNthPreviousWorkday: Calculating {n}th previous workday for {currentDate:yyyy-MM-dd}");
+            DateTime resultDate = currentDate;
+            int workdaysFound = 0;
+
+            // Loop until n previous workdays are found.
+            // It's safer to count down n or count up workdaysFound rather than modifying resultDate directly in the loop condition.
+            while (workdaysFound < n)
+            {
+                resultDate = GetPreviousWorkday(resultDate); // Get the immediate previous workday
+                workdaysFound++;
+                Logger.LogTrace($"ReportHelper.GetNthPreviousWorkday: Step {workdaysFound}, current resultDate: {resultDate:yyyy-MM-dd}");
+            }
+
+            Logger.LogInfo($"ReportHelper.GetNthPreviousWorkday: {n}th previous workday for {currentDate:yyyy-MM-dd} is {resultDate:yyyy-MM-dd}.");
+            return resultDate;
+        }
+
 
         /// <summary>
         /// Calculates the date range for the Monthly report type, returning the *previous* full month.
@@ -87,10 +127,9 @@ namespace QuoteConversionReportAutomation.Helpers
         /// <returns>A tuple containing the start date (DateFrom) and end date (DateTo) for the previous month.</returns>
         public static (DateTime DateFrom, DateTime DateTo) CalculateMonthlyRange(DateTime referenceDate)
         {
-            // Corrected logic: Always returns the previous full month.
             DateTime firstDayOfCurrentMonth = new(referenceDate.Year, referenceDate.Month, 1);
-            DateTime dateTo = firstDayOfCurrentMonth.AddDays(-1); // Last day of previous month
-            DateTime dateFrom = dateTo.AddDays(1).AddMonths(-1); // First day of previous month
+            DateTime dateTo = firstDayOfCurrentMonth.AddDays(-1);
+            DateTime dateFrom = dateTo.AddDays(1).AddMonths(-1);
 
             Logger.LogDebug($"ReportHelper.CalculateMonthlyRange for {referenceDate:yyyy-MM-dd}: From {dateFrom:yyyy-MM-dd} To {dateTo:yyyy-MM-dd}");
             return (dateFrom, dateTo);
@@ -105,8 +144,8 @@ namespace QuoteConversionReportAutomation.Helpers
         {
             int currentQuarter = (referenceDate.Month - 1) / 3 + 1;
             DateTime firstDayOfCurrentQuarter = new(referenceDate.Year, (currentQuarter - 1) * 3 + 1, 1);
-            DateTime dateTo = firstDayOfCurrentQuarter.AddDays(-1); // Last day of previous quarter
-            DateTime dateFrom = firstDayOfCurrentQuarter.AddMonths(-3); // First day of previous quarter
+            DateTime dateTo = firstDayOfCurrentQuarter.AddDays(-1);
+            DateTime dateFrom = firstDayOfCurrentQuarter.AddMonths(-3);
             Logger.LogDebug($"ReportHelper.CalculateQuarterlyRange for {referenceDate:yyyy-MM-dd}: From {dateFrom:yyyy-MM-dd} To {dateTo:yyyy-MM-dd}");
             return (dateFrom, dateTo);
         }
@@ -214,15 +253,15 @@ namespace QuoteConversionReportAutomation.Helpers
             Logger.LogInfo($"Found {processes.Length} '{processName}' processes. Attempting to terminate...");
             foreach (var process in processes)
             {
-                using (process) // Ensure process resources are disposed
+                using (process)
                 {
                     try
                     {
                         if (!process.HasExited)
                         {
                             Logger.LogInfo($"Attempting to terminate '{processName}' process ID: {process.Id} (MainWindowTitle: '{process.MainWindowTitle}')");
-                            process.Kill(true); // Attempt to kill the entire process tree
-                            if (process.WaitForExit(5000)) // Wait up to 5 seconds
+                            process.Kill(true);
+                            if (process.WaitForExit(5000))
                                 Logger.LogInfo($"Successfully terminated '{processName}' process ID: {process.Id}");
                             else
                                 Logger.LogWarning($"'{processName}' process ID: {process.Id} did not terminate within 5 seconds after Kill.");
@@ -230,7 +269,6 @@ namespace QuoteConversionReportAutomation.Helpers
                     }
                     catch (InvalidOperationException ex) when (ex.Message.Contains("Process has exited") || ex.Message.Contains("No process is associated"))
                     {
-                        // These exceptions can occur if the process exits between the HasExited check and Kill/WaitForExit
                         Logger.LogInfo($"'{processName}' process ID: {process.Id} likely already exited or no longer accessible.");
                     }
                     catch (System.ComponentModel.Win32Exception ex) when ((uint)ex.ErrorCode == 0x80004005 && ex.NativeErrorCode == 5) // Access is denied

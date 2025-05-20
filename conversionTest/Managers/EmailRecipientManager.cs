@@ -1,7 +1,9 @@
-﻿namespace QuoteConversionReportAutomation.Managers
+﻿// EmailRecipientManager.cs
+// Ensure this namespace matches your project structure
+namespace QuoteConversionReportAutomation.Managers
 {
     using Microsoft.Extensions.Configuration;
-    using QuoteConversionReportAutomation.Helpers;
+    using QuoteConversionReportAutomation.Helpers; // For EmailUtility if IsValidEmail is there
     using QuoteConversionReportAutomation.Models;
     using QuoteConversionReportAutomation.Services.Logging;
     using System;
@@ -13,6 +15,7 @@
     /// <summary>
     /// Manages loading, saving, and providing email recipient lists,
     /// considering both application defaults and user-defined overrides.
+    /// Handles different recipient lists for various report types and run contexts (manual/auto, debug/release).
     /// </summary>
     public class EmailRecipientManager
     {
@@ -21,13 +24,23 @@
         private readonly string _userSettingsFilePath;
         private static readonly object _fileLock = new object();
 
+        // --- Report Type Indices (Must match Form1.cs) ---
+        private const int DailyReportIndex = 0;
+        private const int NewDailyReportOver1kIndex = 1; // "Daily (5days >= £1000)"
+        // Other indices (Weekly, Monthly, etc.) are implicitly handled by the logic for non-specific daily types.
+
         // Constants for configuration keys from appsettings.json
         private const string ProdAutoRunDailyToKey = "settings:ProductionEmails:AutoRunDailyTo";
         private const string ProdAutoRunDailyCCKey = "settings:ProductionEmails:AutoRunDailyCC";
+        
+        // New keys for the "Daily (5days >= £1000)" automated report
+        private const string ProdAutoRunDaily5Day1kToKey = "settings:ProductionEmails:AutoRunDaily5Day1kTo";
+        private const string ProdAutoRunDaily5Day1kCCKey = "settings:ProductionEmails:AutoRunDaily5Day1kCC";
+
         private const string ProdFemiToKey = "settings:ProductionEmails:FemiTo";
         private const string ProdFemiCCKey = "settings:ProductionEmails:FemiCC";
-        private const string ProdTeamToKey = "settings:ProductionEmails:TeamTo"; // Array
-        private const string ProdTeamCCKey = "settings:ProductionEmails:TeamCC"; // Array
+        private const string ProdTeamToKey = "settings:ProductionEmails:TeamTo"; 
+        private const string ProdTeamCCKey = "settings:ProductionEmails:TeamCC"; 
         private const string DebugToKey = "settings:DebugEmails:To";
         private const string DebugCC1Key = "settings:DebugEmails:CC1";
         private const string DebugCC2Key = "settings:DebugEmails:CC2";
@@ -41,10 +54,9 @@
         {
             _appConfiguration = appConfiguration ?? throw new ArgumentNullException(nameof(appConfiguration));
 
-            // Define path for user-specific settings
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string companyFolder = "HarlowSolutions";
-            string appFolder = "QuoteConversionReportAutomation";
+            string companyFolder = "HarlowSolutions"; // Consistent with your company/solution name
+            string appFolder = "QuoteConversionReportAutomation"; // Specific application folder
             _userSettingsFilePath = Path.Combine(appDataPath, companyFolder, appFolder, "user_email_settings.json");
 
             _userOverrides = LoadUserOverrides();
@@ -72,6 +84,15 @@
                         if (settings != null)
                         {
                             Logger.LogInfo("Successfully loaded user email overrides.");
+                            // Ensure lists are not null after deserialization
+                            settings.ProdAutoRunDailyTo ??= new List<string>();
+                            settings.ProdAutoRunDailyCC ??= new List<string>();
+                            settings.ProdAutoRunDaily5Day1kTo ??= new List<string>();
+                            settings.ProdAutoRunDaily5Day1kCC ??= new List<string>();
+                            settings.ProdFemiTo ??= new List<string>();
+                            settings.ProdFemiCC ??= new List<string>();
+                            settings.ProdTeamTo ??= new List<string>();
+                            settings.ProdTeamCC ??= new List<string>();
                             return settings;
                         }
                     }
@@ -81,8 +102,8 @@
             {
                 Logger.LogError($"Error loading user email overrides from '{_userSettingsFilePath}': {ex.Message}", ex);
             }
-            Logger.LogInfo("No user email overrides found or file was empty/invalid. Using application defaults.");
-            return new UserEmailSettings(); // Return empty settings if file not found or error
+            Logger.LogInfo("No user email overrides found or file was empty/invalid. Using a new UserEmailSettings instance.");
+            return new UserEmailSettings(); 
         }
 
         /// <summary>
@@ -94,8 +115,8 @@
             if (settingsToSave == null) throw new ArgumentNullException(nameof(settingsToSave));
             try
             {
-                string directoryPath = Path.GetDirectoryName(_userSettingsFilePath);
-                if (!string.IsNullOrEmpty(directoryPath) && !Directory.Exists(directoryPath))
+                string directoryPath = Path.GetDirectoryName(_userSettingsFilePath)!; // Null forgiveness, path should be valid
+                if (!Directory.Exists(directoryPath))
                 {
                     Directory.CreateDirectory(directoryPath);
                     Logger.LogInfo($"Created directory for user email settings: {directoryPath}");
@@ -107,13 +128,12 @@
                 {
                     File.WriteAllText(_userSettingsFilePath, json);
                 }
-                _userOverrides = settingsToSave; // Update in-memory cache
+                _userOverrides = settingsToSave; 
                 Logger.LogInfo($"User email overrides saved to '{_userSettingsFilePath}'.");
             }
             catch (Exception ex)
             {
                 Logger.LogError($"Error saving user email overrides to '{_userSettingsFilePath}': {ex.Message}", ex);
-                // Optionally, re-throw or handle more gracefully (e.g., inform the user)
                 throw;
             }
         }
@@ -133,7 +153,7 @@
                         Logger.LogInfo($"User email overrides file '{_userSettingsFilePath}' deleted.");
                     }
                 }
-                _userOverrides = new UserEmailSettings(); // Reset in-memory cache to empty
+                _userOverrides = new UserEmailSettings(); 
             }
             catch (Exception ex)
             {
@@ -149,25 +169,34 @@
         /// <returns>A UserEmailSettings object representing the effective settings.</returns>
         public UserEmailSettings GetCurrentEffectiveSettings()
         {
-            var effective = new UserEmailSettings();
+            var effective = new UserEmailSettings(); // Ensures all lists are initialized
 
-            // Helper to get a list from config or override
-            List<string> GetList(List<string>? userOverride, string appConfigKey, bool isArrayInConfig = false)
+            // Helper to get a list from config or override, handling nulls from _userOverrides
+            List<string> GetList(List<string>? userOverrideList, string appConfigKey, bool isArrayInConfig = false, List<string>? defaultList = null)
             {
-                if (userOverride != null && userOverride.Any()) return new List<string>(userOverride);
-                if (isArrayInConfig) return GetStringListFromAppConfig(appConfigKey) ?? new List<string>();
-                string? singleValue = _appConfiguration[appConfigKey];
-                return !string.IsNullOrWhiteSpace(singleValue) ? [singleValue] : new List<string>();
+                if (userOverrideList != null && userOverrideList.Any()) return new List<string>(userOverrideList);
+                
+                var appConfigValues = isArrayInConfig 
+                    ? GetStringListFromAppConfig(appConfigKey) 
+                    : (!string.IsNullOrWhiteSpace(_appConfiguration[appConfigKey]) ? new List<string> { _appConfiguration[appConfigKey]! } : new List<string>());
+
+                if (appConfigValues != null && appConfigValues.Any()) return appConfigValues;
+                return defaultList ?? new List<string>();
             }
 
             // Helper to get a single string from config or override
-            string GetSingle(string? userOverride, string appConfigKey)
+            string GetSingle(string? userOverride, string appConfigKey, string defaultString = "")
             {
-                return !string.IsNullOrWhiteSpace(userOverride) ? userOverride : (_appConfiguration[appConfigKey] ?? string.Empty);
+                return !string.IsNullOrWhiteSpace(userOverride) ? userOverride : (_appConfiguration[appConfigKey] ?? defaultString);
             }
 
             effective.ProdAutoRunDailyTo = GetList(_userOverrides.ProdAutoRunDailyTo, ProdAutoRunDailyToKey);
             effective.ProdAutoRunDailyCC = GetList(_userOverrides.ProdAutoRunDailyCC, ProdAutoRunDailyCCKey);
+            
+            // For the new report, provide an initial hardcoded default if not in appsettings or user overrides
+            effective.ProdAutoRunDaily5Day1kTo = GetList(_userOverrides.ProdAutoRunDaily5Day1kTo, ProdAutoRunDaily5Day1kToKey, defaultList: new List<string> { "chrisp@harlowsolutions.co.uk" });
+            effective.ProdAutoRunDaily5Day1kCC = GetList(_userOverrides.ProdAutoRunDaily5Day1kCC, ProdAutoRunDaily5Day1kCCKey);
+
             effective.ProdFemiTo = GetList(_userOverrides.ProdFemiTo, ProdFemiToKey);
             effective.ProdFemiCC = GetList(_userOverrides.ProdFemiCC, ProdFemiCCKey);
             effective.ProdTeamTo = GetList(_userOverrides.ProdTeamTo, ProdTeamToKey, true);
@@ -182,73 +211,91 @@
 
 
         /// <summary>
-        /// Determines the final To and CC email recipient lists based on report context,
-        /// applying user overrides if they exist.
+        /// Determines the final To and CC email recipient lists based on report context.
         /// </summary>
         /// <param name="reportTypeIndex">The index of the report type (e.g., Form1.DailyReportIndex).</param>
-        /// <param name="isFemiOnlyChecked">Whether the "Send to Femi Only" checkbox is checked.</param>
+        /// <param name="isFemiOnlyChecked">Whether the "Send to Femi Only" checkbox is checked (relevant for manual non-daily reports).</param>
         /// <param name="isDebugBuild">True if the application is running in a DEBUG build.</param>
+        /// <param name="isAutoRunContext">True if this is called from an automated run context.</param>
         /// <returns>A tuple containing (List<string> To, List<string> Cc).</returns>
-        public (List<string> To, List<string> Cc) GetRecipients(int reportTypeIndex, bool isFemiOnlyChecked, bool isDebugBuild)
+        public (List<string> To, List<string> Cc) GetRecipients(
+            int reportTypeIndex, 
+            bool isFemiOnlyChecked, 
+            bool isDebugBuild,
+            bool isAutoRunContext = false) // New parameter with default
         {
-            Logger.LogTrace("EmailRecipientManager: Entering GetRecipients...");
-            UserEmailSettings currentSettings = GetCurrentEffectiveSettings(); // Gets merged settings
+            Logger.LogTrace($"EmailRecipientManager: GetRecipients called. ReportType: {reportTypeIndex}, FemiOnly: {isFemiOnlyChecked}, Debug: {isDebugBuild}, AutoRun: {isAutoRunContext}");
+            UserEmailSettings settings = GetCurrentEffectiveSettings(); 
 
             List<string> toAddresses = new List<string>();
             List<string> ccAddresses = new List<string>();
 
-            // Corresponds to Form1.DailyReportIndex
-            const int DailyReportIndex = 0;
-
-            if (reportTypeIndex == DailyReportIndex && !isDebugBuild)
+            if (isDebugBuild)
             {
-                // Special rule for Daily Release
-                toAddresses.AddRange(currentSettings.ProdAutoRunDailyTo ?? Enumerable.Empty<string>());
-                ccAddresses.AddRange(currentSettings.ProdAutoRunDailyCC ?? Enumerable.Empty<string>());
-                Logger.LogInfo("EmailRecipientManager: RELEASE Build & Daily Report. Using ProdAutoRunDaily recipients.");
+                Logger.LogInfo("EmailRecipientManager: DEBUG Build. Using debug email recipients.");
+                if (!string.IsNullOrWhiteSpace(settings.DebugTo)) toAddresses.Add(settings.DebugTo);
+                // For debug, CC logic can be simpler or follow a specific debug rule.
+                // Current logic: if FemiOnly is checked in UI (even for debug), add both CCs, else add CC1.
+                // This might be counter-intuitive for debug. Let's simplify: always add CC1 and CC2 if present.
+                if (!string.IsNullOrWhiteSpace(settings.DebugCC1)) ccAddresses.Add(settings.DebugCC1);
+                if (!string.IsNullOrWhiteSpace(settings.DebugCC2)) ccAddresses.Add(settings.DebugCC2);
             }
-            else
+            else // RELEASE Build
             {
-                if (isDebugBuild)
+                if (isAutoRunContext)
                 {
-                    Logger.LogInfo("EmailRecipientManager: DEBUG Build. Using debug email recipients.");
-                    if (!string.IsNullOrWhiteSpace(currentSettings.DebugTo)) toAddresses.Add(currentSettings.DebugTo);
-
-                    if (isFemiOnlyChecked)
+                    Logger.LogInfo($"EmailRecipientManager: RELEASE Build & AutoRun Context. ReportType: {reportTypeIndex}");
+                    if (reportTypeIndex == DailyReportIndex) // Standard Daily AutoRun
                     {
-                        Logger.LogDebug("EmailRecipientManager: DEBUG Build: Femi checkbox CHECKED. Adding DebugCC1 and DebugCC2.");
-                        if (!string.IsNullOrWhiteSpace(currentSettings.DebugCC1)) ccAddresses.Add(currentSettings.DebugCC1);
-                        if (!string.IsNullOrWhiteSpace(currentSettings.DebugCC2)) ccAddresses.Add(currentSettings.DebugCC2);
+                        toAddresses.AddRange(settings.ProdAutoRunDailyTo ?? Enumerable.Empty<string>());
+                        ccAddresses.AddRange(settings.ProdAutoRunDailyCC ?? Enumerable.Empty<string>());
+                        Logger.LogInfo("Using ProdAutoRunDaily recipients for standard daily auto-run.");
+                    }
+                    else if (reportTypeIndex == NewDailyReportOver1kIndex) // "Daily (5days >= £1000)" AutoRun
+                    {
+                        toAddresses.AddRange(settings.ProdAutoRunDaily5Day1kTo ?? Enumerable.Empty<string>());
+                        ccAddresses.AddRange(settings.ProdAutoRunDaily5Day1kCC ?? Enumerable.Empty<string>());
+                        Logger.LogInfo("Using ProdAutoRunDaily5Day1k recipients for new daily (5day >=1k) auto-run.");
                     }
                     else
                     {
-                        Logger.LogDebug("EmailRecipientManager: DEBUG Build: Femi checkbox NOT CHECKED. Adding DebugCC1 only.");
-                        if (!string.IsNullOrWhiteSpace(currentSettings.DebugCC1)) ccAddresses.Add(currentSettings.DebugCC1);
+                        Logger.LogWarning($"AutoRun context for unexpected report type: {reportTypeIndex}. No specific auto-run recipients defined. Email might not send if lists are empty.");
+                        // Fallback to empty or default team if necessary, but ideally auto-run is only for defined types.
                     }
                 }
-                else // RELEASE Build Recipients (for non-Daily reports)
+                else // Manual Run (RELEASE Build)
                 {
-                    Logger.LogInfo($"EmailRecipientManager: RELEASE Build (Non-Daily/Custom): SendToFemiOnly = {isFemiOnlyChecked}");
-                    if (isFemiOnlyChecked)
+                    Logger.LogInfo($"EmailRecipientManager: RELEASE Build & Manual Run Context. ReportType: {reportTypeIndex}, FemiOnly: {isFemiOnlyChecked}");
+                    if (reportTypeIndex == DailyReportIndex) 
                     {
-                        toAddresses.AddRange(currentSettings.ProdFemiTo ?? Enumerable.Empty<string>());
-                        ccAddresses.AddRange(currentSettings.ProdFemiCC ?? Enumerable.Empty<string>());
-                        Logger.LogInfo("EmailRecipientManager: Sending to Femi list (ProdFemiTo/CC).");
+                        // Manual run of Standard Daily uses the AutoRunDaily list (as per original logic)
+                        toAddresses.AddRange(settings.ProdAutoRunDailyTo ?? Enumerable.Empty<string>());
+                        ccAddresses.AddRange(settings.ProdAutoRunDailyCC ?? Enumerable.Empty<string>());
+                        Logger.LogInfo("Using ProdAutoRunDaily recipients for manual run of standard daily report.");
                     }
-                    else
+                    // For "Daily (5days >= £1000)" (manual) and other non-standard daily reports (Weekly, Monthly etc.)
+                    else if (reportTypeIndex == NewDailyReportOver1kIndex || 
+                             reportTypeIndex != DailyReportIndex) // Catches Weekly, Monthly, Annual, Custom too
                     {
-                        toAddresses.AddRange(currentSettings.ProdTeamTo ?? Enumerable.Empty<string>());
-                        ccAddresses.AddRange(currentSettings.ProdTeamCC ?? Enumerable.Empty<string>());
-                        Logger.LogInfo("EmailRecipientManager: Sending to Team list (ProdTeamTo/CC).");
+                        if (isFemiOnlyChecked)
+                        {
+                            toAddresses.AddRange(settings.ProdFemiTo ?? Enumerable.Empty<string>());
+                            ccAddresses.AddRange(settings.ProdFemiCC ?? Enumerable.Empty<string>());
+                            Logger.LogInfo("Using ProdFemiTo/CC recipients.");
+                        }
+                        else
+                        {
+                            toAddresses.AddRange(settings.ProdTeamTo ?? Enumerable.Empty<string>());
+                            ccAddresses.AddRange(settings.ProdTeamCC ?? Enumerable.Empty<string>());
+                            Logger.LogInfo("Using ProdTeamTo/CC recipients.");
+                        }
                     }
                 }
             }
 
-            // Clean up lists: remove empty entries and duplicates
+            // Clean up lists: remove empty entries and duplicates, ensure CCs are not in To
             toAddresses = toAddresses.Where(e => !string.IsNullOrWhiteSpace(e)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             ccAddresses = ccAddresses.Where(e => !string.IsNullOrWhiteSpace(e)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-
-            // Ensure CCs are not also in To
             ccAddresses = ccAddresses.Except(toAddresses, StringComparer.OrdinalIgnoreCase).ToList();
 
             Logger.LogDebug($"EmailRecipientManager: Final To Addresses: {string.Join("; ", toAddresses)}");
@@ -263,10 +310,18 @@
         /// </summary>
         private List<string>? GetStringListFromAppConfig(string key)
         {
-            return _appConfiguration.GetSection(key).Get<List<string>>()?
-                .Select(e => e.Trim())
-                .Where(e => !string.IsNullOrWhiteSpace(e))
-                .ToList();
+            try
+            {
+                return _appConfiguration.GetSection(key)?.Get<List<string>>()?
+                    .Select(e => e.Trim())
+                    .Where(e => !string.IsNullOrWhiteSpace(e))
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning($"Could not parse appsetting key '{key}' as a list of strings. Error: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>
@@ -278,22 +333,28 @@
         public static bool ValidateEmailAddresses(IEnumerable<string> emails, out List<string> invalidEmails)
         {
             invalidEmails = new List<string>();
-            if (emails == null) return true;
+            if (emails == null) return true; // No emails to validate is considered valid.
 
             bool allValid = true;
-            foreach (var emailStr in emails)
+            foreach (var emailStr in emails.Where(e => !string.IsNullOrWhiteSpace(e))) // Process only non-empty strings
             {
-                if (string.IsNullOrWhiteSpace(emailStr)) continue; // Skip empty entries
-
                 // Split if multiple emails are in one string (comma/semicolon separated)
                 var individualEmails = emailStr.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (var singleEmail in individualEmails)
                 {
                     string trimmedEmail = singleEmail.Trim();
-                    if (!string.IsNullOrWhiteSpace(trimmedEmail) && !EmailUtility.IsValidEmail(trimmedEmail))
+                    if (!string.IsNullOrWhiteSpace(trimmedEmail)) // Check again after trim
                     {
-                        allValid = false;
-                        invalidEmails.Add(trimmedEmail);
+                         // Assuming EmailUtility.IsValidEmail is a static method in QuoteConversionReportAutomation.Helpers
+                         // If it's an instance method or in a different class, adjust accordingly.
+                        if (!EmailUtility.IsValidEmail(trimmedEmail)) 
+                        {
+                            allValid = false;
+                            if (!invalidEmails.Contains(trimmedEmail, StringComparer.OrdinalIgnoreCase))
+                            {
+                                invalidEmails.Add(trimmedEmail);
+                            }
+                        }
                     }
                 }
             }

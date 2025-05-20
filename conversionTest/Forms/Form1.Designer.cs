@@ -61,12 +61,16 @@ namespace conversionTest
             enable1ClickProcessingToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator6 = new ToolStripSeparator();
             setAutoRunHourToolStripMenuItem = new ToolStripMenuItem();
+            configureAutoRunReportsToolStripMenuItem = new ToolStripMenuItem();
+            enableStandardDailyAutoReportToolStripMenuItem = new ToolStripMenuItem();
+            enableDaily5Day1kAutoReportToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator3 = new ToolStripSeparator();
             viewConfigToolStripMenuItem = new ToolStripMenuItem();
             validateConfigToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator4 = new ToolStripSeparator();
             manageCustomBankHolidaysToolStripMenuItem = new ToolStripMenuItem();
             manageEmailRecipientsToolStripMenuItem = new ToolStripMenuItem();
+            manageGreetingsToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator5 = new ToolStripSeparator();
             openLogsToolStripMenuItem = new ToolStripMenuItem();
             toolStripSeparator1 = new ToolStripSeparator();
@@ -75,6 +79,7 @@ namespace conversionTest
             exitToolStripMenuItem = new ToolStripMenuItem();
             helpToolStripMenuItem = new ToolStripMenuItem();
             toolTip1 = new ToolTip(components);
+            toolStripSeparator8 = new ToolStripSeparator();
             mainStatusStrip.SuspendLayout();
             reportSettingsGroupBox.SuspendLayout();
             menuStrip1.SuspendLayout();
@@ -160,7 +165,7 @@ namespace conversionTest
             viewReportButton.AutoSize = true;
             viewReportButton.FlatStyle = FlatStyle.System;
             viewReportButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            viewReportButton.Location = new Point(175, 339);
+            viewReportButton.Location = new Point(165, 339);
             viewReportButton.Name = "viewReportButton";
             viewReportButton.Size = new Size(92, 23);
             viewReportButton.TabIndex = 8;
@@ -174,7 +179,7 @@ namespace conversionTest
             viewAnalysisButton.AutoSize = true;
             viewAnalysisButton.FlatStyle = FlatStyle.System;
             viewAnalysisButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
-            viewAnalysisButton.Location = new Point(349, 339);
+            viewAnalysisButton.Location = new Point(355, 339);
             viewAnalysisButton.Name = "viewAnalysisButton";
             viewAnalysisButton.Size = new Size(122, 23);
             viewAnalysisButton.TabIndex = 9;
@@ -239,7 +244,7 @@ namespace conversionTest
             reportTypeComboBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
             reportTypeComboBox.AutoCompleteSource = AutoCompleteSource.CustomSource;
             reportTypeComboBox.FormattingEnabled = true;
-            reportTypeComboBox.Items.AddRange(new object[] { "Daily", "Weekly", "Monthly", "Quarterly (3 Months)", "Annual", "Custom" });
+            reportTypeComboBox.Items.AddRange(new object[] { "Daily", "Daily(5days >= £1000)", "Weekly", "Monthly", "Quarterly (3 Months)", "Annual", "Custom" });
             reportTypeComboBox.Location = new Point(261, 72);
             reportTypeComboBox.Name = "reportTypeComboBox";
             reportTypeComboBox.Size = new Size(200, 21);
@@ -328,7 +333,7 @@ namespace conversionTest
             // 
             // optionsToolStripMenuItem
             // 
-            optionsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem, toolStripSeparator7, enable1ClickProcessingToolStripMenuItem, toolStripSeparator6, setAutoRunHourToolStripMenuItem, toolStripSeparator3, viewConfigToolStripMenuItem, validateConfigToolStripMenuItem, toolStripSeparator4, manageCustomBankHolidaysToolStripMenuItem, manageEmailRecipientsToolStripMenuItem, toolStripSeparator5, openLogsToolStripMenuItem, toolStripSeparator1, editConfigToolStripMenuItem, toolStripSeparator2, exitToolStripMenuItem });
+            optionsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem, toolStripSeparator7, enable1ClickProcessingToolStripMenuItem, toolStripSeparator6, setAutoRunHourToolStripMenuItem, configureAutoRunReportsToolStripMenuItem, toolStripSeparator8, viewConfigToolStripMenuItem, validateConfigToolStripMenuItem, toolStripSeparator4, manageCustomBankHolidaysToolStripMenuItem, toolStripSeparator3, manageEmailRecipientsToolStripMenuItem, manageGreetingsToolStripMenuItem, toolStripSeparator5, openLogsToolStripMenuItem, toolStripSeparator1, editConfigToolStripMenuItem, toolStripSeparator2, exitToolStripMenuItem });
             optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
             optionsToolStripMenuItem.Size = new Size(61, 20);
             optionsToolStripMenuItem.Text = "&Options";
@@ -368,6 +373,32 @@ namespace conversionTest
             setAutoRunHourToolStripMenuItem.Text = "Set Auto-Run &Hour...";
             setAutoRunHourToolStripMenuItem.ToolTipText = "Change the hour at which the daily auto-run task executes.";
             setAutoRunHourToolStripMenuItem.Click += setAutoRunHourToolStripMenuItem_Click;
+            // 
+            // configureAutoRunReportsToolStripMenuItem
+            // 
+            configureAutoRunReportsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { enableStandardDailyAutoReportToolStripMenuItem, enableDaily5Day1kAutoReportToolStripMenuItem });
+            configureAutoRunReportsToolStripMenuItem.Name = "configureAutoRunReportsToolStripMenuItem";
+            configureAutoRunReportsToolStripMenuItem.Size = new Size(240, 22);
+            configureAutoRunReportsToolStripMenuItem.Text = "Configure Auto-Run Reports";
+            configureAutoRunReportsToolStripMenuItem.ToolTipText = "Enable or disable specific automated reports.";
+            // 
+            // enableStandardDailyAutoReportToolStripMenuItem
+            // 
+            enableStandardDailyAutoReportToolStripMenuItem.CheckOnClick = true;
+            enableStandardDailyAutoReportToolStripMenuItem.Name = "enableStandardDailyAutoReportToolStripMenuItem";
+            enableStandardDailyAutoReportToolStripMenuItem.Size = new Size(298, 22);
+            enableStandardDailyAutoReportToolStripMenuItem.Text = "Enable Standard Daily Auto Report";
+            enableStandardDailyAutoReportToolStripMenuItem.ToolTipText = "Toggle the automated generation of the standard daily report.";
+            enableStandardDailyAutoReportToolStripMenuItem.Click += enableStandardDailyAutoReportToolStripMenuItem_Click;
+            // 
+            // enableDaily5Day1kAutoReportToolStripMenuItem
+            // 
+            enableDaily5Day1kAutoReportToolStripMenuItem.CheckOnClick = true;
+            enableDaily5Day1kAutoReportToolStripMenuItem.Name = "enableDaily5Day1kAutoReportToolStripMenuItem";
+            enableDaily5Day1kAutoReportToolStripMenuItem.Size = new Size(298, 22);
+            enableDaily5Day1kAutoReportToolStripMenuItem.Text = "Enable Daily (5days >= £1000) Auto Report";
+            enableDaily5Day1kAutoReportToolStripMenuItem.ToolTipText = "Toggle the automated generation of the 'Daily (5days >= £1000)' report.";
+            enableDaily5Day1kAutoReportToolStripMenuItem.Click += enableDaily5Day1kAutoReportToolStripMenuItem_Click;
             // 
             // toolStripSeparator3
             // 
@@ -410,6 +441,14 @@ namespace conversionTest
             manageEmailRecipientsToolStripMenuItem.Text = "Manage Email &Recipients";
             manageEmailRecipientsToolStripMenuItem.ToolTipText = "Configure custom email recipients for different report types.";
             manageEmailRecipientsToolStripMenuItem.Click += manageEmailRecipientsToolStripMenuItem_Click;
+            // 
+            // manageGreetingsToolStripMenuItem
+            // 
+            manageGreetingsToolStripMenuItem.Name = "manageGreetingsToolStripMenuItem";
+            manageGreetingsToolStripMenuItem.Size = new Size(240, 22);
+            manageGreetingsToolStripMenuItem.Text = "Manage Email &Greetings";
+            manageGreetingsToolStripMenuItem.ToolTipText = "Configure custom email greetings for different report scenarios.";
+            manageGreetingsToolStripMenuItem.Click += manageGreetingsToolStripMenuItem_Click;
             // 
             // toolStripSeparator5
             // 
@@ -465,6 +504,11 @@ namespace conversionTest
             toolTip1.InitialDelay = 500;
             toolTip1.ReshowDelay = 140;
             // 
+            // toolStripSeparator8
+            // 
+            toolStripSeparator8.Name = "toolStripSeparator8";
+            toolStripSeparator8.Size = new Size(237, 6);
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(6F, 13F);
@@ -512,13 +556,13 @@ namespace conversionTest
         private System.Windows.Forms.Label endDateLabel;
         private System.Windows.Forms.Button createReportButton;
         private System.Windows.Forms.Button processEmailButton;
-        private System.Windows.Forms.Button oneClickProcessButton; // New field
+        private System.Windows.Forms.Button oneClickProcessButton;
         private System.Windows.Forms.Button viewReportButton;
         private System.Windows.Forms.Button viewAnalysisButton;
         private System.Windows.Forms.ToolStripStatusLabel statusLabel;
         private System.Windows.Forms.StatusStrip mainStatusStrip;
         private System.Windows.Forms.CheckBox sendToFemiOnlyCheckBox;
-        private System.Windows.Forms.CheckBox skipEmailCheckBox; // New field
+        private System.Windows.Forms.CheckBox skipEmailCheckBox;
         private System.Windows.Forms.ComboBox reportTypeComboBox;
         private System.Windows.Forms.Label reportTypeLabel;
         private System.Windows.Forms.GroupBox reportSettingsGroupBox;
@@ -545,9 +589,14 @@ namespace conversionTest
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator4;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator5;
         private System.Windows.Forms.ToolStripMenuItem manageEmailRecipientsToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem enable1ClickProcessingToolStripMenuItem; // New field
-        private System.Windows.Forms.ToolStripMenuItem setAutoRunHourToolStripMenuItem; // New field
-        private ToolStripSeparator toolStripSeparator7;
-        private ToolStripSeparator toolStripSeparator6;
+        private System.Windows.Forms.ToolStripMenuItem manageGreetingsToolStripMenuItem; // <-- DECLARED HERE
+        private System.Windows.Forms.ToolStripMenuItem enable1ClickProcessingToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem setAutoRunHourToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator7;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator6;
+        private System.Windows.Forms.ToolStripMenuItem configureAutoRunReportsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem enableStandardDailyAutoReportToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem enableDaily5Day1kAutoReportToolStripMenuItem;
+        private ToolStripSeparator toolStripSeparator8;
     }
 }
