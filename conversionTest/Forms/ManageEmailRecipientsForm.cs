@@ -1,8 +1,7 @@
 ﻿// ManageEmailRecipientsForm.cs
-// Ensure this namespace matches your project structure
 namespace QuoteConversionReportAutomation
 {
-    using QuoteConversionReportAutomation.Helpers; // For FlexibleMessageBox, EmailUtility
+    using QuoteConversionReportAutomation.Helpers;
     using QuoteConversionReportAutomation.Managers;
     using QuoteConversionReportAutomation.Models;
     using QuoteConversionReportAutomation.Services.Logging;
@@ -12,30 +11,25 @@ namespace QuoteConversionReportAutomation
     using System.Linq;
     using System.Windows.Forms;
 
-    /// <summary>
-    /// Form for managing user-defined email recipients.
-    /// Allows users to override default email lists for various report scenarios.
-    /// Title bar and basic form theme are applied via UIManager.
-    /// Added fields for "Daily (5days >= £1000)" automated report recipients.
-    /// Added fields for "Manual Standard Daily" report recipients.
-    /// Debug recipient fields are only visible in DEBUG builds.
-    /// </summary>
     public partial class ManageEmailRecipientsForm : Form
     {
         private readonly EmailRecipientManager _emailRecipientManager;
         private readonly bool _isDarkMode;
 
-        // Theme Colors are defined here for reference if needed by child control specific styling,
-        // but UIManager and ApplyChildControlTheme will primarily use them.
-        private static readonly Color DM_ControlBackColor = Color.FromArgb(60, 60, 63);
-        private static readonly Color DM_ButtonBackColor = Color.FromArgb(80, 80, 80);
-        private static readonly Color DM_ControlForeColor = Color.White;
+        // Theme Colors
+        private static readonly Color DM_ControlBackColor = Color.FromArgb(45, 45, 48);
+        private static readonly Color DM_TabPageBackColor = Color.FromArgb(37, 37, 38);
+        private static readonly Color DM_TabControlBackColor = Color.FromArgb(28, 28, 28);
+        private static readonly Color DM_ButtonBackColor = Color.FromArgb(60, 60, 63);
+        private static readonly Color DM_ControlForeColor = Color.WhiteSmoke; // Lighter white for better contrast
+        private static readonly Color DM_LabelForeColor = Color.FromArgb(200, 200, 200); // Slightly dimmer for labels
+
         private static readonly Color LM_ControlBackColor = SystemColors.Window;
-        private static readonly Color LM_ButtonBackColor = SystemColors.Control;
+        private static readonly Color LM_TabPageBackColor = SystemColors.Control;
+        private static readonly Color LM_TabControlBackColor = SystemColors.Control;
+        private static readonly Color LM_ButtonBackColor = SystemColors.ControlLight;
         private static readonly Color LM_ControlForeColor = SystemColors.ControlText;
 
-        // Controls are defined in the Designer.cs file as part of the partial class.
-        // No need to re-declare them here.
 
         public ManageEmailRecipientsForm(EmailRecipientManager emailRecipientManager, bool isDarkMode)
         {
@@ -52,78 +46,54 @@ namespace QuoteConversionReportAutomation
         {
             Logger.LogInfo($"ManageEmailRecipientsForm loading. Initial DarkMode state: {_isDarkMode}");
             UIManager.ApplyThemeToExternalForm(this, _isDarkMode);
-            ApplyChildControlTheme(_isDarkMode);
+            ApplyThemeToTabbedLayout(_isDarkMode);
             LoadSettingsToForm();
             SetupToolTips();
 
-            // Conditionally hide debug fields if not in DEBUG mode
 #if !DEBUG
-            HideDebugFields();
+            if (mainTabControl.TabPages.Contains(debugTabPage))
+            {
+                mainTabControl.TabPages.Remove(debugTabPage);
+                Logger.LogInfo("Release mode: Removed Debug recipients tab page.");
+            }
 #endif
             Logger.LogInfo("ManageEmailRecipientsForm loaded and themed.");
         }
 
-        private void HideDebugFields()
+        private void ApplyThemeToTabbedLayout(bool isDarkModeEnabled)
         {
-            Logger.LogInfo("Release mode: Hiding debug email recipient fields.");
-            if (lblDebugTo != null) lblDebugTo.Visible = false;
-            if (txtDebugTo != null) txtDebugTo.Visible = false;
-            if (lblDebugCC1 != null) lblDebugCC1.Visible = false;
-            if (txtDebugCC1 != null) txtDebugCC1.Visible = false;
-            if (lblDebugCC2 != null) lblDebugCC2.Visible = false;
-            if (txtDebugCC2 != null) txtDebugCC2.Visible = false;
+            this.BackColor = isDarkModeEnabled ? DM_TabControlBackColor : LM_TabControlBackColor; // Form background
+            this.lblInstructions.ForeColor = isDarkModeEnabled ? DM_LabelForeColor : LM_ControlForeColor;
+            this.lblInstructions.BackColor = Color.Transparent;
 
-            // Optionally, adjust TableLayoutPanel row visibility or height if desired
-            // For simplicity, this example just hides the controls, leaving empty space.
-            // To remove rows from TableLayoutPanel (more complex):
-            // mainTableLayoutPanel.RowStyles[9].Height = 0; // Assuming row 9 is Debug TO
-            // mainTableLayoutPanel.RowStyles[9].SizeType = SizeType.Absolute; 
-            // ... and so on for other debug rows. This requires careful index management.
+
+            mainTabControl.BackColor = isDarkModeEnabled ? DM_TabControlBackColor : LM_TabControlBackColor;
+
+            foreach (TabPage tabPage in mainTabControl.TabPages)
+            {
+                tabPage.BackColor = isDarkModeEnabled ? DM_TabPageBackColor : LM_TabPageBackColor;
+                // For Tab text color, you might need to handle DrawItem event if default theming isn't enough
+                tabPage.ForeColor = isDarkModeEnabled ? DM_ControlForeColor : LM_ControlForeColor;
+
+                if (tabPage.Controls.Count > 0 && tabPage.Controls[0] is TableLayoutPanel tlp)
+                {
+                    tlp.BackColor = tabPage.BackColor;
+                    ApplyThemeToControlsRecursive(tlp, isDarkModeEnabled);
+                }
+            }
+
+            buttonsFlowLayoutPanel.BackColor = this.BackColor;
+            ApplyThemeToControlsRecursive(buttonsFlowLayoutPanel, isDarkModeEnabled);
         }
 
-
-        private void SetupToolTips()
-        {
-            this.toolTipProvider ??= new System.Windows.Forms.ToolTip(this.components ??= new System.ComponentModel.Container());
-
-            toolTipProvider.SetToolTip(this.txtProdAutoRunDailyTo, "Default 'To' for AUTOMATED standard daily reports. Separate multiple emails with comma or semicolon.");
-            toolTipProvider.SetToolTip(this.txtProdAutoRunDailyCC, "Default 'CC' for AUTOMATED standard daily reports. Separate multiple emails with comma or semicolon.");
-
-            if (this.txtProdManualRunDailyTo != null)
-                toolTipProvider.SetToolTip(this.txtProdManualRunDailyTo, "Default 'To' for MANUALLY RUN standard daily reports. Separate multiple emails with comma or semicolon.");
-            if (this.txtProdManualRunDailyCC != null)
-                toolTipProvider.SetToolTip(this.txtProdManualRunDailyCC, "Default 'CC' for MANUALLY RUN standard daily reports. Separate multiple emails with comma or semicolon.");
-
-            toolTipProvider.SetToolTip(this.txtProdAutoRunDaily5Day1kTo, "Default 'To' for 'Daily (5days >= £1000)' automated reports. Separate multiple emails with comma or semicolon.");
-            toolTipProvider.SetToolTip(this.txtProdAutoRunDaily5Day1kCC, "Default 'CC' for 'Daily (5days >= £1000)' automated reports. Separate multiple emails with comma or semicolon.");
-
-            toolTipProvider.SetToolTip(this.txtProdFemiTo, "'To' recipients for manual non-daily reports when 'Send to Femi Only' is checked. Separate multiple emails with comma or semicolon.");
-            toolTipProvider.SetToolTip(this.txtProdFemiCC, "'CC' recipients for manual non-daily reports when 'Send to Femi Only' is checked. Separate multiple emails with comma or semicolon.");
-            toolTipProvider.SetToolTip(this.txtProdTeamTo, "'To' recipients for manual non-daily reports (team list). Separate multiple emails with comma or semicolon.");
-            toolTipProvider.SetToolTip(this.txtProdTeamCC, "'CC' recipients for manual non-daily reports (team list). Separate multiple emails with comma or semicolon.");
-
-#if DEBUG
-            if (this.txtDebugTo != null) toolTipProvider.SetToolTip(this.txtDebugTo, "Primary 'To' recipient for ALL reports in DEBUG mode. Separate multiple emails with comma or semicolon.");
-            if (this.txtDebugCC1 != null) toolTipProvider.SetToolTip(this.txtDebugCC1, "First 'CC' recipient for ALL reports in DEBUG mode. Separate multiple emails with comma or semicolon.");
-            if (this.txtDebugCC2 != null) toolTipProvider.SetToolTip(this.txtDebugCC2, "Second 'CC' recipient for ALL reports in DEBUG mode. Separate multiple emails with comma or semicolon.");
-#endif
-
-            toolTipProvider.SetToolTip(this.btnSave, "Save the current email settings. These will override application defaults.");
-            toolTipProvider.SetToolTip(this.btnRestoreDefaults, "Clear all custom settings and revert to the application's built-in default email lists.");
-            toolTipProvider.SetToolTip(this.btnClose, "Close this window without saving any changes made since the last save.");
-        }
-
-
-        private void ApplyChildControlTheme(bool isDarkModeEnabled)
+        private void ApplyThemeToControlsRecursive(Control parentControl, bool isDarkModeEnabled)
         {
             Color controlBackColor = isDarkModeEnabled ? DM_ControlBackColor : LM_ControlBackColor;
             Color buttonBackColor = isDarkModeEnabled ? DM_ButtonBackColor : LM_ButtonBackColor;
             Color controlForeColor = isDarkModeEnabled ? DM_ControlForeColor : LM_ControlForeColor;
-            UpdateControlThemeRecursive(this, controlBackColor, buttonBackColor, controlForeColor, isDarkModeEnabled);
-        }
+            Color labelForeColor = isDarkModeEnabled ? DM_LabelForeColor : LM_ControlForeColor;
 
-        private void UpdateControlThemeRecursive(Control parentControl, Color controlBackColor, Color buttonBackColor, Color controlForeColor, bool isDarkMode)
-        {
+
             foreach (Control control in parentControl.Controls)
             {
                 if (control is Button button)
@@ -131,7 +101,7 @@ namespace QuoteConversionReportAutomation
                     button.BackColor = buttonBackColor;
                     button.ForeColor = controlForeColor;
                     button.FlatStyle = FlatStyle.Flat;
-                    button.FlatAppearance.BorderColor = isDarkMode ? Color.FromArgb(100, 100, 100) : SystemColors.ControlDarkDark;
+                    button.FlatAppearance.BorderColor = isDarkModeEnabled ? Color.FromArgb(100, 100, 100) : SystemColors.ControlDarkDark;
                     button.FlatAppearance.BorderSize = 1;
                 }
                 else if (control is TextBox || control is RichTextBox)
@@ -140,75 +110,83 @@ namespace QuoteConversionReportAutomation
                     control.ForeColor = controlForeColor;
                     if (control is TextBox tb)
                     {
-                        tb.BorderStyle = isDarkMode ? BorderStyle.FixedSingle : BorderStyle.Fixed3D;
+                        tb.BorderStyle = BorderStyle.FixedSingle;
                     }
-                }
-                else if (control is ComboBox cb)
-                {
-                    cb.BackColor = controlBackColor;
-                    cb.ForeColor = controlForeColor;
-                    cb.FlatStyle = FlatStyle.Flat;
                 }
                 else if (control is Label)
                 {
                     control.BackColor = Color.Transparent;
-                    control.ForeColor = controlForeColor;
+                    control.ForeColor = labelForeColor; // Use specific label color
                 }
-                else if (control is GroupBox gb)
+                else if (control.HasChildren)
                 {
-                    gb.ForeColor = controlForeColor;
-                    gb.BackColor = parentControl.BackColor;
-                    if (gb.Controls.Count > 0)
+                    if (!(control is TableLayoutPanel || control is TabPage || control is TabControl))
                     {
-                        UpdateControlThemeRecursive(gb, controlBackColor, buttonBackColor, controlForeColor, isDarkMode);
+                        control.BackColor = parentControl.BackColor; // Match parent for other containers
                     }
-                }
-                else if (control is Panel || control is TabControl || control is TabPage || control is System.Windows.Forms.TableLayoutPanel)
-                {
-                    control.BackColor = parentControl.BackColor;
-                    control.ForeColor = controlForeColor;
-                    if (control.Controls.Count > 0)
-                    {
-                        UpdateControlThemeRecursive(control, controlBackColor, buttonBackColor, controlForeColor, isDarkMode);
-                    }
-                }
-                else
-                {
-                    // Only apply to visible controls to prevent issues if debug fields are hidden
-                    if (control.Visible)
-                    {
-                        control.BackColor = controlBackColor;
-                        control.ForeColor = controlForeColor;
-                    }
+                    ApplyThemeToControlsRecursive(control, isDarkModeEnabled);
                 }
             }
         }
 
 
+        private void SetupToolTips()
+        {
+            this.toolTipProvider ??= new System.Windows.Forms.ToolTip(this.components ??= new System.ComponentModel.Container());
+
+            // Automated Reports Tab
+            toolTipProvider.SetToolTip(this.txtProdAutoRunDailyTo, "Default 'To' for AUTOMATED standard daily reports. Separate multiple emails with comma or semicolon.");
+            toolTipProvider.SetToolTip(this.txtProdAutoRunDailyCC, "Default 'CC' for AUTOMATED standard daily reports. Separate multiple emails with comma or semicolon.");
+            toolTipProvider.SetToolTip(this.txtProdAutoRunDaily5Day1kTo, "Default 'To' for 'Daily (5days >= £1000)' automated reports. Separate multiple emails with comma or semicolon.");
+            toolTipProvider.SetToolTip(this.txtProdAutoRunDaily5Day1kCC, "Default 'CC' for 'Daily (5days >= £1000)' automated reports. Separate multiple emails with comma or semicolon.");
+            toolTipProvider.SetToolTip(this.txtProdAutoRunWeeklyTo, "Default 'To' for AUTOMATED weekly (15-day) reports. Separate multiple emails with comma or semicolon.");
+            toolTipProvider.SetToolTip(this.txtProdAutoRunWeeklyCC, "Default 'CC' for AUTOMATED weekly (15-day) reports. Separate multiple emails with comma or semicolon.");
+
+            // Manual Reports Tab
+            toolTipProvider.SetToolTip(this.txtProdManualRunDailyTo, "Default 'To' for MANUALLY RUN standard daily reports. Separate multiple emails with comma or semicolon.");
+            toolTipProvider.SetToolTip(this.txtProdManualRunDailyCC, "Default 'CC' for MANUALLY RUN standard daily reports. Separate multiple emails with comma or semicolon.");
+            toolTipProvider.SetToolTip(this.txtProdFemiTo, "'To' recipients for manual non-daily reports when 'Send to Femi Only' is checked. Separate multiple emails with comma or semicolon.");
+            toolTipProvider.SetToolTip(this.txtProdFemiCC, "'CC' recipients for manual non-daily reports when 'Send to Femi Only' is checked. Separate multiple emails with comma or semicolon.");
+            toolTipProvider.SetToolTip(this.txtProdTeamTo, "'To' recipients for manual non-daily reports (team list). Separate multiple emails with comma or semicolon.");
+            toolTipProvider.SetToolTip(this.txtProdTeamCC, "'CC' recipients for manual non-daily reports (team list). Separate multiple emails with comma or semicolon.");
+
+#if DEBUG
+            // Debug Tab
+            toolTipProvider.SetToolTip(this.txtDebugTo, "Primary 'To' recipient for ALL reports in DEBUG mode. Separate multiple emails with comma or semicolon.");
+            toolTipProvider.SetToolTip(this.txtDebugCC1, "First 'CC' recipient for ALL reports in DEBUG mode. Separate multiple emails with comma or semicolon.");
+            toolTipProvider.SetToolTip(this.txtDebugCC2, "Second 'CC' recipient for ALL reports in DEBUG mode. Separate multiple emails with comma or semicolon.");
+#endif
+
+            toolTipProvider.SetToolTip(this.btnSave, "Save the current email settings. These will override application defaults.");
+            toolTipProvider.SetToolTip(this.btnRestoreDefaults, "Clear all custom settings and revert to the application's built-in default email lists.");
+            toolTipProvider.SetToolTip(this.btnClose, "Close this window without saving any changes made since the last save.");
+        }
+
         private void LoadSettingsToForm()
         {
             UserEmailSettings currentSettings = _emailRecipientManager.GetCurrentEffectiveSettings();
 
+            // Automated Reports Tab
             txtProdAutoRunDailyTo.Text = string.Join(", ", currentSettings.ProdAutoRunDailyTo ?? Enumerable.Empty<string>());
             txtProdAutoRunDailyCC.Text = string.Join(", ", currentSettings.ProdAutoRunDailyCC ?? Enumerable.Empty<string>());
-
-            if (this.txtProdManualRunDailyTo != null)
-                txtProdManualRunDailyTo.Text = string.Join(", ", currentSettings.ProdManualRunDailyTo ?? Enumerable.Empty<string>());
-            if (this.txtProdManualRunDailyCC != null)
-                txtProdManualRunDailyCC.Text = string.Join(", ", currentSettings.ProdManualRunDailyCC ?? Enumerable.Empty<string>());
-
             txtProdAutoRunDaily5Day1kTo.Text = string.Join(", ", currentSettings.ProdAutoRunDaily5Day1kTo ?? Enumerable.Empty<string>());
             txtProdAutoRunDaily5Day1kCC.Text = string.Join(", ", currentSettings.ProdAutoRunDaily5Day1kCC ?? Enumerable.Empty<string>());
+            txtProdAutoRunWeeklyTo.Text = string.Join(", ", currentSettings.ProdAutoRunWeeklyTo ?? Enumerable.Empty<string>());
+            txtProdAutoRunWeeklyCC.Text = string.Join(", ", currentSettings.ProdAutoRunWeeklyCC ?? Enumerable.Empty<string>());
 
+            // Manual Reports Tab
+            txtProdManualRunDailyTo.Text = string.Join(", ", currentSettings.ProdManualRunDailyTo ?? Enumerable.Empty<string>());
+            txtProdManualRunDailyCC.Text = string.Join(", ", currentSettings.ProdManualRunDailyCC ?? Enumerable.Empty<string>());
             txtProdFemiTo.Text = string.Join(", ", currentSettings.ProdFemiTo ?? Enumerable.Empty<string>());
             txtProdFemiCC.Text = string.Join(", ", currentSettings.ProdFemiCC ?? Enumerable.Empty<string>());
             txtProdTeamTo.Text = string.Join(", ", currentSettings.ProdTeamTo ?? Enumerable.Empty<string>());
             txtProdTeamCC.Text = string.Join(", ", currentSettings.ProdTeamCC ?? Enumerable.Empty<string>());
 
 #if DEBUG
-            if (txtDebugTo != null) txtDebugTo.Text = currentSettings.DebugTo ?? string.Empty;
-            if (txtDebugCC1 != null) txtDebugCC1.Text = currentSettings.DebugCC1 ?? string.Empty;
-            if (txtDebugCC2 != null) txtDebugCC2.Text = currentSettings.DebugCC2 ?? string.Empty;
+            // Debug Tab
+            txtDebugTo.Text = currentSettings.DebugTo ?? string.Empty;
+            txtDebugCC1.Text = currentSettings.DebugCC1 ?? string.Empty;
+            txtDebugCC2.Text = currentSettings.DebugCC2 ?? string.Empty;
 #endif
             Logger.LogInfo("Loaded current email settings into ManageEmailRecipientsForm.");
         }
@@ -218,27 +196,29 @@ namespace QuoteConversionReportAutomation
             Logger.LogInfo("Save button clicked on ManageEmailRecipientsForm.");
             var newSettings = new UserEmailSettings
             {
+                // Automated Reports
                 ProdAutoRunDailyTo = StringToEmailList(txtProdAutoRunDailyTo.Text),
                 ProdAutoRunDailyCC = StringToEmailList(txtProdAutoRunDailyCC.Text),
-                ProdManualRunDailyTo = this.txtProdManualRunDailyTo != null ? StringToEmailList(txtProdManualRunDailyTo.Text) : new List<string>(),
-                ProdManualRunDailyCC = this.txtProdManualRunDailyCC != null ? StringToEmailList(txtProdManualRunDailyCC.Text) : new List<string>(),
                 ProdAutoRunDaily5Day1kTo = StringToEmailList(txtProdAutoRunDaily5Day1kTo.Text),
                 ProdAutoRunDaily5Day1kCC = StringToEmailList(txtProdAutoRunDaily5Day1kCC.Text),
+                ProdAutoRunWeeklyTo = StringToEmailList(txtProdAutoRunWeeklyTo.Text),
+                ProdAutoRunWeeklyCC = StringToEmailList(txtProdAutoRunWeeklyCC.Text),
+                // Manual Reports
+                ProdManualRunDailyTo = StringToEmailList(txtProdManualRunDailyTo.Text),
+                ProdManualRunDailyCC = StringToEmailList(txtProdManualRunDailyCC.Text),
                 ProdFemiTo = StringToEmailList(txtProdFemiTo.Text),
                 ProdFemiCC = StringToEmailList(txtProdFemiCC.Text),
                 ProdTeamTo = StringToEmailList(txtProdTeamTo.Text),
                 ProdTeamCC = StringToEmailList(txtProdTeamCC.Text)
             };
 
-            // Only include debug settings if they are visible (i.e., in a DEBUG build)
 #if DEBUG
-            if (txtDebugTo != null) newSettings.DebugTo = txtDebugTo.Text.Trim();
-            if (txtDebugCC1 != null) newSettings.DebugCC1 = txtDebugCC1.Text.Trim();
-            if (txtDebugCC2 != null) newSettings.DebugCC2 = txtDebugCC2.Text.Trim();
+            // Debug Settings
+            newSettings.DebugTo = txtDebugTo.Text.Trim();
+            newSettings.DebugCC1 = txtDebugCC1.Text.Trim();
+            newSettings.DebugCC2 = txtDebugCC2.Text.Trim();
 #else
-            // If not in debug mode, retain existing debug settings from loaded _userOverrides
-            // or from GetCurrentEffectiveSettings if _userOverrides is fresh.
-            // This prevents accidentally clearing debug settings when saving in release mode.
+            // Retain existing debug settings if not in DEBUG mode to prevent accidental clearing
             UserEmailSettings currentEffectiveSettings = _emailRecipientManager.GetCurrentEffectiveSettings();
             newSettings.DebugTo = currentEffectiveSettings.DebugTo;
             newSettings.DebugCC1 = currentEffectiveSettings.DebugCC1;
@@ -252,12 +232,13 @@ namespace QuoteConversionReportAutomation
             allEmailsToValidate.AddRange(newSettings.ProdManualRunDailyCC ?? Enumerable.Empty<string>());
             allEmailsToValidate.AddRange(newSettings.ProdAutoRunDaily5Day1kTo ?? Enumerable.Empty<string>());
             allEmailsToValidate.AddRange(newSettings.ProdAutoRunDaily5Day1kCC ?? Enumerable.Empty<string>());
+            allEmailsToValidate.AddRange(newSettings.ProdAutoRunWeeklyTo ?? Enumerable.Empty<string>());
+            allEmailsToValidate.AddRange(newSettings.ProdAutoRunWeeklyCC ?? Enumerable.Empty<string>());
             allEmailsToValidate.AddRange(newSettings.ProdFemiTo ?? Enumerable.Empty<string>());
             allEmailsToValidate.AddRange(newSettings.ProdFemiCC ?? Enumerable.Empty<string>());
             allEmailsToValidate.AddRange(newSettings.ProdTeamTo ?? Enumerable.Empty<string>());
             allEmailsToValidate.AddRange(newSettings.ProdTeamCC ?? Enumerable.Empty<string>());
 
-            // Only validate debug emails if they were part of the save operation (i.e., in DEBUG build)
 #if DEBUG
             if (!string.IsNullOrWhiteSpace(newSettings.DebugTo)) allEmailsToValidate.Add(newSettings.DebugTo);
             if (!string.IsNullOrWhiteSpace(newSettings.DebugCC1)) allEmailsToValidate.Add(newSettings.DebugCC1);
@@ -306,7 +287,7 @@ namespace QuoteConversionReportAutomation
                 try
                 {
                     _emailRecipientManager.ClearUserOverrides();
-                    LoadSettingsToForm(); // Reloads defaults (as overrides are now empty)
+                    LoadSettingsToForm();
                     Logger.LogInfo("User confirmed and email settings restored to defaults.");
                     FlexibleMessageBox.Show(this, "Email recipient settings have been restored to application defaults.",
                         "Defaults Restored", MessageBoxButtons.OK, MessageBoxIcon.Information);

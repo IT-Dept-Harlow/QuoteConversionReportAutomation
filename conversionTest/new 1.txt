@@ -1,0 +1,86 @@
+ /// <summary>
+        /// Extracts unique customers from the source data sheet and populates the target analysis sheet asynchronously.
+        /// Also populates Date (using reportDate), Financial Year, and Source Filename.
+        /// </summary>
+        private async Task ExtractUniqueCustomersAsync( // Removed static
+            ExcelPackage package,
+            string sourceDataSheetName,
+            string targetAnalysisSheetName,
+            IProgress<ProgressReport>? progress,
+            string originalSourceFilePath,
+            DateTime reportDate, // This is the END date for the report range
+            CancellationToken cancellationToken)
+        {
+            Logger.LogTrace($"Entering ExtractUniqueCustomersAsync(source: {sourceDataSheetName}, target: {targetAnalysisSheetName})"); // Trace: Method entry
+            ExcelWorksheet? dataSheet = package.Workbook.Worksheets[sourceDataSheetName];
+            if (dataSheet == null)
+            {
+                Logger.LogError($"Source data sheet '{sourceDataSheetName}' not found for customer extraction."); // Error: Cannot proceed
+                Logger.LogTrace($"Exiting ExtractUniqueCustomersAsync early - data sheet not found."); // Trace: Exit path
+                return;
+            }
+
+            ExcelWorksheet analysisSheet = package.Workbook.Worksheets[targetAnalysisSheetName]
+                                             ?? package.Workbook.Worksheets.Add(targetAnalysisSheetName);
+
+            if (analysisSheet.Dimension == null || analysisSheet.Dimension.Rows < 5)
+            {
+                Logger.LogWarning($"Analysis sheet '{targetAnalysisSheetName}' might be missing expected headers/structure. Ensure template is correct.");
+            }
+
+            int dataRowCount = dataSheet.Dimension?.Rows ?? 0;
+            int startDataRowInDataSheet = 2;
+            if (dataRowCount < startDataRowInDataSheet)
+            {
+                Logger.LogWarning($"Source data sheet '{sourceDataSheetName}' has insufficient rows ({dataRowCount}) for customer extraction starting at row {startDataRowInDataSheet}.");
+                Logger.LogTrace($"Exiting ExtractUniqueCustomersAsync early - insufficient rows in data sheet."); // Trace: Exit path
+                return;
+            }
+
+            string sourceFileName = Path.GetFileName(originalSourceFilePath);
+            Logger.LogDebug($"Filename determined for Analysis sheet population: {sourceFileName}"); // Debug: Useful info
+
+            Logger.LogTrace("ExtractUniqueCustomersAsync: Starting HashSet population task..."); // Trace: Internal step
+            var uniqueCustomers = await Task.Run(() =>
+            {
+                var customers = new HashSet<string>();
+                for (int row = startDataRowInDataSheet; row <= dataRowCount; row++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    string? customerName = dataSheet.Cells[row, CustomerColumnIndex].Value?.ToString()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(customerName))
+                    {
+                        customers.Add(customerName);
+                    }
+                    if (row % 100 == 0)
+                    {
+                        int percent = (int)((double)(row - startDataRowInDataSheet + 1) / (dataRowCount - startDataRowInDataSheet + 1) * 100);
+                        progress?.Report(new ProgressReport($"Extracting customers... {percent}%", percent));
+                    }
+                }
+                progress?.Report(new ProgressReport($"Extracting customers... 100%", 100));
+                Logger.LogTrace($"ExtractUniqueCustomersAsync: HashSet population complete. Count: {customers.Count}"); // Trace: Internal result
+                return customers;
+            }, cancellationToken);
+
+            Logger.LogTrace("ExtractUniqueCustomersAsync: Starting analysis sheet population task..."); // Trace: Internal step
+            await Task.Run(() =>
+            {
+                int analysisPopulateStartRow = 6;
+                // Use the report's END date for the Date column
+                string reportDateString = reportDate.ToString("dd/MM/yyyy");
+                string currentFY = GetCurrentFinancialYear(false); // Use instance method
+
+                foreach (string customer in uniqueCustomers.OrderBy(c => c))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    analysisSheet.Cells[analysisPopulateStartRow, CustomerColumnIndex].Value = customer;
+                    analysisSheet.Cells[analysisPopulateStartRow, DateColumnIndex].Value = reportDateString;
+                    analysisSheet.Cells[analysisPopulateStartRow, FinancialYearColumnIndex].Value = currentFY;
+                    analysisSheet.Cells[analysisPopulateStartRow, SourceFileNameColumnIndex].Value = sourceFileName;
+                    analysisPopulateStartRow++;
+                }
+                Logger.LogInfo($"Populated '{targetAnalysisSheetName}' with {uniqueCustomers.Count} unique customers starting at row 6, using report date {reportDateString}."); // Info: Significant action result
+            }, cancellationToken);
+            Logger.LogTrace($"Exiting ExtractUniqueCustomersAsync."); // Trace: Method exit
+        }

@@ -4,16 +4,16 @@
 // --- Standard and Third-Party Using Statements ---
 using Microsoft.Extensions.Configuration;
 using Microsoft.VisualBasic; // For Interaction.InputBox
-using Newtonsoft.Json; // For Formatting enum and JObject (if direct manipulation is ever re-introduced)
 using Newtonsoft.Json.Linq; // For JObject specifically
 using QuoteConversionReportAutomation;
 using QuoteConversionReportAutomation.Helpers;
-using QuoteConversionReportAutomation.Managers;
+using QuoteConversionReportAutomation.Managers; // Required for AutoRunActionResult
 using QuoteConversionReportAutomation.Models;
 using QuoteConversionReportAutomation.Services.Communication;
 using QuoteConversionReportAutomation.Services.Excel;
 using QuoteConversionReportAutomation.Services.Logging;
 using System;
+using System.Collections.Generic; // For List
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -56,7 +56,7 @@ namespace conversionTest // Main namespace for the UI
         /// <summary>
         /// Current version of the application. Used for display purposes (e.g., title bar, help).
         /// </summary>
-        private const string AppVersion = "1.8.8";
+        private const string AppVersion = "1.8.10"; // Update as necessary
 
         // --- State Variables ---
         private string _generatedReportPath = string.Empty; // Stores the path to the last generated raw report file.
@@ -70,10 +70,11 @@ namespace conversionTest // Main namespace for the UI
 
         // --- Report Type Constants ---
         // These constants define indices for different report types selected in the UI ComboBox.
-        // They must align with the ComboBox items and the logic in GetSelectedReportTypeIndex().
+        // They should align with the ComboBox items and the logic in GetSelectedReportTypeIndex().
+        // Also used by AutoReportDefinition.ReportTypeIndex for mapping if needed.
         private const int DailyReportIndex = 0;
         private const int NewDailyReportOver1kIndex = 1;
-        private const int WeeklyReportIndex = 2;
+        private const int WeeklyReportIndex = 2; // Represents the 15-day rolling report run weekly
         private const int MonthlyReportIndex = 3;
         private const int QuarterlyReportIndex = 4;
         private const int AnnualReportIndex = 5;
@@ -123,11 +124,11 @@ namespace conversionTest // Main namespace for the UI
             {
                 string baseDir = RawReportExportBaseDir;
                 DateTime dateForFilename = endDatePicker.Value;
-                string fileName = $"{dateForFilename:yyyyMMdd}_EstimateSuccessReport_Raw.xlsx";
+                string fileName = $"{dateForFilename:yyyyMMdd}_EstimateSuccessReport_Raw.xlsx"; // Generic name, consider making it more specific if needed
                 int currentReportTypeIndex = GetSelectedReportTypeIndex();
 
                 DateTime folderTimestampDate = (currentReportTypeIndex == CustomReportIndex) ? DateTime.Now : endDatePicker.Value;
-                if (currentReportTypeIndex == NewDailyReportOver1kIndex)
+                if (currentReportTypeIndex == NewDailyReportOver1kIndex) // Specific case for this report type
                 {
                     folderTimestampDate = endDatePicker.Value;
                 }
@@ -137,11 +138,11 @@ namespace conversionTest // Main namespace for the UI
                 if (string.IsNullOrEmpty(specificFolder))
                 {
                     Logger.LogError($"Could not determine specific folder path for ReportOutputLocation. ReportType: {currentReportTypeIndex}, Base: {baseDir}. Using fallback.");
-                    string reportTypeSubFolder = currentReportTypeIndex switch
+                    string reportTypeSubFolder = currentReportTypeIndex switch // Fallback subfolder naming
                     {
                         DailyReportIndex => "Daily Reports",
                         NewDailyReportOver1kIndex => "Daily Reports (5day 1k)",
-                        WeeklyReportIndex => "Weekly Reports",
+                        WeeklyReportIndex => "Weekly Reports", // Folder for the 15-day report
                         MonthlyReportIndex => "Monthly Reports",
                         QuarterlyReportIndex => "Quarterly reports",
                         AnnualReportIndex => "Annual Reports",
@@ -189,16 +190,14 @@ namespace conversionTest // Main namespace for the UI
             Logger.LogTrace("Entering Form1 Constructor");
             try
             {
-                InitializeComponent(); // Standard Windows Forms method to initialize components defined in the designer.
+                InitializeComponent();
                 Logger.LogDebug("InitializeComponent completed.");
 
-                // Instantiate core service and manager classes, passing IConfiguration for settings access.
                 _emailUtility = new EmailUtility(_configuration);
                 _excelProcessor = new ExcelCopyData();
                 _emailRecipientManager = new EmailRecipientManager(_configuration);
                 _greetingManager = new GreetingManager(_configuration);
 
-                // UIManager handles theming and general UI state updates.
                 _uiManager = new UIManager(
                     this, menuStrip1, mainStatusStrip, statusLabel, autoRunStatusLabel,
                     darkModeToolStripMenuItem, createReportButton, processEmailButton,
@@ -209,12 +208,10 @@ namespace conversionTest // Main namespace for the UI
                     skipEmailCheckBox, emailRecipientLabel, toolTip1
                 );
 
-                // Managers for specific backend processes.
                 string wrapperExePath = Path.GetFullPath(_configuration["settings:WrapperExePath"] ?? "CrystalReportWrapper.exe");
                 _processManager = new ReportProcessManager(wrapperExePath);
                 _pipeCommunicator = new NamedPipeCommunicator();
 
-                // AutoRun feature setup.
                 _currentAutoRunHour = _configuration.GetValue<int>("settings:AutoRunCheckHour", 8);
                 _uiManager.SetAutoRunHour(_currentAutoRunHour);
                 _autoRunManager = new AutoRunManager(
@@ -250,7 +247,6 @@ namespace conversionTest // Main namespace for the UI
                 BankHolidayHelper.Initialize();
                 Logger.LogInfo("BankHolidayHelper initialized.");
 
-                // Validate critical configuration paths necessary for core functionality.
                 string crystalReportPath = CrystalReportLocation;
                 string wrapperExePath = _configuration["settings:WrapperExePath"] ?? string.Empty;
                 bool configValid = true;
@@ -266,40 +262,36 @@ namespace conversionTest // Main namespace for the UI
                     configValid = false;
                 }
 
-                // Set form title with version and build mode (Debug/Release).
                 Text = $"Quote Conversion Automation - {(IsDebug ? "DEBUG" : "RELEASE")} - v{AppVersion}";
-                StartPosition = FormStartPosition.CenterScreen; // Center the form on screen.
-                financialYearComboBox.DropDownStyle = ComboBoxStyle.DropDownList; // Prevent free-text entry.
+                StartPosition = FormStartPosition.CenterScreen;
+                financialYearComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
 
-                // Ensure "Custom" report type is available in the ComboBox.
                 if (!reportTypeComboBox.Items.Contains("Custom"))
                 {
                     reportTypeComboBox.Items.Add("Custom");
                 }
-                // Set initial report type selection (defaults to "Daily" if available).
                 if (reportTypeComboBox.Items.Count > DailyReportIndex && reportTypeComboBox.Items.Contains("Daily"))
                 {
                     reportTypeComboBox.SelectedIndex = reportTypeComboBox.Items.IndexOf("Daily");
                 }
-                else if (reportTypeComboBox.Items.Count > 0) reportTypeComboBox.SelectedIndex = 0; // Fallback to first item.
-                reportTypeComboBox.DropDownStyle = ComboBoxStyle.DropDownList; // Enforce selection from list.
+                else if (reportTypeComboBox.Items.Count > 0) reportTypeComboBox.SelectedIndex = 0;
+                reportTypeComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
 
-                // Apply theme based on Windows settings and update AutoRun UI.
                 bool useDarkMode = UIManager.IsWindowsDarkModeEnabled();
                 darkModeToolStripMenuItem.Checked = useDarkMode;
                 _uiManager.ApplyTheme(useDarkMode);
                 _uiManager.UpdateAutoRunUI(dailyCheckTimer.Enabled, false, useDarkMode, $"Auto Run: {(dailyCheckTimer.Enabled ? $"Enabled (Next check ~{_currentAutoRunHour}:00)" : "Disabled")}");
 
-                LoadAutoReportToggleStates(); // Set menu item check states for auto-run reports.
 
-                // Initialize UI based on selected report type and config validity.
+                LoadAutoReportToggleStates();
+
                 reportTypeComboBox_SelectedIndexChanged(reportTypeComboBox, EventArgs.Empty);
                 _uiManager.ResetButtonStatesAfterTypeChange(configValid);
-                enable1ClickProcessingToolStripMenuItem.Checked = false; // Default to 2-button mode.
+                enable1ClickProcessingToolStripMenuItem.Checked = false;
                 Update1ClickProcessingModeUI();
                 if (!configValid) _uiManager.UpdateStatusMain("Config Error: Check Options menu.");
 
-                // Ensure Crystal Report Wrapper service is running.
+
                 _uiManager.UpdateStatusMain("Checking report service...");
                 IProgress<string> loadProgress = new Progress<string>(status => _uiManager.UpdateProgress(status));
                 bool wrapperOk = await _processManager.EnsureWrapperIsRunningAsync(loadProgress);
@@ -309,7 +301,6 @@ namespace conversionTest // Main namespace for the UI
                     _uiManager.UpdateStatusMain("Report service failed to start. Report generation may fail.");
                 }
 
-                // Perform background archiving of old reports.
                 string? finalDir = ExcelFinalSaveLocation;
                 string? rawDir = RawReportExportBaseDir;
                 int? archiveDays = _configuration.GetValue<int?>("settings:ArchiveRawOlderThanDays");
@@ -321,7 +312,6 @@ namespace conversionTest // Main namespace for the UI
                         }, TaskScheduler.Default);
 
                 Logger.LogInfo("Form Load Initialisation Complete.");
-                // Set final status message based on checks.
                 if (configValid && wrapperOk) _uiManager.UpdateStatusMain("Ready");
                 else if (configValid && !wrapperOk) _uiManager.UpdateStatusMain("Ready (Report Service Issue)");
                 else _uiManager.UpdateStatusMain("Config Error (Service Check Skipped)");
@@ -343,8 +333,8 @@ namespace conversionTest // Main namespace for the UI
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
             Logger.LogInfo("Form closing. Stopping timer and terminating wrapper process.");
-            dailyCheckTimer.Stop(); // Stop the auto-run timer.
-            _processManager.TerminateWrapperProcess(); // Terminate the Crystal Report wrapper executable.
+            dailyCheckTimer.Stop();
+            _processManager.TerminateWrapperProcess();
         }
         #endregion
 
@@ -376,28 +366,25 @@ namespace conversionTest // Main namespace for the UI
             Logger.LogInfo("1-Click Process button clicked.");
             _uiManager.UpdateStatusMain("1-Click Process: Starting...");
 
-            // Disable all action buttons during the 1-Click process
             UIManager.SafeControlUpdate(oneClickProcessButton, () => oneClickProcessButton.Enabled = false);
             UIManager.SafeControlUpdate(createReportButton, () => createReportButton.Enabled = false);
             UIManager.SafeControlUpdate(processEmailButton, () => processEmailButton.Enabled = false);
             _uiManager.SetOtherControlsEnabled(false, financialYearComboBox.Visible);
 
-            // Step 1: Create the raw report
             await PerformCreateReportAsync();
 
-            // Check if raw report generation was successful before proceeding
             if (string.IsNullOrEmpty(_generatedReportPath) || !File.Exists(_generatedReportPath))
             {
                 Logger.LogWarning("1-Click Process: Raw report generation failed or was cancelled. Aborting further steps.");
-                ResetUIStateOnError("Generate, Process && Email Report"); // Reset UI, keeping 1-click button text
+                string buttonText = CheckConfigValidity() ? "Generate, Process && Email Report" : "Config Error";
+                ResetUIStateOnError(buttonText);
                 return;
             }
 
-            // Step 2: Process the report and email it
             await PerformProcessAndEmailAsync(skipEmail: skipEmailCheckBox.Checked);
-
             Logger.LogInfo("1-Click Process sequence completed (or aborted if errors occurred).");
         }
+
 
         /// <summary>
         /// Handles the Click event for the "View Raw File" button.
@@ -429,15 +416,9 @@ namespace conversionTest // Main namespace for the UI
             string originalButtonText = string.Empty;
             UIManager.SafeControlUpdate(currentActionButton, () => originalButtonText = currentActionButton.Text);
 
-            // Disable UI elements to prevent concurrent operations
             UIManager.SafeControlUpdate(currentActionButton, () => currentActionButton.Enabled = false);
             if (currentActionButton == createReportButton)
             {
-                UIManager.SafeControlUpdate(processEmailButton, () => processEmailButton.Enabled = false);
-            }
-            else
-            {
-                UIManager.SafeControlUpdate(createReportButton, () => createReportButton.Enabled = false);
                 UIManager.SafeControlUpdate(processEmailButton, () => processEmailButton.Enabled = false);
             }
             _uiManager.SetOtherControlsEnabled(false, financialYearComboBox.Visible);
@@ -477,11 +458,14 @@ namespace conversionTest // Main namespace for the UI
                     _generatedReportPath = response.OutputPath;
                     Logger.LogInfo($"Raw report generated successfully by wrapper: {_generatedReportPath}");
 
-                    if (oneClickProcessButton.Visible) { /* In 1-click mode, button remains disabled */ }
+                    if (oneClickProcessButton.Visible)
+                    {
+                        // UI handled by subsequent steps or error handling
+                    }
                     else
                     {
                         UIManager.SafeControlUpdate(createReportButton, () => createReportButton.Text = "Report Created");
-                        UIManager.SafeControlUpdate(processEmailButton, () => processEmailButton.Enabled = true);
+                        UIManager.SafeControlUpdate(processEmailButton, () => processEmailButton.Enabled = CheckConfigValidity());
                         _uiManager.SetOtherControlsEnabled(true, financialYearComboBox.Visible);
                     }
                     _uiManager.ShowViewReportButton(true, _generatedReportPath);
@@ -531,11 +515,6 @@ namespace conversionTest // Main namespace for the UI
             {
                 UIManager.SafeControlUpdate(createReportButton, () => createReportButton.Enabled = false);
             }
-            else
-            {
-                UIManager.SafeControlUpdate(createReportButton, () => createReportButton.Enabled = false);
-                UIManager.SafeControlUpdate(processEmailButton, () => processEmailButton.Enabled = false);
-            }
             _uiManager.SetOtherControlsEnabled(false, financialYearComboBox.Visible);
             UIManager.SafeControlUpdate(currentActionButton, () => currentActionButton.Text = "Processing...");
 
@@ -557,7 +536,9 @@ namespace conversionTest // Main namespace for the UI
                 if (string.IsNullOrEmpty(_generatedReportPath) || !File.Exists(_generatedReportPath))
                 {
                     FlexibleMessageBox.Show(this, "The raw report file has not been generated or cannot be found. Please create the report first.", "Raw Report Missing", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    ResetUIStateOnError(oneClickProcessButton.Visible ? "Generate, Process && Email Report" : "Create Report");
+                    string resetText = oneClickProcessButton.Visible ? (CheckConfigValidity() ? "Generate, Process && Email Report" : "Config Error")
+                                                                  : (CheckConfigValidity() ? "Create Report" : "Config Error");
+                    ResetUIStateOnError(resetText);
                     return;
                 }
 
@@ -585,7 +566,7 @@ namespace conversionTest // Main namespace for the UI
                         else if (skipEmail) { _uiManager.UpdateStatusMain("Process completed. Email skipped by user."); Logger.LogInfo("Email sending skipped by user checkbox."); }
 
                         if (proceedToEmail || skipEmail) _uiManager.SetUICompleted(CheckConfigValidity(), IsAnyDailySelected(), dailyCheckTimer.Enabled, darkModeToolStripMenuItem.Checked, false, autoRunStatusLabel.Text ?? "");
-                        ResetUIStateOnError(oneClickProcessButton.Visible ? "Generate, Process && Email Report" : "Create Report");
+                        ResetUIStateOnError(originalButtonText);
                         return;
                     }
                     else
@@ -645,7 +626,7 @@ namespace conversionTest // Main namespace for the UI
                 }
 
                 if (proceedToEmailAfterGenerate || skipEmail) _uiManager.SetUICompleted(CheckConfigValidity(), IsAnyDailySelected(), dailyCheckTimer.Enabled, darkModeToolStripMenuItem.Checked, false, autoRunStatusLabel.Text ?? "");
-                ResetUIStateOnError(oneClickProcessButton.Visible ? "Generate, Process && Email Report" : "Create Report");
+                ResetUIStateOnError(originalButtonText);
             }
             catch (OperationCanceledException)
             {
@@ -714,9 +695,11 @@ namespace conversionTest // Main namespace for the UI
                         Logger.LogInfo($"Daily (5days >= £1000) report selected. Dates: {dateFrom:dd/MM/yyyy} - {dateTo:dd/MM/yyyy}");
                         break;
                     case WeeklyReportIndex:
-                        dateFrom = todayValue.AddDays(-14);
+                        // For manual "Weekly" (15-day) report: End date is today, Start date is 14 days prior.
                         dateTo = todayValue;
-                        showFinYear = true;
+                        dateFrom = todayValue.AddDays(-14); // Covers 15 days including today
+                        showFinYear = true; // Typically, a weekly summary might need FY context for Power BI
+                        Logger.LogInfo($"Manual Weekly (15-day) report selected. Dates: {dateFrom:dd/MM/yyyy} - {dateTo:dd/MM/yyyy}");
                         break;
                     case MonthlyReportIndex:
                         (dateFrom, dateTo) = ReportHelper.CalculateMonthlyRange(todayValue);
@@ -780,10 +763,6 @@ namespace conversionTest // Main namespace for the UI
             Logger.LogTrace("Exiting reportTypeComboBox_SelectedIndexChanged");
         }
 
-        /// <summary>
-        /// Handles the Click event of the toggleAutoRunButton.
-        /// Enables or disables the daily auto-run timer and updates the UI accordingly.
-        /// </summary>
         private void toggleAutoRunButton_Click(object sender, EventArgs e)
         {
             dailyCheckTimer.Enabled = !dailyCheckTimer.Enabled;
@@ -797,11 +776,6 @@ namespace conversionTest // Main namespace for the UI
             Logger.LogInfo($"AutoRun {(dailyCheckTimer.Enabled ? "Enabled" : "Disabled")} by user via toggle button.");
         }
 
-        /// <summary>
-        /// Handles the Tick event of the dailyCheckTimer.
-        /// This event fires periodically (e.g., every minute) to check if the automated daily report
-        /// should be run based on the configured time and last run status.
-        /// </summary>
         private async void dailyCheckTimer_Tick(object sender, EventArgs e)
         {
             if (!dailyCheckTimer.Enabled) return;
@@ -810,37 +784,52 @@ namespace conversionTest // Main namespace for the UI
             dailyCheckTimer.Stop();
             Logger.LogDebug("Daily Check Timer Ticked. Attempting to perform daily auto-run check.");
 
+            AutoRunActionResult autoRunResult = AutoRunActionResult.NoActionNeeded;
+
             try
             {
-                await _autoRunManager.PerformDailyCheckAsync(originallyEnabled, _currentAutoRunHour);
+                autoRunResult = await _autoRunManager.PerformDailyCheckAsync(originallyEnabled, _currentAutoRunHour);
             }
             catch (Exception ex)
             {
                 Logger.LogCritical($"CRITICAL ERROR during AutoRunManager.PerformDailyCheckAsync dispatch from timer: {ex.Message}", ex);
                 _uiManager.UpdateStatusMain("Critical AutoRun Error! Check Logs.");
                 _uiManager.UpdateStatusRight("AutoRun: FAILED");
-                originallyEnabled = false;
+                _uiManager.UpdateAutoRunUI(dailyCheckTimer.Enabled, true, darkModeToolStripMenuItem.Checked, "AutoRun: FAILED (Timer Error)");
+                autoRunResult = AutoRunActionResult.CriticalError;
             }
             finally
             {
-                if (originallyEnabled && dailyCheckTimer.Enabled == false)
+                if (originallyEnabled && autoRunResult != AutoRunActionResult.CriticalError)
                 {
                     dailyCheckTimer.Start();
                     Logger.LogDebug("Daily Check Timer Restarted after auto-run check.");
                 }
-                else if (!originallyEnabled)
+                else if (autoRunResult == AutoRunActionResult.CriticalError)
                 {
-                    Logger.LogInfo("Daily Check Timer remains stopped as it was not originally enabled for this tick's check cycle or was disabled due to error.");
+                    Logger.LogWarning("Daily Check Timer remains stopped due to a critical error during the auto-run check.");
                 }
-                // Reset general UI elements that might have been disabled by AutoRunManager
-                ResetUIStateOnError(oneClickProcessButton.Visible ? "Generate, Process && Email Report" : "Create Report");
+
+
+                if (autoRunResult == AutoRunActionResult.ActionAttempted || autoRunResult == AutoRunActionResult.CriticalError)
+                {
+                    Logger.LogInfo($"AutoRun action result '{autoRunResult}' indicates UI may need reset.");
+                    string mainButtonResetText = enable1ClickProcessingToolStripMenuItem.Checked ?
+                                                 (CheckConfigValidity() ? "Generate, Process && Email Report" : "Config Error") :
+                                                 (CheckConfigValidity() ? "Create Report" : "Config Error");
+                    ResetUIStateOnError(mainButtonResetText);
+                }
+                else
+                {
+                    if (_uiManager != null && toggleAutoRunButton != null && !toggleAutoRunButton.IsDisposed)
+                    {
+                        UIManager.SafeControlUpdate(toggleAutoRunButton, () => toggleAutoRunButton.Enabled = true);
+                    }
+                    Logger.LogDebug("AutoRun result is NoActionNeeded. Full UI reset skipped. Timer restart managed.");
+                }
             }
         }
 
-        /// <summary>
-        /// Handles the Click event of the darkModeToolStripMenuItem.
-        /// Toggles the application's dark/light theme and updates relevant UI elements.
-        /// </summary>
         private void darkModeToolStripMenuItem_Click(object sender, EventArgs e)
         {
             bool isChecked = darkModeToolStripMenuItem.Checked;
@@ -849,20 +838,23 @@ namespace conversionTest // Main namespace for the UI
             bool isAutoRunFinalStatusForToday = (autoRunStatusLabel.Text?.Contains("Completed") ?? false) ||
                                               (autoRunStatusLabel.Text?.Contains("Done for") ?? false) ||
                                               (autoRunStatusLabel.Text?.Contains("FAILED") ?? false);
+
             string autoRunStatusTextToShow;
             if (dailyCheckTimer.Enabled)
-                autoRunStatusTextToShow = isAutoRunFinalStatusForToday ? (autoRunStatusLabel.Text ?? $"Auto Run: Enabled (Next check ~{_currentAutoRunHour}:00)") : $"Auto Run: Enabled (Next check ~{_currentAutoRunHour}:00)";
+            {
+                autoRunStatusTextToShow = isAutoRunFinalStatusForToday ? (autoRunStatusLabel.Text ?? $"Auto Run: Enabled (Next check ~{_currentAutoRunHour}:00)")
+                                                                 : $"Auto Run: Enabled (Next check ~{_currentAutoRunHour}:00)";
+            }
             else
-                autoRunStatusTextToShow = isAutoRunFinalStatusForToday ? (autoRunStatusLabel.Text ?? "Auto Run: Disabled") : "Auto Run: Disabled";
+            {
+                autoRunStatusTextToShow = isAutoRunFinalStatusForToday ? (autoRunStatusLabel.Text ?? "Auto Run: Disabled")
+                                                                 : "Auto Run: Disabled";
+            }
 
             _uiManager.UpdateAutoRunUI(dailyCheckTimer.Enabled, isAutoRunFinalStatusForToday, isChecked, autoRunStatusTextToShow);
             Logger.LogInfo($"Dark Mode toggled via menu. New state: {(isChecked ? "Enabled" : "Disabled")}");
         }
 
-        /// <summary>
-        /// Handles the Click event of the helpToolStripMenuItem.
-        /// Constructs and displays the application's help information in a separate, themed form.
-        /// </summary>
         private void helpToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Logger.LogTrace("Help menu item clicked.");
@@ -876,6 +868,7 @@ namespace conversionTest // Main namespace for the UI
             string rtfSubHeaderColor = isDarkModeActive ? @"\red120\green220\blue180;" : @"\red0\green100\blue0;";
             string rtfAccentColor = isDarkModeActive ? @"\red255\green160\blue160;" : @"\red200\green0\blue0;";
             string rtfBulletColor = isDarkModeActive ? @"\red180\green180\blue180;" : @"\red80\green80\blue80;";
+
 
             helpMessageBuilder.AppendLine(@"{\rtf1\ansi\ansicpg1252\deff0\nouicompat{\fonttbl{\f0\fnil\fcharset0 Segoe UI;}{\f1\fnil\fcharset2 Symbol;}}");
             helpMessageBuilder.AppendLine($@"{{\colortbl ;{rtfDefaultTextColor}{rtfHeaderColor}{rtfSubHeaderColor}{rtfAccentColor}{rtfBulletColor}}}");
@@ -892,7 +885,7 @@ namespace conversionTest // Main namespace for the UI
             helpMessageBuilder.AppendLine(@"Choose the desired report period from the \b Report Type\b0\cf1\ dropdown menu. The options are:\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Daily:\b0\  Generates a report for the {\i previous working day}. This automatically accounts for weekends and bank holidays.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Daily (5days >= £1000):\b0\  Covers the {\i previous five working days}, filtering for 'Net Value' >= £1000.\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Weekly:\b0\  Sets 'To' date to today, 'From' to 15 days prior. Appends data to a central Power BI Excel file.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Weekly:\b0\  Covers the {\i 15-day period ending on the current day}. Appends data to a central Power BI Excel file.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Monthly:\b0\  For the {\i previous full calendar month}.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Quarterly:\b0\  For the {\i previous full calendar quarter}.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Annual:\b0\  For the {\i previous full financial year (May 1st - April 30th)}.\par");
@@ -914,7 +907,7 @@ namespace conversionTest // Main namespace for the UI
             helpMessageBuilder.AppendLine(@"\b\fs22\cf3 Options Menu Explained\b0\fs20\cf1\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Enable 1-Click Processing:\b0\  Toggles between 1-button and 2-button modes.\par");
             helpMessageBuilder.AppendLine($@"    \pard\fi-360\li720{{\pntext\f1\'B7\tab}}\cf1 \b Set Auto-Run Hour...:\b0\  Change the daily auto-run check time (currently ~ \b {_currentAutoRunHour}:00\b0\cf1 ).\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Configure Auto-Run Reports:\b0\  Sub-menu to enable/disable automated 'Standard Daily' and 'Daily (5days >= £1000)' reports.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Configure Auto-Run Reports:\b0\  Sub-menu to enable/disable automated reports (Standard Daily, Daily 5days >= £1000, Weekly).\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Dark Mode:\b0\  Toggle application theme.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b View Configuration:\b0\  Show critical file paths and settings.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Validate Configuration:\b0\  Quick check of essential configurations.\par");
@@ -922,15 +915,15 @@ namespace conversionTest // Main namespace for the UI
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Manage Email Recipients:\b0\  Customize To/CC lists. User overrides saved to `user_email_settings.json`. Debug fields hidden in Release mode.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Manage Email Greetings:\b0\  Customize email greetings. User overrides saved to `user_greeting_settings.json`. Debug field hidden in Release mode.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Open Logs Folder:\b0\  Access application log files.\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Edit appsettings.json:\b0\  Open main config file. {\i\cf4 Use with caution!}\cf1\par");
+            helpMessageBuilder.AppendLine($@"    \pard\fi-360\li720{{\pntext\f1\'B7\tab}}\cf1 \b Edit appsettings.json:\b0\  Open main config file. {{\i\cf4 Use with caution!}}\cf1\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Exit:\b0\  Close application.\par");
             helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\cf1\par");
             helpMessageBuilder.AppendLine(@"\b\fs22\cf3 Auto-Run Feature\b0\fs20\cf1\par");
-            helpMessageBuilder.AppendLine($@"When enabled, checks daily around \b {_currentAutoRunHour}:00\b0\cf1\ to run pending enabled reports (Standard Daily, Daily 5days >= £1000) for the previous workday. Uses configured recipients and greetings. Status displayed in the status bar.\par");
+            helpMessageBuilder.AppendLine($@"When enabled, checks daily around \b {_currentAutoRunHour}:00\b0\cf1\ to run pending enabled reports (as configured in Options and `appsettings.json`) for their respective periods. Uses configured recipients and greetings. Status displayed in the status bar.\par");
             helpMessageBuilder.AppendLine(@"\par");
             helpMessageBuilder.AppendLine(@"\b\fs22\cf3 Email Configuration Notes\b0\fs20\cf1\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Recipients & Greetings:\b0\  Both email recipients and greetings are configurable for various report scenarios (automated daily, manual daily, Femi-only, team, etc.) via the 'Options' menu. User customizations are saved in separate JSON files in your AppData folder and override `appsettings.json` defaults.\par");
-            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Debug Mode:\b0\  When running a DEBUG build, {\i all} emails (manual or automated) will be sent to the configured Debug recipients using the Debug greeting, overriding all other settings. Debug configuration fields in management forms are hidden in Release builds.\par");
+            helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Recipients & Greetings:\b0\  Both email recipients and greetings are configurable for various report scenarios via the 'Options' menu. User customizations are saved in separate JSON files in your AppData folder and override `appsettings.json` defaults.\par");
+            helpMessageBuilder.AppendLine($@"    \pard\fi-360\li720{{\pntext\f1\'B7\tab}}\cf1 \b Debug Mode:\b0\  When running a DEBUG build, {{\i all}} emails (manual or automated) will be sent to the configured Debug recipients using the Debug greeting, overriding all other settings. Debug configuration fields in management forms are hidden in Release builds.\par");
             helpMessageBuilder.AppendLine(@"\pard\sa200\sl276\slmult1\cf1\par");
             helpMessageBuilder.AppendLine(@"\b\fs22\cf3 Troubleshooting Tips\b0\fs20\cf1\par");
             helpMessageBuilder.AppendLine(@"If you encounter issues, consider the following:\par");
@@ -950,7 +943,7 @@ namespace conversionTest // Main namespace for the UI
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Auto-Run Not Working as Expected:\b0\  \par");
             helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f1\'B7\tab}\cf1 Confirm it's enabled via the button and status bar. Check which specific auto-run reports are enabled via \b Options -> Configure Auto-Run Reports\b0\cf1 .\par");
             helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f1\'B7\tab}\cf1 Check configured 'Auto-Run Hour' via \b Options -> Set Auto-Run Hour...\b0\cf1 .\par");
-            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f1\'B7\tab}\cf1 Review `appsettings.json` for `AutoReport:LastRunDate` and `AutoReport:DailyRunStatus`. If it's today's date and relevant report succeeded, it won't run again until tomorrow.\par");
+            helpMessageBuilder.AppendLine(@"        \pard\fi-720\li1080{\pntext\f1\'B7\tab}\cf1 Review `appsettings.json` for `AutoReport:LastRunDate` and `AutoReport:DailyRunStatus`. If `LastRunDate` is today, or if the specific report's success flag in `DailyRunStatus` (for today's `StatusDate`) is true, it won't run again until the next due time/day.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Incorrect Formulas in Excel Output:\b0\  Ensure the template file (`TEMPLATE_Estimate Success Rate.xlsx` or `..._Monthly.xlsx`) has the correct relative formulas in its 'Analysis' sheet, especially in the first data row (typically row 6). The application copies this row to propagate formulas.\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b User Settings Not Taking Effect (Recipients/Greetings):\b0\  User settings are stored in JSON files in `%APPDATA%\HarlowSolutions\QuoteConversionReportAutomation\`. If changes aren't sticking, check if these files (`user_email_settings.json`, `user_greeting_settings.json`) are writable. Corrupted files can be deleted (the application will revert to `appsettings.json` defaults).\par");
             helpMessageBuilder.AppendLine(@"    \pard\fi-360\li720{\pntext\f1\'B7\tab}\cf1 \b Excel Slicers/Pivot Tables Not Updating:\b0\  For reports requiring manual refresh, follow the on-screen prompts carefully: open Excel, Enable Editing, Refresh All (Data tab), Save, and Close.\par");
@@ -963,7 +956,6 @@ namespace conversionTest // Main namespace for the UI
             string helpMessage = helpMessageBuilder.ToString();
             try
             {
-                // Assuming HelpForm is in the same namespace or a referenced one
                 using var helpForm = new HelpForm(helpTitle, helpMessage, darkModeToolStripMenuItem.Checked);
                 helpForm.ShowDialog(this);
             }
@@ -974,16 +966,11 @@ namespace conversionTest // Main namespace for the UI
             }
         }
 
-        /// <summary>
-        /// Handles the ValueChanged event of the date pickers (startDatePicker and endDatePicker).
-        /// If the date is changed manually (not by code), it sets the reportTypeComboBox to "Custom".
-        /// </summary>
         private void DatePicker_ValueChanged(object sender, EventArgs e)
         {
-            if (_programmaticallyChangingDates) return; // Avoid recursion if dates are being set by code
+            if (_programmaticallyChangingDates) return;
 
             int currentReportTypeIndex = GetSelectedReportTypeIndex();
-            // If a standard report type is selected and user changes dates, switch to "Custom"
             if (currentReportTypeIndex != CustomReportIndex)
             {
                 Logger.LogDebug("DatePicker_ValueChanged: Manual date change detected. Setting Report Type to Custom.");
@@ -999,18 +986,15 @@ namespace conversionTest // Main namespace for the UI
                         }
                     }
                     if (customIdx != -1) reportTypeComboBox.SelectedIndex = customIdx;
+                    else Logger.LogWarning("DatePicker_ValueChanged: 'Custom' item not found in reportTypeComboBox.");
                 });
             }
         }
 
-        /// <summary>
-        /// Handles the Click event of the viewConfigToolStripMenuItem.
-        /// Displays a summary of critical application configuration paths and their validity.
-        /// </summary>
         private void viewConfigToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Logger.LogInfo("Options -> View Configuration clicked.");
-            bool configValid = CheckConfigValidity(); // Performs a quick check of essential paths
+            bool configValid = CheckConfigValidity();
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("Configuration Details (Paths are relative to user profile where applicable):");
             sb.AppendLine("--------------------------------------------------");
@@ -1025,16 +1009,32 @@ namespace conversionTest // Main namespace for the UI
             sb.AppendLine($"5. Final Excel Save Location Base: '{ExcelFinalSaveLocation}'");
             sb.AppendLine($"   - Exists: {Directory.Exists(ExcelFinalSaveLocation)}");
             sb.AppendLine($"6. Auto-Run Check Hour (from appsettings): {_configuration.GetValue<int>("settings:AutoRunCheckHour", _currentAutoRunHour)} (Current in-memory: {_currentAutoRunHour})");
-            sb.AppendLine($"7. Auto-Run Standard Daily Enabled: {_configuration.GetValue<bool>("AutoReport:EnableStandardDailyAutoReport", true)}");
-            sb.AppendLine($"8. Auto-Run Daily (5day >=1k) Enabled: {_configuration.GetValue<bool>("AutoReport:EnableDaily5Day1kAutoReport", true)}");
+
+            var reportDefinitions = _configuration.GetSection("AutoReport:ReportDefinitions").Get<List<AutoReportDefinition>>() ?? new List<AutoReportDefinition>();
+            if (reportDefinitions.Any())
+            {
+                sb.AppendLine("7. Auto-Run Report States (from appsettings.json):");
+                foreach (var def in reportDefinitions)
+                {
+                    sb.AppendLine($"   - {def.ReportName} (Key: {def.EnableConfigKey}): Enabled = {_configuration.GetValue<bool>($"AutoReport:{def.EnableConfigKey}", false)}");
+                }
+            }
+            else
+            {
+                sb.AppendLine("7. Auto-Run Report States: No report definitions found in configuration.");
+            }
+
 
             string baseLogDir = ConfiguredLogDirectoryBase;
-            string userLogDir = string.IsNullOrEmpty(baseLogDir)
+            string actualUserLogDir = string.IsNullOrEmpty(baseLogDir)
                 ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "conversionTest", "Logs", Environment.UserName)
                 : Path.Combine(baseLogDir, string.Join("_", Environment.UserName.Split(Path.GetInvalidFileNameChars())));
-            sb.AppendLine($"9. Application Log Directory (User Specific): '{Path.GetFullPath(userLogDir)}'");
-            sb.AppendLine($"   - Exists: {Directory.Exists(Path.GetFullPath(userLogDir))}");
-            sb.AppendLine($"10. appsettings.json Path: '{_appSettingsPath}'");
+
+            actualUserLogDir = Path.GetFullPath(actualUserLogDir);
+
+            sb.AppendLine($"8. Application Log Directory (User Specific): '{actualUserLogDir}'");
+            sb.AppendLine($"   - Exists: {Directory.Exists(actualUserLogDir)}");
+            sb.AppendLine($"9. appsettings.json Path: '{_appSettingsPath}'");
             sb.AppendLine($"    - Exists: {File.Exists(_appSettingsPath)}");
             sb.AppendLine("--------------------------------------------------");
             sb.AppendLine($"Overall Essential Config Valid (for report generation): {configValid}");
@@ -1043,10 +1043,6 @@ namespace conversionTest // Main namespace for the UI
                 MessageBoxButtons.OK, configValid ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
         }
 
-        /// <summary>
-        /// Handles the Click event of the validateConfigToolStripMenuItem.
-        /// Performs a quick validation of essential configurations and updates the status bar.
-        /// </summary>
         private void validateConfigToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Logger.LogInfo("Options -> Validate Configuration clicked.");
@@ -1058,43 +1054,36 @@ namespace conversionTest // Main namespace for the UI
             else Logger.LogError("Configuration validation failed. Essential paths are missing or invalid.");
 
             _uiManager.UpdateStatusMain(statusMessage);
-            // If valid, reset status to "Ready" after a short delay
             if (isValid)
             {
                 _ = Task.Delay(7000).ContinueWith(t =>
                 {
-                    // Only reset if the status hasn't changed to something else in the meantime
                     if (_uiManager.GetCurrentStatusMain() == statusMessage)
                     {
                         _uiManager.UpdateStatusMain("Ready");
                     }
-                }, TaskScheduler.FromCurrentSynchronizationContext()); // Ensure UI update is on UI thread
+                }, TaskScheduler.FromCurrentSynchronizationContext());
             }
         }
 
-        /// <summary>
-        /// Handles the Click event of the openLogsToolStripMenuItem.
-        /// Opens the directory where application log files are stored.
-        /// </summary>
         private void openLogsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Logger.LogInfo("Options -> Open Logs Folder clicked.");
             try
             {
                 string baseLogDir = ConfiguredLogDirectoryBase;
-                // Construct user-specific log directory path, ensuring it's valid
                 string actualUserLogDir = string.IsNullOrEmpty(baseLogDir)
                     ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "conversionTest", "Logs", Environment.UserName)
-                    : Path.Combine(baseLogDir, string.Join("_", Environment.UserName.Split(Path.GetInvalidFileNameChars()))); // Sanitize username for folder name
+                    : Path.Combine(baseLogDir, string.Join("_", Environment.UserName.Split(Path.GetInvalidFileNameChars())));
 
-                actualUserLogDir = Path.GetFullPath(actualUserLogDir); // Resolve to full path
+                actualUserLogDir = Path.GetFullPath(actualUserLogDir);
 
                 if (!Directory.Exists(actualUserLogDir))
                 {
-                    Directory.CreateDirectory(actualUserLogDir); // Create if it doesn't exist
+                    Directory.CreateDirectory(actualUserLogDir);
                     Logger.LogInfo($"Created log directory as it did not exist: {actualUserLogDir}");
                 }
-                Process.Start("explorer.exe", actualUserLogDir); // Open in File Explorer
+                Process.Start("explorer.exe", actualUserLogDir);
             }
             catch (Exception ex)
             {
@@ -1103,10 +1092,6 @@ namespace conversionTest // Main namespace for the UI
             }
         }
 
-        /// <summary>
-        /// Handles the Click event of the editConfigToolStripMenuItem.
-        /// Opens the `appsettings.json` file in the default system editor for that file type.
-        /// </summary>
         private void editConfigToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Logger.LogInfo("Options -> Edit appsettings.json clicked.");
@@ -1114,7 +1099,6 @@ namespace conversionTest // Main namespace for the UI
             {
                 if (File.Exists(_appSettingsPath))
                 {
-                    // UseShellExecute = true allows opening with the default program for .json files
                     Process.Start(new ProcessStartInfo(_appSettingsPath) { UseShellExecute = true });
                 }
                 else
@@ -1129,29 +1113,20 @@ namespace conversionTest // Main namespace for the UI
             }
         }
 
-        /// <summary>
-        /// Handles the Click event of the exitToolStripMenuItem.
-        /// Closes the application.
-        /// </summary>
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Logger.LogInfo("Options -> Exit clicked. Closing application.");
-            Close(); // Standard way to close a Windows Form
+            Close();
         }
 
-        /// <summary>
-        /// Handles the Click event of the manageCustomBankHolidaysToolStripMenuItem.
-        /// Opens the form for managing custom bank holidays.
-        /// </summary>
         private void manageCustomBankHolidaysToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Logger.LogInfo("Options -> Manage Custom Bank Holidays clicked.");
             try
             {
-                // Create and show the ManageBankHolidaysForm as a dialog
                 using (var manageForm = new ManageBankHolidaysForm(darkModeToolStripMenuItem.Checked))
                 {
-                    manageForm.ShowDialog(this); // Show as modal dialog relative to this form
+                    manageForm.ShowDialog(this);
                 }
                 Logger.LogInfo("ManageBankHolidaysForm closed.");
             }
@@ -1162,16 +1137,11 @@ namespace conversionTest // Main namespace for the UI
             }
         }
 
-        /// <summary>
-        /// Handles the Click event of the manageEmailRecipientsToolStripMenuItem.
-        /// Opens the form for managing email recipient lists.
-        /// </summary>
         private void manageEmailRecipientsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Logger.LogInfo("Options -> Manage Email Recipients clicked.");
             try
             {
-                // Pass the EmailRecipientManager instance and current dark mode state
                 using (var manageEmailsForm = new ManageEmailRecipientsForm(_emailRecipientManager, darkModeToolStripMenuItem.Checked))
                 {
                     manageEmailsForm.ShowDialog(this);
@@ -1185,16 +1155,11 @@ namespace conversionTest // Main namespace for the UI
             }
         }
 
-        /// <summary>
-        /// Handles the Click event of the manageGreetingsToolStripMenuItem.
-        /// Opens the form for managing email greetings.
-        /// </summary>
         private void manageGreetingsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Logger.LogInfo("Options -> Manage Email Greetings clicked.");
             try
             {
-                // Pass the GreetingManager instance and current dark mode state
                 using (var manageGreetingsForm = new ManageGreetingsForm(_greetingManager, darkModeToolStripMenuItem.Checked))
                 {
                     manageGreetingsForm.ShowDialog(this);
@@ -1208,28 +1173,21 @@ namespace conversionTest // Main namespace for the UI
             }
         }
 
-        /// <summary>
-        /// Handles the Click event of the enable1ClickProcessingToolStripMenuItem.
-        /// Toggles the 1-Click processing mode and updates the UI accordingly.
-        /// </summary>
         private void enable1ClickProcessingToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            Update1ClickProcessingModeUI(); // Updates button visibility based on checkbox state
-            // Reset button texts and states appropriate for the new mode
-            ResetUIStateOnError(enable1ClickProcessingToolStripMenuItem.Checked ? "Generate, Process && Email Report" : "Create Report");
+            Update1ClickProcessingModeUI();
+            string mainButtonTextForReset = enable1ClickProcessingToolStripMenuItem.Checked ?
+                                            (CheckConfigValidity() ? "Generate, Process && Email Report" : "Config Error") :
+                                            (CheckConfigValidity() ? "Create Report" : "Config Error");
+            ResetUIStateOnError(mainButtonTextForReset);
             Logger.LogInfo($"1-Click Processing Mode {(enable1ClickProcessingToolStripMenuItem.Checked ? "Enabled" : "Disabled")}.");
         }
 
-        /// <summary>
-        /// Handles the Click event of the setAutoRunHourToolStripMenuItem.
-        /// Prompts the user to enter a new hour for the automated daily check and saves it.
-        /// </summary>
         private async void setAutoRunHourToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Logger.LogInfo("Options -> Set Auto-Run Hour clicked.");
-            string currentHourPrompt = _currentAutoRunHour.ToString(); // Default value for InputBox
+            string currentHourPrompt = _currentAutoRunHour.ToString();
 
-            // Use Interaction.InputBox for a simple input dialog
             string? inputText = Interaction.InputBox("Enter the new hour (0-23) for the daily auto-run check:", "Set Auto-Run Hour", currentHourPrompt);
 
             if (!string.IsNullOrWhiteSpace(inputText))
@@ -1241,12 +1199,12 @@ namespace conversionTest // Main namespace for the UI
                         bool success = await _autoRunManager.SetAutoRunHourAsync(newHour);
                         if (success)
                         {
-                            _currentAutoRunHour = newHour; // Update local state
+                            _currentAutoRunHour = newHour;
                             Logger.LogInfo($"Auto-Run hour successfully updated to {newHour} in configuration and manager.");
                             FlexibleMessageBox.Show(this, $"Auto-Run hour has been set to {newHour}:00.\nThe change will take effect from the next daily check cycle.", "Auto-Run Hour Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            _uiManager.SetAutoRunHour(_currentAutoRunHour); // Update UIManager's knowledge for display
-                            // Update the AutoRun button text/status immediately
-                            _uiManager.UpdateAutoRunUI(dailyCheckTimer.Enabled, (autoRunStatusLabel.Text?.Contains("Done for") ?? false), darkModeToolStripMenuItem.Checked, $"Auto Run: {(dailyCheckTimer.Enabled ? $"Enabled (Next check ~{_currentAutoRunHour}:00)" : "Disabled")}");
+                            _uiManager.SetAutoRunHour(_currentAutoRunHour);
+                            bool isAutoRunFinal = (autoRunStatusLabel.Text?.Contains("Done for") ?? false) || (autoRunStatusLabel.Text?.Contains("FAILED") ?? false);
+                            _uiManager.UpdateAutoRunUI(dailyCheckTimer.Enabled, isAutoRunFinal, darkModeToolStripMenuItem.Checked, $"Auto Run: {(dailyCheckTimer.Enabled ? $"Enabled (Next check ~{_currentAutoRunHour}:00)" : "Disabled")}");
                         }
                         else
                         {
@@ -1270,9 +1228,11 @@ namespace conversionTest // Main namespace for the UI
             }
         }
 
+        #endregion
+
+        #region UI Event Handlers for Auto-Run Configuration
         /// <summary>
         /// Handles the Click event for enabling/disabling the Standard Daily Auto Report.
-        /// Updates the configuration and provides user feedback.
         /// </summary>
         private async void enableStandardDailyAutoReportToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -1284,7 +1244,6 @@ namespace conversionTest // Main namespace for the UI
 
         /// <summary>
         /// Handles the Click event for enabling/disabling the "Daily (5days >= £1000)" Auto Report.
-        /// Updates the configuration and provides user feedback.
         /// </summary>
         private async void enableDaily5Day1kAutoReportToolStripMenuItem_Click(object sender, EventArgs e)
         {
@@ -1292,6 +1251,24 @@ namespace conversionTest // Main namespace for the UI
             await UpdateAutoReportToggleSettingAsync("EnableDaily5Day1kAutoReport", newState);
             Logger.LogInfo($"Daily (5days >= £1000) Auto-Report {(newState ? "Enabled" : "Disabled")} by user.");
             FlexibleMessageBox.Show(this, $"Daily (5days >= £1000) Auto-Report has been {(newState ? "ENABLED" : "DISABLED")}.", "Setting Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        /// <summary>
+        /// Handles the Click event for enabling/disabling the Weekly Auto Report.
+        /// Assumes 'enableWeeklyAutoReportToolStripMenuItem' is the Name property of the ToolStripMenuItem in the designer.
+        /// </summary>
+        private async void enableWeeklyAutoReportToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (enableWeeklyAutoReportToolStripMenuItem == null)
+            {
+                Logger.LogError("enableWeeklyAutoReportToolStripMenuItem_Click: The menu item for weekly auto-report is null. Ensure it's correctly added and named in the Form Designer.");
+                FlexibleMessageBox.Show(this, "UI element for weekly auto-report toggle not found.", "UI Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            bool newState = enableWeeklyAutoReportToolStripMenuItem.Checked;
+            await UpdateAutoReportToggleSettingAsync("EnableWeeklyAutoReport", newState);
+            Logger.LogInfo($"Weekly Auto-Report {(newState ? "Enabled" : "Disabled")} by user.");
+            FlexibleMessageBox.Show(this, $"Weekly Auto-Report has been {(newState ? "ENABLED" : "DISABLED")}.", "Setting Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         #endregion
@@ -1302,9 +1279,18 @@ namespace conversionTest // Main namespace for the UI
         /// </summary>
         private void LoadAutoReportToggleStates()
         {
-            enableStandardDailyAutoReportToolStripMenuItem.Checked = _configuration.GetValue<bool>("AutoReport:EnableStandardDailyAutoReport", true); // Default to true if not found
-            enableDaily5Day1kAutoReportToolStripMenuItem.Checked = _configuration.GetValue<bool>("AutoReport:EnableDaily5Day1kAutoReport", true); // Default to true if not found
-            Logger.LogDebug($"Loaded Auto-Report Toggle States: StandardDaily={enableStandardDailyAutoReportToolStripMenuItem.Checked}, Daily5Day1k={enableDaily5Day1kAutoReportToolStripMenuItem.Checked}");
+            enableStandardDailyAutoReportToolStripMenuItem.Checked = _configuration.GetValue<bool>("AutoReport:EnableStandardDailyAutoReport", true);
+            enableDaily5Day1kAutoReportToolStripMenuItem.Checked = _configuration.GetValue<bool>("AutoReport:EnableDaily5Day1kAutoReport", true);
+
+            if (enableWeeklyAutoReportToolStripMenuItem != null)
+            {
+                enableWeeklyAutoReportToolStripMenuItem.Checked = _configuration.GetValue<bool>("AutoReport:EnableWeeklyAutoReport", true);
+            }
+            else
+            {
+                Logger.LogWarning("LoadAutoReportToggleStates: enableWeeklyAutoReportToolStripMenuItem is null. UI toggle for weekly report will not be set. Check Form Designer.");
+            }
+            Logger.LogDebug($"Loaded Auto-Report Toggle States: StandardDaily={enableStandardDailyAutoReportToolStripMenuItem.Checked}, Daily5Day1k={enableDaily5Day1kAutoReportToolStripMenuItem.Checked}, Weekly={enableWeeklyAutoReportToolStripMenuItem?.Checked ?? false}");
         }
 
         /// <summary>
@@ -1331,21 +1317,14 @@ namespace conversionTest // Main namespace for the UI
                 {
                     autoReportSection = new JObject();
                     if (json != null) json["AutoReport"] = autoReportSection;
-                    else json = new JObject { ["AutoReport"] = autoReportSection }; // Should not happen if file exists and is valid JSON
+                    else json = new JObject { ["AutoReport"] = autoReportSection };
                     Logger.LogWarning($"UpdateAutoReportToggleSettingAsync: 'AutoReport' section not found. Creating it for key '{key}'.");
                 }
 
                 if (autoReportSection != null) autoReportSection[key] = value;
 
-                // Use Newtonsoft.Json.Formatting for JObject.ToString()
                 await File.WriteAllTextAsync(_appSettingsPath, json?.ToString(Newtonsoft.Json.Formatting.Indented) ?? "{}");
                 Logger.LogInfo($"Successfully updated '{key}' to '{value}' in appsettings.json");
-
-                var newConfigBuilder = new ConfigurationBuilder()
-                    .SetBasePath(appSettingsBasePath)
-                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-                // IConfiguration newConfig = newConfigBuilder.Build(); 
-                Logger.LogInfo("Configuration will be re-read on next access due to reloadOnChange:true or by re-instantiating IConfiguration if needed by specific components.");
             }
             catch (Exception ex)
             {
@@ -1353,14 +1332,16 @@ namespace conversionTest // Main namespace for the UI
                 FlexibleMessageBox.Show(this, $"Failed to save setting for '{key}'. Please check logs and file permissions for appsettings.json.", "Error Saving Setting", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 if (key == "EnableStandardDailyAutoReport") enableStandardDailyAutoReportToolStripMenuItem.Checked = !value;
                 else if (key == "EnableDaily5Day1kAutoReport") enableDaily5Day1kAutoReportToolStripMenuItem.Checked = !value;
+                else if (key == "EnableWeeklyAutoReport" && enableWeeklyAutoReportToolStripMenuItem != null) enableWeeklyAutoReportToolStripMenuItem.Checked = !value;
             }
         }
 
         /// <summary>
         /// Gets the integer index corresponding to the currently selected report type in the ComboBox.
+        /// Uses the ComboBox's Text property for robustness if SelectedItem is null.
         /// </summary>
-        /// <param name="selectedText">Optional. The text of the selected item. If null, uses ComboBox's current selection.</param>
-        /// <returns>The integer index for the report type.</returns>
+        /// <param name="selectedText">Optional. The text of the selected item. If null, uses ComboBox's current selection text.</param>
+        /// <returns>The integer index for the report type, or the SelectedIndex if text matching fails but an item is selected.</returns>
         private int GetSelectedReportTypeIndex(string? selectedText = null)
         {
             string currentText = selectedText ?? "";
@@ -1479,7 +1460,6 @@ namespace conversionTest // Main namespace for the UI
 
         /// <summary>
         /// Determines the base path for the `appsettings.json` file.
-        /// This path is specific to the application's deployment environment.
         /// </summary>
         /// <returns>The base path for `appsettings.json`.</returns>
         private static string DetermineAppSettingsBasePath() => @"\\harlow.local\DFS\IT Department\Applications\Development 2025\QuoteConversionReportAutomation\conversionTest";
@@ -1491,13 +1471,15 @@ namespace conversionTest // Main namespace for the UI
         private bool CheckConfigValidity()
         {
             string crPath = CrystalReportLocation;
-            string wrapPath = _configuration["settings:WrapperExePath"] ?? "";
+            string wrapPathCfg = _configuration["settings:WrapperExePath"] ?? "";
+            string wrapPathFull = string.IsNullOrEmpty(wrapPathCfg) ? "" : Path.GetFullPath(wrapPathCfg);
+
             return !string.IsNullOrEmpty(crPath) && File.Exists(crPath) &&
-                   !string.IsNullOrEmpty(wrapPath) && File.Exists(Path.GetFullPath(wrapPath));
+                   !string.IsNullOrEmpty(wrapPathFull) && File.Exists(wrapPathFull);
         }
 
         /// <summary>
-        /// Checks if any "Daily" report type (standard or 5day>=1k) is currently selected.
+        /// Checks if any "Daily" report type (standard or 5day>=1k) is currently selected in the UI.
         /// </summary>
         /// <returns>True if a daily report type is selected; otherwise, false.</returns>
         private bool IsAnyDailySelected()
@@ -1508,45 +1490,71 @@ namespace conversionTest // Main namespace for the UI
         }
 
         /// <summary>
-        /// Resets the UI to an appropriate state after an operation error or cancellation.
+        /// Resets the UI to an appropriate state after an operation error, cancellation, or completion.
         /// Updates button texts and enabled states based on current context and configuration validity.
         /// </summary>
-        /// <param name="mainButtonText">The text to display on the primary action button (e.g., "Create Report" or "Generate, Process & Email Report").</param>
-        private void ResetUIStateOnError(string mainButtonText)
+        /// <param name="mainButtonTextIfNoError">The text to display on the primary action button if config is valid.</param>
+        private void ResetUIStateOnError(string mainButtonTextIfNoError)
         {
             bool isOneClickMode = enable1ClickProcessingToolStripMenuItem.Checked;
             bool configValid = CheckConfigValidity();
+            string actualMainButtonText = configValid ? mainButtonTextIfNoError : "Config Error";
 
             UIManager.SafeControlUpdate(this, () =>
             {
                 if (isOneClickMode)
                 {
-                    oneClickProcessButton.Text = configValid ? mainButtonText : "Config Error";
-                    oneClickProcessButton.Enabled = configValid;
-                    createReportButton.Enabled = false;
-                    processEmailButton.Enabled = false;
+                    if (oneClickProcessButton != null)
+                    {
+                        oneClickProcessButton.Text = actualMainButtonText;
+                        oneClickProcessButton.Enabled = configValid;
+                    }
+                    if (createReportButton != null) createReportButton.Enabled = false;
+                    if (processEmailButton != null) processEmailButton.Enabled = false;
                 }
                 else
                 {
-                    createReportButton.Text = configValid ? mainButtonText : "Config Error";
-                    createReportButton.Enabled = configValid;
-                    processEmailButton.Text = "Process and Email";
-                    processEmailButton.Enabled = configValid && !string.IsNullOrEmpty(_generatedReportPath) && File.Exists(_generatedReportPath);
-                    oneClickProcessButton.Enabled = false;
+                    if (createReportButton != null)
+                    {
+                        createReportButton.Text = actualMainButtonText;
+                        createReportButton.Enabled = configValid;
+                    }
+                    if (processEmailButton != null)
+                    {
+                        processEmailButton.Text = "Process && Email";
+                        processEmailButton.Enabled = configValid && !string.IsNullOrEmpty(_generatedReportPath) && File.Exists(_generatedReportPath);
+                    }
+                    if (oneClickProcessButton != null) oneClickProcessButton.Enabled = false;
+                }
+
+                if (toggleAutoRunButton != null) toggleAutoRunButton.Enabled = true;
+
+
+                _uiManager.ResetUIOnError(
+                    mainButtonTextIfNoError,
+                    configValid,
+                    !string.IsNullOrEmpty(_generatedReportPath) && File.Exists(_generatedReportPath),
+                    !string.IsNullOrEmpty(_generatedAnalysisFilePath) && File.Exists(_generatedAnalysisFilePath),
+                    IsAnyDailySelected(),
+                    dailyCheckTimer.Enabled,
+                    darkModeToolStripMenuItem.Checked,
+                    (autoRunStatusLabel.Text?.Contains("Completed") ?? false) || (autoRunStatusLabel.Text?.Contains("Done for") ?? false) || (autoRunStatusLabel.Text?.Contains("FAILED") ?? false),
+                    autoRunStatusLabel.Text ?? ""
+                );
+
+                string currentStatus = _uiManager.GetCurrentStatusMain();
+                if (!currentStatus.Equals("Ready", StringComparison.OrdinalIgnoreCase) &&
+                    !currentStatus.StartsWith("Config Error", StringComparison.OrdinalIgnoreCase) &&
+                    !currentStatus.StartsWith("Auto Run:", StringComparison.OrdinalIgnoreCase) &&
+                    !currentStatus.Contains("Successfully") && !currentStatus.Contains("Completed"))
+                {
+                    _uiManager.UpdateStatusMain(configValid ? "Ready" : "Config Error: Check Options menu.");
+                }
+                else if (string.IsNullOrEmpty(currentStatus))
+                {
+                    _uiManager.UpdateStatusMain(configValid ? "Ready" : "Config Error: Check Options menu.");
                 }
             });
-
-            _uiManager.ResetUIOnError(
-                mainButtonText,
-                configValid,
-                !string.IsNullOrEmpty(_generatedReportPath) && File.Exists(_generatedReportPath),
-                !string.IsNullOrEmpty(_generatedAnalysisFilePath) && File.Exists(_generatedAnalysisFilePath),
-                IsAnyDailySelected(),
-                dailyCheckTimer.Enabled,
-                darkModeToolStripMenuItem.Checked,
-                (autoRunStatusLabel.Text?.Contains("Completed") ?? false) || (autoRunStatusLabel.Text?.Contains("Done for") ?? false) || (autoRunStatusLabel.Text?.Contains("FAILED") ?? false),
-                autoRunStatusLabel.Text ?? ""
-            );
         }
 
         /// <summary>
@@ -1602,7 +1610,7 @@ namespace conversionTest // Main namespace for the UI
             }
             catch (OperationCanceledException)
             {
-                Logger.LogWarning("Email sending operation was cancelled.");
+                Logger.LogWarning("Email sending operation was cancelled (caught in SendCompletionEmailAsync).");
                 progress.Report("Email sending cancelled.");
                 throw;
             }
@@ -1622,12 +1630,12 @@ namespace conversionTest // Main namespace for the UI
         private (List<string> To, List<string> Cc) GetEmailRecipients()
         {
             Logger.LogTrace("Form1: Entering GetEmailRecipients for manual run, deferring to EmailRecipientManager...");
-            bool isFemiOnly = sendToFemiOnlyCheckBox.Checked;
+            bool isFemiOnly = sendToFemiOnlyCheckBox.Checked && sendToFemiOnlyCheckBox.Visible;
             int currentReportTypeIndex = GetSelectedReportTypeIndex();
 
             var recipients = _emailRecipientManager.GetRecipients(currentReportTypeIndex, isFemiOnly, IsDebug, isAutoRunContext: false);
 
-            Logger.LogDebug($"Form1: Recipients from Manager for manual run - To: {string.Join("; ", recipients.To)}, CC: {string.Join("; ", recipients.Cc)}");
+            Logger.LogDebug($"Form1: Recipients from Manager for manual run - To: {string.Join("; ", recipients.To)}, CC: {string.Join("; ", recipients.Cc)} (FemiOnly: {isFemiOnly}, IsDebug: {IsDebug})");
             Logger.LogTrace("Form1: Exiting GetEmailRecipients.");
             return recipients;
         }
@@ -1646,7 +1654,7 @@ namespace conversionTest // Main namespace for the UI
             UIManager.SafeControlUpdate(reportTypeComboBox, () => reportTypeString = reportTypeComboBox.Text);
 
             int currentReportTypeIndex = GetSelectedReportTypeIndex();
-            bool femiOnlyChecked = sendToFemiOnlyCheckBox.Checked;
+            bool femiOnlyChecked = sendToFemiOnlyCheckBox.Checked && sendToFemiOnlyCheckBox.Visible;
 
             string greeting;
             string greetingKeyName;
@@ -1662,8 +1670,11 @@ namespace conversionTest // Main namespace for the UI
                 {
                     greetingKeyName = "ManualStdDaily";
                 }
-                else if (currentReportTypeIndex == NewDailyReportOver1kIndex ||
-                         currentReportTypeIndex == WeeklyReportIndex ||
+                else if (currentReportTypeIndex == NewDailyReportOver1kIndex)
+                {
+                    greetingKeyName = femiOnlyChecked ? "ManualFemi" : "ManualTeam";
+                }
+                else if (currentReportTypeIndex == WeeklyReportIndex ||
                          currentReportTypeIndex == MonthlyReportIndex ||
                          currentReportTypeIndex == QuarterlyReportIndex ||
                          currentReportTypeIndex == AnnualReportIndex ||
@@ -1674,7 +1685,7 @@ namespace conversionTest // Main namespace for the UI
                 else
                 {
                     greetingKeyName = "ManualTeam";
-                    Logger.LogWarning($"Manual run for unexpected report type {reportTypeString} ({currentReportTypeIndex}). Using fallback greeting key '{greetingKeyName}'.");
+                    Logger.LogWarning($"Manual run for unexpected report type '{reportTypeString}' (Index: {currentReportTypeIndex}). Using fallback greeting key '{greetingKeyName}'.");
                 }
                 greeting = _greetingManager.GetGreeting(greetingKeyName);
             }
@@ -1701,11 +1712,14 @@ namespace conversionTest // Main namespace for the UI
 
             string subjectDateSuffix = (reportStartDate.Date == reportEndDate.Date) ? $"({reportEndDate:yyyy-MM-dd})" : $"({reportStartDate:yyyy-MM-dd} to {reportEndDate:yyyy-MM-dd})";
             if (currentReportTypeIndex == AnnualReportIndex) subjectDateSuffix = $"({reportStartDate.Year}-{reportEndDate.Year})";
+            // For weekly, the general suffix is fine as rangeInfo and subjectPrefix already clarify.
 
-            string subject = (currentReportTypeIndex != CustomReportIndex && currentReportTypeIndex != -1 ? "MANUAL: " : "") + $"{subjectPrefix} Report {subjectDateSuffix}";
+            string manualPrefix = (currentReportTypeIndex != CustomReportIndex && currentReportTypeIndex != -1) ? "MANUAL: " : "";
+            string subject = $"{manualPrefix}{subjectPrefix} Report {subjectDateSuffix}";
             if (IsDebug) subject = $"DEBUG - {subject}";
 
             string body = $"{greeting}\n\nPlease find attached the {subjectPrefix.ToLower()} report {rangeInfo}.\n\nThis report includes quotes data for review.\n\nThank you,\nAutomation Service";
+            Logger.LogDebug($"GetEmailSubjectAndBody: GreetingKey='{greetingKeyName}', Subject='{subject}'");
             return (subject, body);
         }
 
@@ -1724,6 +1738,7 @@ namespace conversionTest // Main namespace for the UI
                 DialogResult fdr = FlexibleMessageBox.Show(this,
                     "Other Excel instances are running. It's recommended to close them before proceeding with the manual refresh to avoid conflicts.\n\nAttempt to close other Excel instances automatically?",
                     "Close Other Excel Instances?", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+
                 if (fdr == DialogResult.Cancel) { Logger.LogInfo("User cancelled manual refresh due to other Excel instances."); return false; }
                 if (fdr == DialogResult.Yes)
                 {
@@ -1768,7 +1783,7 @@ namespace conversionTest // Main namespace for the UI
             catch (Exception ex)
             {
                 Logger.LogError($"Error during manual Excel handling: {ex.Message}", ex);
-                FlexibleMessageBox.Show(this, $"An error occurred managing the Excel refresh step:\n\n{ex.Message}", "Excel Interaction Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                FlexibleMessageBox.Show(this, $"An unexpected error occurred managing the Excel refresh step:\n\n{ex.Message}", "Excel Interaction Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
             finally

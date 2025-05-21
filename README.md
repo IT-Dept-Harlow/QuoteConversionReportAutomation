@@ -6,6 +6,67 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ## ChangeLog
 
+---
+
+## [1.8.10] - 2025-05-21
+
+### Changed
+- **Auto-Report Status Logic**:
+    - Modified `DailyRunStatus.cs` by adding `AllCurrentlyEnabledAndDueReportsSucceeded` method. This method now considers the `DayOfWeek` to accurately determine if all reports that were *enabled AND scheduled to run* on the current day have succeeded.
+    - Updated `AutoRunManager.cs` to utilize the new `AllCurrentlyEnabledAndDueReportsSucceeded` method from `DailyRunStatus.cs`.
+    - The status messaging (e.g., "X/Y reports succeeded") in `AutoRunManager.cs` now correctly reflects the count of reports that were *due and enabled* for the day, rather than just all enabled reports. This resolves issues where the status might show "partial success" if a weekly report (enabled but not due) hadn't run.
+
+### Fixed
+- **Auto-Report Status Accuracy**: Corrected the auto-report status message to accurately reflect success/failure based on reports that were scheduled to run on a given day, preventing misleading "partial success" messages when some enabled reports (e.g., weekly) were not due.
+
+---
+
+## [1.8.9] - 2025-05-21
+
+### Added
+- **Data-Driven AutoRunManager**:
+    - Introduced `AutoReportDefinition.cs` model to define properties for each automated report type (e.g., name, enable key, success flag name, date calculation parameters, template, email details).
+    - `AutoRunManager.cs` now loads these definitions from `appsettings.json` (`AutoReport:ReportDefinitions` array) and processes reports in a loop based on these configurations.
+    - This makes adding new *similar* automated reports primarily a configuration task in `appsettings.json`.
+- **Automated Weekly Report (15-Day Rolling)**:
+    - Added a "Weekly PowerBI Update" report definition for automated runs.
+    - Configured to run on Fridays (can be changed in `AutoReportDefinition` in `appsettings.json`).
+    - Report period covers the 15 days ending on the run day (e.g., if run on Friday, it covers the preceding 14 days plus Friday itself).
+    - Added "Enable Weekly Auto Report" toggle in `Form1.cs` under "Options -> Configure Auto-Run Reports".
+    - Added fields for "Automated Weekly Report TO/CC" in the `ManageEmailRecipientsForm`.
+- **Dynamic Daily Report Status Tracking**:
+    - `DailyReportRunStatus.cs` model updated to use `JsonExtensionData` to dynamically store and retrieve success statuses for any report defined in `ReportDefinitions`, rather than relying on fixed properties.
+- **`GetPreviousDayOfWeek` Method**: Added to `ReportHelper.cs` to facilitate date calculations for specific days of the week.
+
+### Changed
+- **AutoRunManager Core Logic**:
+    - `PerformDailyCheckAsync` in `AutoRunManager.cs` now iterates through loaded `AutoReportDefinition`s.
+    - Date calculations for daily-type reports in `AutoRunManager.cs` now use `ReportEndDateOffsetDays` and `ReportDurationDays` from their respective definitions.
+    - Specific date logic for the automated "Weekly PowerBI Update" (15-day rolling period) implemented in `AutoRunManager.cs`.
+    - `SaveDailyReportStatus` and `ResetDailyReportStatuses` in `AutoRunManager.cs` now use the `SuccessFlagJsonName` from the report definition to update the correct flags in `appsettings.json`.
+- **Manual Weekly Report Date Logic (`Form1.cs`)**:
+    - When "Weekly" is selected in the UI, the date range is now set to the current day as the end date and 14 days prior as the start date, reflecting a 15-day rolling period.
+- **`ManageEmailRecipientsForm` UI**:
+    - Reorganized using a `TabControl` with three tabs: "Automated Reports", "Manual Reports", and "Debug".
+    - Existing email recipient fields distributed to the new "Automated Reports" and "Manual Reports" tabs.
+    - "Debug" tab and its fields are only visible in DEBUG builds.
+- **Configuration (`appsettings.json`)**:
+    - Added `AutoReport:ReportDefinitions` array to store configurations for each automated report.
+    - Added `EnableWeeklyAutoReport` (boolean) and `WeeklyReportSucceeded` (boolean under `DailyRunStatus`) to `AutoReport` section.
+    - All email recipient lists under `settings:ProductionEmails` and `settings:DebugEmails` are now consistently formatted as JSON arrays.
+    - Default recipients for "Automated Weekly Report" (`AutoRunWeeklyTo`, `AutoRunWeeklyCC`) now mirror "TeamTo" and "TeamCC" lists by default.
+- **EmailRecipientManager.cs**: Updated to correctly read all email recipient lists from `appsettings.json` as JSON arrays.
+- **Application Version**: Incremented to `1.8.9` in `Form1.cs`.
+
+### Fixed
+- **AutoRun Daily Status Reset**: Improved logic in `AutoRunManager.cs` for resetting daily report statuses to be more robust, relying on the persisted `StatusDate` in `appsettings.json` to prevent incorrect re-runs after application restarts.
+- **`AutoRunManager.cs` Compile Error (CS0117)**: Resolved by adding the missing `ReportHelper.GetPreviousDayOfWeek` method.
+- **`AutoRunManager.cs` Compile Error (CS1739)**: Removed an incorrect `isAutoRun` parameter from a call to `FolderCreation.CreateReportSpecificFolder`.
+
+---
+
+## ChangeLog
+
 ## [1.8.8] - 2025-05-20
 
 ### Added
