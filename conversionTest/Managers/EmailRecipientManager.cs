@@ -286,15 +286,11 @@ namespace QuoteConversionReportAutomation.Managers
                     if (string.IsNullOrWhiteSpace(definition.RecipientCategoryKey))
                     {
                         Logger.LogWarning($"EmailRecipientManager: Auto-run report '{definition.ReportName}' has no RecipientCategoryKey defined. Falling back to legacy ReportTypeIndex logic if applicable, or no recipients.");
-                        // Fallback to old logic if category key is missing (optional, for smoother transition)
-                        // For now, we'll assume if category key is missing, it's an error or means no specific list.
-                        // If you want a fallback:
-                        // switch (definition.ReportTypeIndex) { /* old auto-run switch cases */ }
                     }
                     else
                     {
                         Logger.LogInfo($"EmailRecipientManager: RELEASE Build & AutoRun Context. RecipientCategoryKey: '{definition.RecipientCategoryKey}' for report '{definition.ReportName}'.");
-                        // Use a switch or if-else chain for known RecipientCategoryKey values
+                        // Use a switch for known RecipientCategoryKey values
                         switch (definition.RecipientCategoryKey)
                         {
                             case "AutoRunDailyStandardRecipients":
