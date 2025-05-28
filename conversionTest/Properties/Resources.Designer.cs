@@ -69,5 +69,15 @@ namespace QuoteConversionReportAutomation.Properties {
                 return ((byte[])(obj));
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] Help_Template {
+            get {
+                object obj = ResourceManager.GetObject("Help_Template", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
     }
 }

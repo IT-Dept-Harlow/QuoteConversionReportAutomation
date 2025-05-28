@@ -19,7 +19,7 @@ public static class Logger
 {
     // Configuration - Read from IConfiguration during initialization
     private static string s_baseLogDirectory = string.Empty; // Set in Initialize
-    private const int ArchiveLogsOlderThanDays = 30;
+    private const int ArchiveLogsOlderThanDays = 7;
     private const string ConfigKeyLogDirectory = "settings:LogDirectory";
     private const string ConfigKeyLogLevelRelease = "settings:LogLevel"; // Key for Release level
     private const string ConfigKeyLogLevelDebug = "settings:LogLevelDebug"; // Key for Debug level

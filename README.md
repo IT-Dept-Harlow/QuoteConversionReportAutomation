@@ -8,6 +8,53 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ---
 
+## [1.9.0] - 2025-05-28
+
+### Added
+
+-   **Manual Custom Report Configuration**:
+    -   Users can now define specific 'To' recipients, 'CC' recipients, and a unique email greeting for manually run "Custom" type reports.
+    -   **`ManageEmailRecipientsForm.cs`**: Added UI elements (programmatically if not in designer, ideally via a new "Manual Custom" tab or section within the "Manual Reports" tab) to configure `ProdManualCustomTo` and `ProdManualCustomCC` lists.
+    -   **`ManageGreetingsForm.cs`**: Added UI elements (programmatically if not in designer, typically by adding a new row to the `mainTableLayoutPanel`) to configure a `ManualCustom` greeting.
+    -   **`UserEmailSettings.cs` and `UserGreetingSettings.cs`**: Models updated with corresponding properties (`ProdManualCustomTo`, `ProdManualCustomCC` in `UserEmailSettings`; `ManualCustom` in `UserGreetingSettings`).
+    -   **`appsettings.json`**: Default entries for `"ManualCustomTo"`, `"ManualCustomCC"`, and `"ManualCustom"` greeting added under `settings:ProductionEmails` and `settings:ProductionEmails:EmailGreetings` respectively.
+
+-   **Flexible Automated Report Recipient Configuration**:
+    -   **`AutoReportDefinition.cs`**: Added a `RecipientCategoryKey` string property. This key links an automated report definition to a specific set of recipient lists defined in `appsettings.json` and potentially overridden by the user.
+    -   **`appsettings.json`**:
+        -   Each object within the `AutoReport:ReportDefinitions` array now includes the `RecipientCategoryKey` property (e.g., `"RecipientCategoryKey": "AutoRunDailyStandardRecipients"`).
+        -   New recipient list arrays (e.g., `AutoRunDailyStandardRecipientsTo`, `AutoRunDailyStandardRecipientsCC`) added under `settings:ProductionEmails`. These correspond to the `RecipientCategoryKey` values, allowing distinct recipient lists per automated report category.
+    -   **`UserEmailSettings.cs`**: Added new `List<string>?` properties (e.g., `AutoRunDailyStandardRecipientsTo`, `AutoRunWeeklyRecipientsCC`) to allow user overrides for these new category-based automated recipient lists. These properties are initialised in the constructor.
+    -   **`ManageEmailRecipientsForm.cs`**: The "Automated Reports" tab's `TableLayoutPanel` (`automatedReportsTableLayoutPanel`) is now programmatically cleared and repopulated by `InitializeAutomatedReportControls()`. This method creates new `Label` and `TextBox` controls for each defined automated report recipient category (e.g., "Auto Std. Daily TO:", "Auto Weekly CC:"), allowing users to override the default lists for these categories.
+
+### Changed
+
+-   **Email Recipient Logic for Manual Custom Reports (`EmailRecipientManager.cs`)**:
+    -   `GetCurrentEffectiveSettings()`: Now loads `ProdManualCustomTo` and `ProdManualCustomCC` from user overrides or `appsettings.json`.
+    -   `GetRecipients()`: When handling manual runs (i.e., `isAutoRunContext` is `false`), if the `reportTypeIndex` is `CustomReportIndex`, it now uses the `ProdManualCustomTo` and `ProdManualCustomCC` lists from the effective settings.
+
+-   **Email Greeting Logic for Manual Custom Reports**:
+    -   **`GreetingManager.cs`**: `GetCurrentEffectiveGreetings()` now populates the `ManualCustom` property by calling `GetGreeting("ManualCustom")`.
+    -   **`Form1.cs`**: In `GetEmailSubjectAndBody()`, when processing a manual "Custom" report (and not in debug mode), `greetingKeyName` is now set to `"ManualCustom"` to use the specific greeting for this scenario.
+
+-   **Email Recipient Logic for Automated Reports (`EmailRecipientManager.cs`)**:
+    -   The `GetRecipients()` method signature was changed for the auto-run context. It now requires an `AutoReportDefinition` object to be passed when `isAutoRunContext` is `true`.
+    -   For automated reports (when `isAutoRunContext` is `true` and not in debug mode), recipients are now determined based on the `RecipientCategoryKey` provided in the `AutoReportDefinition` object. This involves looking up corresponding lists (e.g., `settings.AutoRunDailyStandardRecipientsTo`) from the effective settings.
+    -   `GetCurrentEffectiveSettings()`: Updated to load all new category-based recipient lists (e.g., `AutoRunDailyStandardRecipientsTo`) from `appsettings.json` and merge them with user overrides from `UserEmailSettings.cs`.
+
+-   **Automated Report Processing (`AutoRunManager.cs`)**:
+    -   The `RunConfiguredAutomatedReportAsync()` method now passes the full `AutoReportDefinition` object (which contains the `RecipientCategoryKey`) to `_emailRecipientManager.GetRecipients()` when `isAutoRunContext` is `true`.
+
+-   **UI for Automated Report Recipients (`ManageEmailRecipientsForm.cs`)**:
+    -   `InitializeAutomatedReportControls()`: This method now dynamically creates the UI for editing category-based automated report recipients, clearing previous controls on the "Automated Reports" tab.
+    -   `LoadSettingsToForm()` and `BtnSave_Click()`: Updated to correctly load from and save to the new category-based properties in `UserEmailSettings` (e.g., `AutoRunDailyStandardRecipientsTo`).
+    -   `SetupToolTips()`: Added tooltips for the new category-based recipient `TextBox` controls.
+
+### Fixed
+
+-   **CS1996 Error in `AutoRunManager.cs`**: Resolved "Cannot await in the body of a lock statement" error in `SetAutoRunHourAsync` by changing the `File.WriteAllTextAsync` call to its synchronous counterpart `File.WriteAllText` within the `lock(_jsonFileLock)` statement. This ensures thread-safe modification of `appsettings.json` while avoiding the await-in-lock issue.
+---
+
 ## [1.8.10] - 2025-05-21
 
 ### Changed

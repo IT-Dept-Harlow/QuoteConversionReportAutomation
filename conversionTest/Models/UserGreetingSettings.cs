@@ -13,13 +13,14 @@ namespace QuoteConversionReportAutomation.Models
         public string? AutoRunDaily5Day1k { get; set; }
         public string? ManualFemi { get; set; }
         public string? ManualTeam { get; set; }
+        public string? ManualCustom { get; set; } // New property for manual custom report greeting
 
         // Debug Greeting (can be overridden by user)
         public string? DebugDefault { get; set; }
 
         public UserGreetingSettings()
         {
-            // Initialize with nulls, manager will handle fallbacks
+            // Initialise with nulls, manager will handle fallbacks
         }
     }
 }

@@ -1,0 +1,233 @@
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang2057{\fonttbl{\f0\fnil\fcharset0 Segoe UI;}}
+{\*\generator Riched20 10.0.19041}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\b\f0\fs28\lang9 Quote Conversion Report Automation v%%APP_VERSION%%\b0\fs22\par
+\b\fs24 Introduction\b0\fs22\par
+Welcome to the Quote Conversion Report Automation program! This tool is designed to streamline and automate the process of generating, processing, and distributing various quote conversion reports. It aims to reduce manual effort, improve consistency, and provide timely information.\par
+The program offers both manual control via a user interface and powerful automated capabilities for scheduled report generation.\par
+\par
+\b\fs24 How the Application Works (Overview)\b0\fs22\par
+The application orchestrates several components:\par
+\par
+User Interface (UI): Allows for manual selection of report types, date ranges, and processing options. It also provides access to configuration settings and logs.\par
+\par
+Crystal Report Wrapper: An external service used to extract raw report data from the primary business system (via Crystal Reports).\par
+\par
+Excel Processing: Utilises templates to process the raw data into final, formatted Excel reports. This includes data cleaning, calculations, and potentially filtering (e.g., for the 'Daily 5-days >= \'a31k' report).\par
+\par
+Email Distribution: Sends the final reports to configured recipients via SMTP.\par
+\par
+Automation Engine: Handles scheduled, automated generation and emailing of predefined reports based on configuration.\par
+\par
+Configuration Files: Uses appsettings.json for main settings and user-specific JSON files (in your AppData folder) for customisations like email recipients, greetings, and bank holidays.\par
+\par
+How to Use the Application (Manual Operation)\par
+Main Interface Elements:\par
+Report Type: Dropdown to select the desired report period (e.g., Daily, Weekly).\par
+\par
+From / To Dates: Date pickers for defining the report range. These are often auto-filled based on the Report Type.\par
+\par
+Financial Year: Dropdown (visible for certain report types like Weekly or Custom) to specify the financial year context, primarily for Power BI source file updates.\par
+\par
+Report Settings Group:\par
+\par
+Send to only Femi?: (Visible for non-Daily, non-Custom manual reports) Restricts email distribution to a specific IT/admin list.\par
+\par
+Skip Sending Email: If ticked, the program will generate and process the report files locally but will not send an email.\par
+\par
+Action Buttons: Used to generate and process reports. The appearance depends on the '1-Click Processing' mode (see Options Menu):\par
+\par
+Standard Mode (2-button): Create Report (generates raw data) then Process & Email Report (processes raw data and emails).\par
+\par
+1-Click Mode: A single Generate, Process & Email Report button performs all steps.\par
+\par
+View Buttons: Appear after successful generation: View Raw Report and View Processed Analysis.\par
+\par
+Enable/Disable Daily Auto Run @ %%CURRENT_AUTORUN_HOUR%%:00: Toggles the automated daily report generation feature.\par
+\par
+Status Bar: Displays the current status of operations (left) and auto-run status (right).\par
+\par
+Step-by-Step Guide for Manual Report Generation:\par
+1. Select Report Type:\par
+Choose from the Report Type dropdown. Dates will often adjust automatically. Bank holidays (England & Wales, plus custom) are considered for 'previous working day' calculations.\par
+\par
+Daily: Report for the previous working day.\par
+\par
+Daily (5days >= \'a31000): Covers the previous five working days. After raw data generation, it filters for estimates with a 'Net Value' of \'a31000 or more before final analysis.\par
+\par
+Weekly: Covers a 15-day rolling period ending on the current day. Data is appended to a central Excel file used by Power BI.\par
+\par
+Monthly: Report for the previous full calendar month.\par
+\par
+Quarterly: Report for the previous full calendar quarter.\par
+\par
+Annual: Report for the previous full financial year (1st May - 30th April).\par
+\par
+Custom: Allows manual selection of 'From' and 'To' dates. If you change dates for any other report type, it will automatically switch to 'Custom'.\par
+\par
+2. Adjust Dates (Optional):\par
+If 'Custom' is selected, or if you wish to override the auto-calculated dates for other types, use the From Date and To Date pickers. Changing dates will set the Report Type to 'Custom'.\par
+\par
+3. Select Financial Year (If Applicable):\par
+For 'Weekly' or 'Custom' reports, the Financial Year dropdown may be visible. Select the appropriate financial year if the report data needs to be associated with a specific year for Power BI updates or analysis.\par
+\par
+4. Configure Report Settings:\par
+\par
+Tick Send to only Femi?: if you want to restrict the email distribution to a predefined IT/admin list. This is typically used for testing or specific non-standard reports.\par
+\par
+Tick Skip Sending Email if you only want to generate the report files locally and do not wish for an email to be sent.\par
+\par
+5. Process the Report:\par
+\par
+If using Standard Mode, first click Create Report. Wait for the status to indicate completion. Then, click Process & Email Report.\par
+\par
+If using 1-Click Mode (see Options Menu to enable), click the single Generate, Process & Email Report button.\par
+\par
+6. Manual Excel Refresh (for Monthly, Quarterly, Annual, Custom reports):\par
+For these report types, the Excel template contains PivotTables that require manual refreshing after the data is populated. You will be prompted:\par
+\par
+The Excel file will open automatically.\par
+\par
+If prompted by Excel, click 'Enable Editing'.\par
+\par
+Go to the 'Data' tab in Excel and click 'Refresh All'.\par
+\par
+Specifically, ensure PivotTables on the 'OrderPivot' and 'Estimate Success PivotTable' sheets are updated. You may need to right-click them and select 'Refresh'. Check any Slicers as well.\par
+\par
+SAVE the Excel file.\par
+\par
+CLOSE Excel.\par
+\par
+The application will then ask you to confirm if you want to proceed with emailing the (now refreshed) report.\par
+\par
+7. Viewing Reports:\par
+\par
+After the raw report is generated, the View Raw Report button becomes active. Click it to open the raw Excel data file.\par
+\par
+After the report is processed (and emailed, if not skipped), the View Processed Analysis button becomes active. Click it to open the final, formatted Excel report.\par
+\par
+Options Menu Explained\par
+The 'Options' menu provides access to various settings and tools:\par
+\par
+Enable 1-Click Processing: Toggles between the standard two-button mode ('Create Report' then 'Process & Email') and a single 'Generate, Process & Email Report' button.\par
+\par
+Set Auto-Run Hour...: Allows you to change the hour (0-23) for the daily automated report check. The current setting is approximately %%CURRENT_AUTORUN_HOUR%%:00.\par
+\par
+Configure Auto-Run Reports: A sub-menu to individually enable or disable specific automated reports:\par
+\par
+Enable Standard Daily Auto Report\par
+\par
+Enable Daily (5days >= \'a31000) Auto Report\par
+\par
+Enable Weekly Auto Report\par
+\par
+Dark Mode: Toggles the application's visual theme between light and dark mode.\par
+\par
+View Configuration: Displays a summary of critical file paths and settings used by the application, helping to diagnose configuration issues.\par
+\par
+Validate Configuration: Performs a quick check of essential configurations (e.g., Crystal Report path, Wrapper EXE path) and updates the status bar.\par
+\par
+Manage Custom Bank Holidays: Opens a window to add, view, or remove custom one-off or recurring bank holidays. These are used in 'previous working day' calculations.\par
+\par
+Manage Email Recipients: Opens a window to customise the 'To' and 'CC' email lists for different report scenarios (automated, manual, debug). User changes are saved and override application defaults.\par
+\par
+Manage Email Greetings: Opens a window to customise the introductory greeting text for emails in different scenarios. User changes are saved and override application defaults.\par
+\par
+Open Logs Folder: Opens the directory where the application's detailed log files are stored. This is crucial for troubleshooting.\par
+\par
+Edit appsettings.json: Opens the main configuration file (appsettings.json) in the default text editor. Use with extreme caution! Incorrect changes can break the application.\par
+\par
+Exit: Closes the application.\par
+\par
+Automated Features\par
+Auto-Run Feature:\par
+When the Enable Daily Auto Run @ %%CURRENT_AUTORUN_HOUR%%:00 button shows green (enabled), the application will automatically check around %%CURRENT_AUTORUN_HOUR%%:00 each day to run any pending automated reports.\par
+The following reports can be configured for auto-run via the Options -> Configure Auto-Run Reports menu:\par
+\par
+Standard Daily Report\par
+\par
+Daily (5days >= \'a31000) Report\par
+\par
+Weekly Report (typically runs on a specific day like Friday)\par
+Automated reports use email recipients and greetings configured for their specific auto-run scenario (see 'Manage Email Recipients' and 'Manage Email Greetings'). The status of the auto-run process is displayed in the right-hand side of the status bar.\par
+The application keeps track of which reports have successfully run for the day in appsettings.json to avoid duplicate runs if the application is restarted.\par
+\par
+Automated Archiving:\par
+The application performs automated archiving on startup:\par
+\par
+Log Files: Log files older than 30 days are moved to an 'Archive' subfolder within your user-specific log directory, structured by Year, Month, and Week number (e.g., Logs\\[YourUser]\\Archive\\YYYY\\MM\\WeekN).\par
+\par
+Report Files:\par
+\par
+Final Reports (e.g., in 'Estimates' folder): Folders representing previous calendar years (e.g., a '2023' folder within 'Weekly Reports') are moved into a main 'Archive' folder at the root of the final reports directory (e.g., Estimates\\Archive\\Weekly Reports\\2023). If the target archive year folder already exists, contents are merged.\par
+\par
+Raw Reports (e.g., in 'Estimate Reports Exports' folder): Individual raw report files (.xlsx) older than a configured number of days (default 30) are moved into an 'Archive\\YYYY-MM' subfolder within their respective report type directory (e.g., Estimate Reports Exports\\Daily Reports\\Archive\\YYYY-MM\\OldFile.xlsx).\par
+\par
+Configuration Files Overview\par
+The application uses several configuration files:\par
+\par
+appsettings.json: The main configuration file located with the application. It stores critical paths (Crystal Report, Wrapper EXE, Template base), SMTP server details, default email recipients and greetings, auto-run settings (like LastRunDate, DailyRunStatus, enabled reports), and logging levels. Modifying this file directly requires caution.\par
+\par
+User-Specific JSON Files: These are stored in your user profile's AppData directory (typically %APPDATA%\\HarlowSolutions\\QuoteConversionReportAutomation\\). They allow for personal customisations without altering the main appsettings.json:\par
+\par
+user_email_settings.json: Stores your custom email recipient lists, overriding the defaults from appsettings.json.\par
+\par
+user_greeting_settings.json: Stores your custom email greetings.\par
+\par
+custom_bank_holidays.json: Stores any custom bank holidays you have defined.\par
+\par
+Troubleshooting\par
+If you encounter issues, consider the following steps:\par
+\par
+"Config Error" Status: This usually indicates a problem with essential file paths.\par
+\par
+Go to Options -> View Configuration to check the paths for the Crystal Report file (.rpt), the Crystal Report Wrapper executable (.exe), and the Excel Template base directory.\par
+\par
+Ensure all listed files and folders exist and are accessible from your machine. The application may require network access to some of these paths.\par
+\par
+Report Generation Fails (Raw Report):\par
+\par
+Ensure the Crystal Report Wrapper service (CrystalReportWrapper.exe) is running or can be started by the application.\par
+\par
+Verify the Crystal Report file path in appsettings.json (viewable via Options -> View Configuration) is correct and the file is accessible.\par
+\par
+Check the application logs for specific error messages from the wrapper service (see 'Open Logs Folder' below).\par
+\par
+Excel Processing Fails (Analysis Report):\par
+\par
+Ensure the Excel template files (e.g., TEMPLATE_Estimate Success Rate.xlsx) exist in the configured 'TEMPLATE' directory and are not corrupted or password-protected.\par
+\par
+Verify the application has write permissions to the 'Raw Report Export' and 'Final Excel Save Location' directories (viewable via Options -> View Configuration).\par
+\par
+For 'Weekly' reports, ensure the central Power BI source Excel file (typically in your user's Harlow Printing\\IT - Documents\\PowerBI\\... path) is accessible and not locked by another user or process.\par
+\par
+Email Sending Fails:\par
+\par
+Check SMTP server settings in appsettings.json (server address, port, username/password if required, SSL setting). These are usually pre-configured by IT.\par
+\par
+Ensure your network connection allows outgoing SMTP traffic on the configured port.\par
+\par
+Verify email recipients via Options -> Manage Email Recipients and greetings via Options -> Manage Email Greetings. Invalid email addresses can cause failures.\par
+\par
+Auto-Run Not Working as Expected:\par
+\par
+Confirm the main auto-run feature is enabled (button should be green and show 'Disable Daily Auto Run @ %%CURRENT_AUTORUN_HOUR%%:00').\par
+\par
+Check which specific reports are enabled for auto-run via Options -> Configure Auto-Run Reports.\par
+\par
+Check the configured 'Auto-Run Hour' via Options -> Set Auto-Run Hour... (currently ~%%CURRENT_AUTORUN_HOUR%%:00). The check happens around this hour.\par
+\par
+Review appsettings.json for AutoReport:LastRunDate and AutoReport:DailyRunStatus. If LastRunDate is today, or if the specific report's success flag in DailyRunStatus (for today's StatusDate) is true, it generally won't run again until the next due time/day.\par
+\par
+Incorrect Formulas in Excel Output: The application copies formulas from the first data row (typically row 6) of the 'Analysis' sheet in the template file. If these formulas are incorrect in the template, the output will also be incorrect.\par
+\par
+User Settings Not Taking Effect (Recipients/Greetings/Bank Holidays): Custom settings are stored in JSON files in your user's AppData folder (e.g., %APPDATA%\\HarlowSolutions\\QuoteConversionReportAutomation\\). If changes aren't applying, check if these files (user_email_settings.json, user_greeting_settings.json, custom_bank_holidays.json) are writable or have become corrupted. Deleting a corrupted user settings file will cause the application to revert to the defaults from appsettings.json for that specific setting type.\par
+\par
+Excel Slicers/Pivot Tables Not Updating (Manual Refresh Reports): For reports requiring manual refresh (Monthly, Quarterly, Annual, Custom), ensure you follow the on-screen prompts carefully: Open Excel, Enable Editing, go to the Data tab and click Refresh All, then Save and Close Excel before confirming in the application.\par
+\par
+Check Application Logs: The most detailed error information is usually found in the log files. Access these via Options -> Open Logs Folder. Log files are created daily and are named with the date (e.g., YYYY-MM-DD_LogFile.log).\par
+\par
+Contact IT Support: If problems persist after checking these steps, please contact IT support with details of the issue and any relevant error messages from the logs.\par
+\par
+Thank you for using the Quote Conversion Report Automation program!\par
+}
+ 

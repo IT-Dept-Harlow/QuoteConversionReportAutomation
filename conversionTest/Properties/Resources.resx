@@ -121,4 +121,7 @@
   <data name="Custom-Icon-Design-Flatastic-5-Reports" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Custom-Icon-Design-Flatastic-5-Reports.ico;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
+  <data name="Help_Template" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\Help_Template.rtf;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
 </root>

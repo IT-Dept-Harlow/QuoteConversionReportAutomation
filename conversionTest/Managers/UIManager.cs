@@ -19,7 +19,7 @@ namespace QuoteConversionReportAutomation.Managers
 
     /// <summary>
     /// Custom renderer to handle dark mode menu item highlighting, text color, and background appearance for ToolStrip controls.
-    /// It inherits from <see cref="ToolStripProfessionalRenderer"/> to customize the rendering behavior.
+    /// It inherits from <see cref="ToolStripProfessionalRenderer"/> to customise the rendering behavior.
     /// </summary>
     public class DarkModeMenuRenderer : ToolStripProfessionalRenderer
     {
@@ -55,7 +55,7 @@ namespace QuoteConversionReportAutomation.Managers
 
         /// <summary>
         /// Renders the background of a <see cref="ToolStripItem"/>.
-        /// Overridden to customize background colors for selected, hovered, and disabled states in dark mode.
+        /// Overridden to customise background colors for selected, hovered, and disabled states in dark mode.
         /// </summary>
         /// <param name="e">A <see cref="ToolStripItemRenderEventArgs"/> that contains the event data.</param>
         protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)

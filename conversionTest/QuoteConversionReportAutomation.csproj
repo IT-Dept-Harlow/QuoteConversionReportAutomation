@@ -14,7 +14,17 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="Custom-Icon-Design-Flatastic-5-Reports.ico" />
+    <None Remove="Resources\Help_Template.rtf" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Custom-Icon-Design-Flatastic-5-Reports.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Help_Template.rtf">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>
