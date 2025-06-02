@@ -174,7 +174,7 @@ namespace QuoteConversionReportAutomation
                         lv.DrawSubItem -= ListView_DrawSubItem_Dark;
                         lv.DrawColumnHeader -= ListView_DrawColumnHeader_Dark;
                     }
-                    lv.BorderStyle = isDarkMode ? BorderStyle.FixedSingle : BorderStyle.Fixed3D;
+                    lv.BorderStyle = isDarkMode ? BorderStyle.FixedSingle : BorderStyle.Fixed3D; // Use a single line border in dark mode for consistency
                 }
                 else if (control is Label)
                 {

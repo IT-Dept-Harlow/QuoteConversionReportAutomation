@@ -1,127 +1,205 @@
-﻿// C# 10+ Features
+﻿// ReportArchiver.cs
+// Provides static methods for archiving old report files and folders
+// based on specified criteria (e.g., age, year).
+// The name of the main archive folder is now configurable via a parameter.
+// C# 10+ Features.
+
+#region Using Directives
+// System related namespaces
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+
+// Project specific namespaces
 using QuoteConversionReportAutomation.Services.Logging; // For Logger
+#endregion
 
 namespace QuoteConversionReportAutomation.Managers
 {
     /// <summary>
-    /// Provides static methods for archiving old report files.
+    /// Provides static utility methods for archiving old report files and folders.
+    /// This includes archiving previous years' final report folders and older raw report files.
+    /// The name of the main archive folder and the age threshold for raw files are configurable
+    /// via parameters, intended to be sourced from application settings.
     /// </summary>
     public static class ReportArchiver
     {
-        private const string ArchiveFolderName = "Archive";
-        private const int DefaultArchiveRawOlderThanDays = 30;
+        #region Constants
+        /// <summary>
+        /// Default name for the top-level archive folder if not provided by configuration.
+        /// </summary>
+        private const string DefaultArchiveFolderName = "Archive";
 
         /// <summary>
-        /// Asynchronously archives old final report folders (previous years) and raw report files.
+        /// Default number of days after which raw report files are considered old enough for archiving,
+        /// if not specified by the caller.
         /// </summary>
-        /// <param name="finalReportBaseDir">The base directory for final processed reports (e.g., ExcelFinalSaveLocation).</param>
-        /// <param name="rawReportBaseDir">The base directory for raw exported reports (e.g., RawReportExportBaseDir).</param>
-        /// <param name="archiveRawOlderThanDays">Raw files older than this number of days will be archived.</param>
-        public static async Task ArchiveOldReportsAsync(string? finalReportBaseDir, string? rawReportBaseDir, int? archiveRawOlderThanDays)
+        private const int DefaultArchiveRawOlderThanDays = 30;
+        #endregion
+
+        #region Public Static Methods
+        /// <summary>
+        /// Asynchronously archives old final report folders (from previous years) and old raw report files.
+        /// This method is intended to be run as a background task, for example, on application startup.
+        /// </summary>
+        /// <param name="finalReportBaseDir">The base directory where final processed reports are stored.
+        /// Expected structure: {finalReportBaseDir}\{ReportTypeSubFolder}\{YearFolder}\...</param>
+        /// <param name="rawReportBaseDir">The base directory where raw exported reports are stored.
+        /// Expected structure: {rawReportBaseDir}\{ReportTypeSubFolder}\...\files.xlsx</param>
+        /// <param name="archiveRawOlderThanDays">Raw report files older than this number of days will be archived.
+        /// This value is typically read from "OperationalParameters:ArchiveRawReportsOlderThanDays" in `appsettings.json`.</param>
+        /// <param name="configuredArchiveFolderName">The name to use for the main archive subfolder (e.g., "Archive").
+        /// This value is typically read from "OperationalParameters:ReportArchiveFolderName" in `appsettings.json`.
+        /// If null or empty, <see cref="DefaultArchiveFolderName"/> will be used.</param>
+        /// <remarks>
+        /// If `finalReportBaseDir` or `rawReportBaseDir` are null, empty, or point to non-existent directories,
+        /// the respective archiving step will be skipped with a warning log.
+        /// If `archiveRawOlderThanDays` is null, <see cref="DefaultArchiveRawOlderThanDays"/> will be used.
+        /// </remarks>
+        public static async Task ArchiveOldReportsAsync(
+            string? finalReportBaseDir,
+            string? rawReportBaseDir,
+            int? archiveRawOlderThanDays,
+            string? configuredArchiveFolderName)
         {
             Logger.LogInfo("Starting report archiving process...");
+
+            string archiveFolderName = DefaultArchiveFolderName; // Default value
+            if (!string.IsNullOrWhiteSpace(configuredArchiveFolderName))
+            {
+                archiveFolderName = configuredArchiveFolderName;
+                Logger.LogDebug($"Using configured archive folder name: '{archiveFolderName}'");
+            }
+            else
+            {
+                Logger.LogWarning($"Configured archive folder name is null or empty. Using default: '{archiveFolderName}'");
+            }
+
             int daysThreshold = archiveRawOlderThanDays ?? DefaultArchiveRawOlderThanDays;
+            Logger.LogDebug($"Using threshold of {daysThreshold} days for archiving raw reports.");
 
-            // --- Archive Final Reports (Previous Years) ---
-            if (!string.IsNullOrWhiteSpace(finalReportBaseDir) && Directory.Exists(finalReportBaseDir))
+            // --- Archive Final Reports (Previous Years' Folders) ---
+            if (!string.IsNullOrWhiteSpace(finalReportBaseDir))
             {
-                await ArchivePreviousYearFoldersAsync(finalReportBaseDir);
+                if (Directory.Exists(finalReportBaseDir))
+                {
+                    // Pass the determined archiveFolderName to the helper method.
+                    await ArchivePreviousYearFoldersAsync(finalReportBaseDir, archiveFolderName);
+                }
+                else
+                {
+                    Logger.LogWarning($"Final report base directory '{finalReportBaseDir}' does not exist. Skipping final report folder archiving.");
+                }
             }
             else
             {
-                Logger.LogWarning($"Final report base directory '{finalReportBaseDir}' is invalid or does not exist. Skipping final report archiving.");
+                Logger.LogWarning("Final report base directory was not provided. Skipping final report folder archiving.");
             }
 
-            // --- Archive Raw Reports (Older Files) ---
-            if (!string.IsNullOrWhiteSpace(rawReportBaseDir) && Directory.Exists(rawReportBaseDir))
+            // --- Archive Raw Reports (Older Individual Files) ---
+            if (!string.IsNullOrWhiteSpace(rawReportBaseDir))
             {
-                await ArchiveOldRawFilesAsync(rawReportBaseDir, daysThreshold);
+                if (Directory.Exists(rawReportBaseDir))
+                {
+                    // Pass the determined archiveFolderName to the helper method.
+                    await ArchiveOldRawFilesAsync(rawReportBaseDir, daysThreshold, archiveFolderName);
+                }
+                else
+                {
+                    Logger.LogWarning($"Raw report base directory '{rawReportBaseDir}' does not exist. Skipping raw report file archiving.");
+                }
             }
             else
             {
-                Logger.LogWarning($"Raw report base directory '{rawReportBaseDir}' is invalid or does not exist. Skipping raw report archiving.");
+                Logger.LogWarning("Raw report base directory was not provided. Skipping raw report file archiving.");
             }
 
             Logger.LogInfo("Report archiving process finished.");
         }
+        #endregion
 
+        #region Private Archiving Logic for Final Reports
         /// <summary>
-        /// Archives year folders (e.g., "2024") found directly within report type subfolders
-        /// (e.g., "Weekly Reports", "Monthly Reports") if the year is before the current year.
-        /// Moves them to an "Archive" folder at the same level. If the destination year folder
-        /// already exists, it merges the contents by moving non-existing files/subfolders.
-        /// Example: Moves ..\Estimates\Weekly Reports\2024 to ..\Estimates\Archive\Weekly Reports\2024
+        /// Archives year folders (e.g., "2023") found directly within report type subfolders
+        /// under the <paramref name="finalReportBaseDir"/>, if the year of the folder is before the current year.
+        /// Archived year folders are moved to an "<paramref name="archiveFolderName"/>" subfolder,
+        /// maintaining the report type subfolder structure.
+        /// If the destination year folder already exists in the archive, contents are merged.
         /// </summary>
-        private static async Task ArchivePreviousYearFoldersAsync(string finalReportBaseDir)
+        /// <param name="finalReportBaseDir">The base directory for final processed reports.</param>
+        /// <param name="archiveFolderName">The name of the main archive subfolder to use.</param>
+        private static async Task ArchivePreviousYearFoldersAsync(string finalReportBaseDir, string archiveFolderName)
         {
-            Logger.LogInfo($"Checking final report directory for previous year folders to archive/merge: {finalReportBaseDir}");
+            Logger.LogInfo($"Checking final report directory for previous year folders to archive/merge into '{archiveFolderName}': '{finalReportBaseDir}'");
             int currentYear = DateTime.Now.Year;
-            string archiveBaseDir = Path.Combine(finalReportBaseDir, ArchiveFolderName);
+            string archiveRootPath = Path.Combine(finalReportBaseDir, archiveFolderName);
 
             try
             {
-                Directory.CreateDirectory(archiveBaseDir); // Ensure base archive folder exists
+                Directory.CreateDirectory(archiveRootPath);
 
-                // Iterate through report type subdirectories (e.g., Daily Reports, Weekly Reports)
                 foreach (var reportTypeDir in Directory.EnumerateDirectories(finalReportBaseDir))
                 {
-                    string reportTypeName = Path.GetFileName(reportTypeDir);
-                    // Skip the Archive folder itself
-                    if (reportTypeName.Equals(ArchiveFolderName, StringComparison.OrdinalIgnoreCase)) continue;
-
-                    Logger.LogDebug($"Checking report type folder: {reportTypeName}");
-
-                    // Iterate through year subdirectories within the report type folder
-                    foreach (var yearDir in Directory.EnumerateDirectories(reportTypeDir))
+                    string reportTypeDirName = Path.GetFileName(reportTypeDir);
+                    if (reportTypeDirName.Equals(archiveFolderName, StringComparison.OrdinalIgnoreCase))
                     {
-                        string yearFolderName = Path.GetFileName(yearDir);
+                        continue; // Skip the archive folder itself.
+                    }
+
+                    Logger.LogDebug($"Scanning report type folder for year subfolders: '{reportTypeDir}'");
+
+                    foreach (var yearDirToArchive in Directory.EnumerateDirectories(reportTypeDir))
+                    {
+                        string yearFolderName = Path.GetFileName(yearDirToArchive);
                         if (int.TryParse(yearFolderName, out int year) && year < currentYear)
                         {
-                            // This is a previous year folder, attempt to archive/merge it
-                            string archiveReportTypeDir = Path.Combine(archiveBaseDir, reportTypeName);
-                            string destinationYearDir = Path.Combine(archiveReportTypeDir, yearFolderName);
+                            string targetArchiveReportTypeDir = Path.Combine(archiveRootPath, reportTypeDirName);
+                            string targetArchivedYearDir = Path.Combine(targetArchiveReportTypeDir, yearFolderName);
 
                             try
                             {
-                                Directory.CreateDirectory(archiveReportTypeDir); // Ensure target report type archive folder exists
+                                Directory.CreateDirectory(targetArchiveReportTypeDir);
 
-                                // *** UPDATED LOGIC: Check if destination exists, then merge or move ***
-                                if (Directory.Exists(destinationYearDir))
+                                if (Directory.Exists(targetArchivedYearDir))
                                 {
-                                    // Destination exists - Merge contents
-                                    Logger.LogInfo($"Archive destination '{destinationYearDir}' already exists. Merging contents from '{yearDir}'.");
-                                    await MergeDirectoryContentsAsync(yearDir, destinationYearDir);
-
-                                    // Attempt to delete the original source directory *only if empty* after merge
+                                    Logger.LogInfo($"Archive destination '{targetArchivedYearDir}' already exists. Merging contents from '{yearDirToArchive}'.");
+                                    await MergeDirectoryContentsAsync(yearDirToArchive, targetArchivedYearDir);
                                     try
                                     {
-                                        if (!Directory.EnumerateFileSystemEntries(yearDir).Any())
+                                        if (!Directory.EnumerateFileSystemEntries(yearDirToArchive).Any())
                                         {
-                                            Directory.Delete(yearDir, false); // Delete non-recursively (should be empty)
-                                            Logger.LogInfo($"Successfully deleted empty source folder after merge: '{yearDir}'");
+                                            Directory.Delete(yearDirToArchive, false);
+                                            Logger.LogInfo($"Successfully deleted empty source year folder after merge: '{yearDirToArchive}'");
                                         }
                                         else
                                         {
-                                            Logger.LogWarning($"Source folder '{yearDir}' was not empty after merge attempt. Manual cleanup might be needed.");
+                                            Logger.LogWarning($"Source year folder '{yearDirToArchive}' was not empty after merge attempt. Manual cleanup might be needed.");
                                         }
                                     }
                                     catch (Exception deleteEx)
                                     {
-                                        Logger.LogWarning($"Failed to delete source folder '{yearDir}' after merge attempt: {deleteEx.Message}");
+                                        Logger.LogWarning($"Failed to delete source year folder '{yearDirToArchive}' after merge attempt: {deleteEx.Message}");
                                     }
                                 }
                                 else
                                 {
-                                    // Destination does not exist - Move the entire directory
-                                    Logger.LogInfo($"Archiving previous year folder: '{yearDir}' to '{destinationYearDir}'");
-                                    await Task.Run(() => Directory.Move(yearDir, destinationYearDir)); // Use Move for atomic operation if possible
-                                    Logger.LogInfo($"Successfully archived year folder: {yearFolderName} for {reportTypeName}");
+                                    Logger.LogInfo($"Archiving previous year folder: Moving '{yearDirToArchive}' to '{targetArchivedYearDir}'");
+                                    await Task.Run(() => Directory.Move(yearDirToArchive, targetArchivedYearDir));
+                                    Logger.LogInfo($"Successfully archived year folder '{yearFolderName}' for report type '{reportTypeDirName}'.");
                                 }
-                                // *** END UPDATED LOGIC ***
                             }
-                            catch (Exception ex) // Catch errors during move/merge
+                            catch (IOException ioEx)
                             {
-                                Logger.LogError($"Failed to archive or merge year folder '{yearDir}' to '{destinationYearDir}': {ex.Message}");
+                                Logger.LogError($"IO error archiving/merging year folder '{yearDirToArchive}' to '{targetArchivedYearDir}': {ioEx.Message}", ioEx);
+                            }
+                            catch (UnauthorizedAccessException uaEx)
+                            {
+                                Logger.LogError($"Access denied archiving/merging year folder '{yearDirToArchive}' to '{targetArchivedYearDir}': {uaEx.Message}", uaEx);
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.LogError($"Failed to archive/merge year folder '{yearDirToArchive}' to '{targetArchivedYearDir}': {ex.Message}", ex);
                             }
                         }
                     }
@@ -129,20 +207,24 @@ namespace QuoteConversionReportAutomation.Managers
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Error during final report year folder archiving in '{finalReportBaseDir}': {ex.Message}");
+                Logger.LogError($"Error during final report year folder archiving in '{finalReportBaseDir}': {ex.Message}", ex);
             }
         }
 
         /// <summary>
         /// Merges the contents of a source directory into a destination directory.
-        /// Moves files and subdirectories from source to destination only if they don't already exist in the destination.
+        /// Moves files and top-level subdirectories from source to destination if they don't already exist in destination.
+        /// This is a shallow merge for subdirectories.
         /// </summary>
+        /// <param name="sourceDir">The source directory path.</param>
+        /// <param name="destDir">The destination directory path.</param>
         private static async Task MergeDirectoryContentsAsync(string sourceDir, string destDir)
         {
-            Logger.LogDebug($"Starting merge from '{sourceDir}' to '{destDir}'");
+            Logger.LogDebug($"Starting merge of contents from '{sourceDir}' into '{destDir}'");
+            Directory.CreateDirectory(destDir); // Ensure destination exists.
 
-            // Move subdirectories first (recursively, although structure is likely flat here)
-            foreach (var dirPath in Directory.GetDirectories(sourceDir, "*", SearchOption.TopDirectoryOnly)) // Assuming flat structure within year folder (e.g., month/week)
+            // Process subdirectories.
+            foreach (var dirPath in Directory.GetDirectories(sourceDir, "*", SearchOption.TopDirectoryOnly))
             {
                 string dirName = Path.GetFileName(dirPath);
                 string destSubDirPath = Path.Combine(destDir, dirName);
@@ -155,18 +237,17 @@ namespace QuoteConversionReportAutomation.Managers
                     }
                     else
                     {
-                        // If subdirectory exists, could implement recursive merge here if needed
                         Logger.LogWarning($"Subdirectory '{dirName}' already exists in archive destination '{destDir}'. Skipping merge for this subdirectory.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogError($"Failed to merge subdirectory '{dirPath}' to '{destSubDirPath}': {ex.Message}");
+                    Logger.LogError($"Failed to merge subdirectory '{dirPath}' to '{destSubDirPath}': {ex.Message}", ex);
                 }
             }
 
-            // Move files
-            foreach (var filePath in Directory.GetFiles(sourceDir, "*", SearchOption.TopDirectoryOnly)) // Assuming flat structure within year folder
+            // Process files.
+            foreach (var filePath in Directory.GetFiles(sourceDir, "*", SearchOption.TopDirectoryOnly))
             {
                 string fileName = Path.GetFileName(filePath);
                 string destFilePath = Path.Combine(destDir, fileName);
@@ -179,87 +260,95 @@ namespace QuoteConversionReportAutomation.Managers
                     }
                     else
                     {
-                        Logger.LogWarning($"File '{fileName}' already exists in archive destination '{destDir}'. Skipping merge for this file.");
-                        // Optionally delete the source file if skipping? Or leave it for manual check.
-                        // try { File.Delete(filePath); } catch { /* Ignore delete error */ }
+                        Logger.LogWarning($"File '{fileName}' already exists in archive destination '{destDir}'. Skipping merge for this file from '{sourceDir}'.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogError($"Failed to merge file '{filePath}' to '{destFilePath}': {ex.Message}");
+                    Logger.LogError($"Failed to merge file '{filePath}' to '{destFilePath}': {ex.Message}", ex);
                 }
             }
-            Logger.LogDebug($"Finished merge attempt for '{sourceDir}'");
+            Logger.LogDebug($"Finished merge attempt for contents of '{sourceDir}' into '{destDir}'.");
         }
+        #endregion
 
-
+        #region Private Archiving Logic for Raw Reports
         /// <summary>
-        /// Archives individual raw report files (.xlsx) older than the specified number of days.
-        /// It searches recursively within each report type folder (e.g., Daily Reports) and moves
-        /// old files to an "Archive\YYYY-MM" subfolder within that report type folder, based on the file's LastWriteTime.
-        /// Example: Moves ..\Exports\Daily Reports\...\OldFile.xlsx to ..\Exports\Daily Reports\Archive\2025-03\OldFile.xlsx
+        /// Archives individual raw report files (e.g., .xlsx) older than the specified number of days.
+        /// Searches recursively within each report type subfolder under <paramref name="rawReportBaseDir"/>
+        /// and moves old files to a structured "<paramref name="archiveFolderName"/>\YYYY-MM" subfolder
+        /// *within that report type folder*, based on the file's LastWriteTime.
         /// </summary>
-        private static async Task ArchiveOldRawFilesAsync(string rawReportBaseDir, int daysThreshold)
+        /// <param name="rawReportBaseDir">The base directory for raw exported reports.</param>
+        /// <param name="daysThreshold">Raw files older than this number of days will be archived.</param>
+        /// <param name="archiveFolderName">The name of the main archive subfolder to use.</param>
+        private static async Task ArchiveOldRawFilesAsync(string rawReportBaseDir, int daysThreshold, string archiveFolderName)
         {
-            Logger.LogInfo($"Checking raw report directory for files older than {daysThreshold} days to archive: {rawReportBaseDir}");
+            Logger.LogInfo($"Checking raw report directory '{rawReportBaseDir}' for files older than {daysThreshold} days to archive into '{archiveFolderName}' subfolders.");
             DateTime cutoffDate = DateTime.Now.Date.AddDays(-daysThreshold);
 
             try
             {
-                // Iterate through report type subdirectories (e.g., Daily Reports, Weekly Reports)
                 foreach (var reportTypeDir in Directory.EnumerateDirectories(rawReportBaseDir))
                 {
-                    string reportTypeName = Path.GetFileName(reportTypeDir);
-                    // Skip potential Archive folder at this level if it somehow exists
-                    if (reportTypeName.Equals(ArchiveFolderName, StringComparison.OrdinalIgnoreCase)) continue;
+                    string reportTypeDirName = Path.GetFileName(reportTypeDir);
+                    if (reportTypeDirName.Equals(archiveFolderName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue; // Skip the main archive folder if it's at this level.
+                    }
 
-                    Logger.LogDebug($"Checking raw report type folder: {reportTypeName}");
+                    Logger.LogDebug($"Scanning raw report type folder for old files: '{reportTypeDir}'");
+                    string archiveRootForReportType = Path.Combine(reportTypeDir, archiveFolderName);
 
-                    // Base archive folder within the report type directory
-                    string archiveBaseDirForType = Path.Combine(reportTypeDir, ArchiveFolderName);
+                    var filesToConsiderForArchiving = Directory.EnumerateFiles(reportTypeDir, "*.xlsx", SearchOption.AllDirectories)
+                                                               .Where(filePath =>
+                                                                    !filePath.StartsWith(archiveRootForReportType, StringComparison.OrdinalIgnoreCase) &&
+                                                                    File.GetLastWriteTime(filePath) < cutoffDate);
 
-                    // Find all .xlsx files recursively within the report type directory, EXCLUDING the Archive folder itself
-                    var filesToArchive = Directory.EnumerateFiles(reportTypeDir, "*.xlsx", SearchOption.AllDirectories)
-                                                  .Where(f => !f.StartsWith(archiveBaseDirForType, StringComparison.OrdinalIgnoreCase) && // Exclude files already in Archive
-                                                              File.GetLastWriteTime(f) < cutoffDate);
-
-                    foreach (var filePath in filesToArchive)
+                    foreach (var filePathToArchive in filesToConsiderForArchiving)
                     {
                         try
                         {
-                            FileInfo fileInfo = new FileInfo(filePath);
-                            DateTime fileDate = fileInfo.LastWriteTime;
-                            string yearMonthFolder = fileDate.ToString("yyyy-MM"); // Format for subfolder name
+                            FileInfo fileInfo = new FileInfo(filePathToArchive);
+                            DateTime fileLastWriteDate = fileInfo.LastWriteTime;
+                            string yearMonthFolderName = fileLastWriteDate.ToString("yyyy-MM");
 
-                            // Construct the final destination directory including year-month
-                            string destinationDir = Path.Combine(archiveBaseDirForType, yearMonthFolder);
-                            Directory.CreateDirectory(destinationDir); // Ensure yyyy-MM archive subfolder exists
+                            string destinationArchiveDir = Path.Combine(archiveRootForReportType, yearMonthFolderName);
+                            Directory.CreateDirectory(destinationArchiveDir);
 
                             string fileName = fileInfo.Name;
-                            string destinationPath = Path.Combine(destinationDir, fileName);
+                            string destinationFilePath = Path.Combine(destinationArchiveDir, fileName);
 
-                            // Handle potential name collisions in the archive folder
-                            if (File.Exists(destinationPath))
+                            if (File.Exists(destinationFilePath))
                             {
-                                string uniqueName = $"{Path.GetFileNameWithoutExtension(fileName)}_{DateTime.Now:yyyyMMddHHmmssfff}{Path.GetExtension(fileName)}";
-                                destinationPath = Path.Combine(destinationDir, uniqueName);
-                                Logger.LogWarning($"Archive file '{fileName}' already exists in target '{destinationDir}'. Archiving as '{uniqueName}'.");
+                                string uniqueFileName = $"{Path.GetFileNameWithoutExtension(fileName)}_{DateTime.Now:yyyyMMddHHmmssfff}{Path.GetExtension(fileName)}";
+                                destinationFilePath = Path.Combine(destinationArchiveDir, uniqueFileName);
+                                Logger.LogWarning($"Archive file '{fileName}' already exists in '{destinationArchiveDir}'. Archiving as '{uniqueFileName}'.");
                             }
 
-                            Logger.LogInfo($"Archiving raw file: '{filePath}' to '{destinationPath}'");
-                            await Task.Run(() => fileInfo.MoveTo(destinationPath)); // Use MoveTo
+                            Logger.LogInfo($"Archiving raw file: '{filePathToArchive}' to '{destinationFilePath}'");
+                            await Task.Run(() => fileInfo.MoveTo(destinationFilePath));
+                        }
+                        catch (IOException ioEx)
+                        {
+                            Logger.LogError($"IO error archiving raw file '{filePathToArchive}': {ioEx.Message}", ioEx);
+                        }
+                        catch (UnauthorizedAccessException uaEx)
+                        {
+                            Logger.LogError($"Access denied archiving raw file '{filePathToArchive}': {uaEx.Message}", uaEx);
                         }
                         catch (Exception ex)
                         {
-                            Logger.LogError($"Failed to archive raw file '{filePath}': {ex.Message}");
+                            Logger.LogError($"Failed to archive raw file '{filePathToArchive}': {ex.Message}", ex);
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Error during raw report file archiving in '{rawReportBaseDir}': {ex.Message}");
+                Logger.LogError($"Error during raw report file archiving process in '{rawReportBaseDir}': {ex.Message}", ex);
             }
         }
+        #endregion
     }
 }

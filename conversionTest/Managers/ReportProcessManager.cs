@@ -1,254 +1,317 @@
-﻿// C# 10+ Features
+﻿// ReportProcessManager.cs
+// Manages the lifecycle (checking, launching, terminating) of the external
+// Crystal Report Wrapper process. This class is responsible for interacting
+// with the specified wrapper executable.
+// Utilises C# 10+ features.
+
+#region Using Directives
+// System related namespaces
+using System;
+using System.Diagnostics; // Required for Process class
+using System.IO;          // Required for Path and File operations
+using System.Threading;
+using System.Threading.Tasks;
+using System.ComponentModel; // Required for Win32Exception
+
+// Project specific namespaces
+// Note: QuoteConversionReportAutomation.Helpers.FlexibleMessageBox is removed from here.
+// UI interactions should be handled by the calling UI layer.
+using QuoteConversionReportAutomation.Services.Logging; // For Logger
+#endregion
+
 namespace QuoteConversionReportAutomation.Managers
 {
-    using QuoteConversionReportAutomation.Helpers;
-    using QuoteConversionReportAutomation.Services.Logging;
-    // --- Using Statements ---
-    using System;
-    using System.Diagnostics;
-    using System.IO;
-    using System.Threading;
-    using System.Threading.Tasks;
-
     /// <summary>
-    /// Manages the lifecycle (checking, launching, terminating) of the external
-    /// Crystal Report Wrapper process.
+    /// Manages the lifecycle of an external report processing executable (the "wrapper").
+    /// This includes checking if the wrapper process is running, launching it if necessary,
+    /// and providing a method to terminate it.
     /// </summary>
     public class ReportProcessManager
     {
         #region Fields
-
         /// <summary>
-        /// The full path to the Crystal Report Wrapper executable.
+        /// The full, absolute path to the wrapper executable file.
         /// </summary>
         private readonly string _wrapperExePath;
 
         /// <summary>
-        /// The process name of the wrapper executable (without the extension).
+        /// The name of the wrapper process, derived from the executable filename (without the extension).
+        /// Used for checking if the process is already running.
         /// </summary>
         private readonly string _wrapperProcessName;
 
+        /// <summary>
+        /// A brief delay in milliseconds to allow the wrapper process to initialize,
+        /// particularly its named pipe server, after being launched.
+        /// Consider making this configurable if different environments require different startup times.
+        /// </summary>
+        private const int WrapperLaunchGracePeriodMs = 3000; // 3 seconds
         #endregion
 
         #region Constructor
-
         /// <summary>
-        /// Initializes a new instance of the ReportProcessManager class.
+        /// Initializes a new instance of the <see cref="ReportProcessManager"/> class.
         /// </summary>
-        /// <param name="wrapperExePath">The full file path to the wrapper executable.</param>
-        /// <exception cref="ArgumentException">Thrown if wrapperExePath is null, empty, or invalid.</exception>
+        /// <param name="wrapperExePath">The full file path to the wrapper executable. This path must be valid and point to an existing file.</param>
+        /// <exception cref="ArgumentException">Thrown if <paramref name="wrapperExePath"/> is null, empty, whitespace, or if a process name cannot be derived from it.</exception>
+        /// <exception cref="PathTooLongException">Thrown if the resolved path exceeds the system-defined maximum length.</exception>
+        /// <exception cref="System.Security.SecurityException">Thrown if the caller does not have the required permissions to access path information.</exception>
+        /// <exception cref="NotSupportedException">Thrown if <paramref name="wrapperExePath"/> contains a colon (:) that is not part of a volume identifier (e.g., "c:\").</exception>
         public ReportProcessManager(string wrapperExePath)
         {
             if (string.IsNullOrWhiteSpace(wrapperExePath))
             {
-                throw new ArgumentException("Wrapper executable path cannot be null or empty.", nameof(wrapperExePath));
+                throw new ArgumentException("Wrapper executable path cannot be null, empty, or whitespace.", nameof(wrapperExePath));
             }
 
-            // Basic validation - more robust checks happen in methods using the path
-            _wrapperExePath = Path.GetFullPath(wrapperExePath); // Normalize the path
-            _wrapperProcessName = Path.GetFileNameWithoutExtension(_wrapperExePath);
-
-            if (string.IsNullOrEmpty(_wrapperProcessName))
+            try
             {
-                throw new ArgumentException("Could not determine process name from the provided wrapper executable path.", nameof(wrapperExePath));
+                // Normalize the path to an absolute path. This can throw various exceptions.
+                _wrapperExePath = Path.GetFullPath(wrapperExePath);
+                _wrapperProcessName = Path.GetFileNameWithoutExtension(_wrapperExePath);
+
+                if (string.IsNullOrEmpty(_wrapperProcessName))
+                {
+                    // This case should be rare if GetFullPath and GetFileNameWithoutExtension succeed.
+                    throw new ArgumentException("Could not derive a valid process name from the provided wrapper executable path.", nameof(wrapperExePath));
+                }
+            }
+            catch (Exception ex) // Catch exceptions from Path operations
+            {
+                Logger.LogCritical($"ReportProcessManager: Error initializing with wrapper path '{wrapperExePath}': {ex.Message}", ex);
+                throw new ArgumentException($"Invalid wrapper executable path provided ('{wrapperExePath}'): {ex.Message}", nameof(wrapperExePath), ex);
             }
 
             Logger.LogDebug($"ReportProcessManager initialized. Wrapper Path: '{_wrapperExePath}', Process Name: '{_wrapperProcessName}'");
         }
-
         #endregion
 
         #region Public Methods
-
         /// <summary>
-        /// Asynchronously ensures the Crystal Report Wrapper process is running, launching it if necessary.
+        /// Asynchronously ensures the Crystal Report Wrapper process is running.
+        /// If the process is not found, it attempts to launch the executable specified during initialization.
         /// </summary>
-        /// <param name="progressReporter">Optional progress reporter for status updates (e.g., "Starting report service...").</param>
-        /// <param name="cancellationToken">Token to allow cancellation.</param>
-        /// <returns>True if the wrapper is running or was successfully launched, false otherwise.</returns>
+        /// <param name="progressReporter">An optional <see cref="IProgress{T}"/> instance to report status updates (e.g., "Starting report service...").</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken"/> to observe for cancellation requests.</param>
+        /// <returns>
+        /// A <see cref="Task{TResult}"/> that represents the asynchronous operation.
+        /// The task result is true if the wrapper process is running or was successfully launched; otherwise, false.
+        /// </returns>
+        /// <exception cref="FileNotFoundException">Can be propagated if <see cref="LaunchWrapper"/> fails because the executable is not found.</exception>
+        /// <exception cref="InvalidOperationException">Can be propagated if <see cref="LaunchWrapper"/> fails to start the process for other reasons (e.g., permissions).</exception>
+        /// <exception cref="OperationCanceledException">Thrown if the operation is cancelled via the <paramref name="cancellationToken"/>.</exception>
         public async Task<bool> EnsureWrapperIsRunningAsync(IProgress<string>? progressReporter = null, CancellationToken cancellationToken = default)
         {
-            // Check if already running
             if (IsWrapperRunning())
             {
                 Logger.LogInfo($"Wrapper process '{_wrapperProcessName}' is already running.");
+                progressReporter?.Report("Report service is active."); // Report current state
                 return true;
             }
 
-            // If not running, attempt to launch
-            Logger.LogWarning($"Wrapper process '{_wrapperProcessName}' not found. Attempting to launch...");
-            progressReporter?.Report("Starting report service..."); // Report progress if reporter provided
+            Logger.LogWarning($"Wrapper process '{_wrapperProcessName}' not found. Attempting to launch from: '{_wrapperExePath}'");
+            progressReporter?.Report("Starting report service...");
 
             try
             {
-                // Launch the process (run synchronous LaunchWrapper on background thread)
-                await Task.Run(() => LaunchWrapper(), cancellationToken);
+                // Launch the wrapper process. LaunchWrapper will throw if it fails critically.
+                // Run the synchronous LaunchWrapper on a background thread to keep this method async.
+                await Task.Run(() => LaunchWrapper(), cancellationToken).ConfigureAwait(false);
 
-                // Wait briefly for the process to initialize its named pipe server
-                await Task.Delay(3000, cancellationToken); // 3 seconds grace period
+                // Allow a brief period for the process to initialize, especially its named pipe server.
+                await Task.Delay(WrapperLaunchGracePeriodMs, cancellationToken).ConfigureAwait(false);
 
-                // Check again if it's running after the launch attempt
-                if (IsWrapperRunning())
+                if (IsWrapperRunning()) // Check again after launch attempt and grace period.
                 {
-                    Logger.LogInfo($"Wrapper process '{_wrapperProcessName}' appears to be running after launch.");
-                    progressReporter?.Report("Report service started.");
+                    Logger.LogInfo($"Wrapper process '{_wrapperProcessName}' successfully launched and is now running.");
+                    progressReporter?.Report("Report service started successfully.");
                     return true;
                 }
-                else // Launch attempt failed or process terminated quickly
+                else
                 {
-                    Logger.LogError($"Wrapper process '{_wrapperProcessName}' did not start successfully or terminated unexpectedly after launch attempt.");
-                    progressReporter?.Report("Error: Failed to start report service.");
-                    return false;
+                    Logger.LogError($"Wrapper process '{_wrapperProcessName}' did not start successfully or terminated unexpectedly after launch attempt from '{_wrapperExePath}'.");
+                    progressReporter?.Report("Error: Failed to start or confirm report service activity.");
+                    return false; // Launch failed or process exited quickly.
                 }
             }
             catch (OperationCanceledException)
             {
-                Logger.LogWarning("Operation cancelled during wrapper launch check.");
-                progressReporter?.Report("Operation cancelled.");
-                return false;
+                Logger.LogWarning($"Operation to ensure wrapper '{_wrapperProcessName}' is running was cancelled.");
+                progressReporter?.Report("Report service startup cancelled.");
+                throw; // Re-throw to be handled by the caller.
             }
-            catch (FileNotFoundException fnfEx) // Catch specific error from LaunchWrapper
-            {
-                Logger.LogError($"Failed to launch wrapper: {fnfEx.Message}", fnfEx);
-                FlexibleMessageBox.Show($"Could not start the required report service ({_wrapperProcessName}).\n" +
-                                $"File not found: {fnfEx.FileName}\n\n" +
-                                $"Please check the path in configuration and ensure the application exists.",
-                                "Wrapper Launch Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                progressReporter?.Report("Error: Report service executable not found.");
-                return false;
-            }
-            catch (Exception launchEx) // Catch other errors during LaunchWrapper or Task.Run
-            {
-                Logger.LogError($"Failed to launch the Crystal Report Wrapper ('{_wrapperExePath}'): {launchEx.Message}", launchEx);
-                FlexibleMessageBox.Show($"Could not start the required report service ({_wrapperProcessName}).\n" +
-                                $"Please check the path in configuration ('{_wrapperExePath}') and ensure the application exists and has permissions to run.\n\n" +
-                                $"Error: {launchEx.Message}",
-                                "Wrapper Launch Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                progressReporter?.Report("Error: Failed to start report service.");
-                return false;
-            }
+            // FileNotFoundException and InvalidOperationException (from LaunchWrapper) will propagate up.
+            // Other exceptions from Task.Run or Task.Delay will also propagate.
         }
 
         /// <summary>
-        /// Checks if the wrapper process (identified by its name) is currently running. Synchronous.
+        /// Checks if the wrapper process (identified by its derived process name) is currently running on the system.
+        /// This method is synchronous.
         /// </summary>
-        /// <returns>True if at least one process with the name is running, false otherwise.</returns>
+        /// <returns>True if at least one instance of the wrapper process is found running; otherwise, false.</returns>
         public bool IsWrapperRunning()
         {
             try
             {
-                // Get processes by name
                 Process[] processes = Process.GetProcessesByName(_wrapperProcessName);
                 bool isRunning = processes.Length > 0;
-                // Dispose the process handles returned by GetProcessesByName
-                foreach (var p in processes) p.Dispose();
+                // It's important to dispose of the process objects returned by GetProcessesByName.
+                foreach (var p in processes)
+                {
+                    p.Dispose();
+                }
+                Logger.LogTrace($"IsWrapperRunning check for '{_wrapperProcessName}': {isRunning} (Found {processes.Length} instances).");
                 return isRunning;
             }
-            catch (Exception ex) // Catch errors getting process list (e.g., permissions)
+            catch (InvalidOperationException ex) // Can occur if process name is invalid (should be caught in constructor)
             {
-                Logger.LogError($"Error checking for wrapper process '{_wrapperProcessName}': {ex.Message}");
-                return false; // Assume not running if check fails
+                Logger.LogError($"Error checking for wrapper process '{_wrapperProcessName}' (InvalidOperationException): {ex.Message}", ex);
+                return false;
+            }
+            catch (Exception ex) // Catch other potential errors (e.g., permissions to query processes).
+            {
+                Logger.LogError($"Error checking for wrapper process '{_wrapperProcessName}': {ex.Message}", ex);
+                return false; // Assume not running if the check itself fails.
             }
         }
 
         /// <summary>
-        /// Attempts to find and terminate the wrapper process. Synchronous.
-        /// Uses Kill for forceful termination. Should ideally be called during application shutdown.
+        /// Attempts to find and terminate all running instances of the wrapper process.
+        /// This method uses a forceful kill and should ideally be called during application shutdown
+        /// or when a clean restart of the wrapper is required. This method is synchronous.
         /// </summary>
         public void TerminateWrapperProcess()
         {
-            Logger.LogInfo($"Attempting to terminate wrapper process '{_wrapperProcessName}'...");
+            Logger.LogInfo($"Attempting to terminate all instances of wrapper process '{_wrapperProcessName}'...");
             Process[] processes;
             try
             {
-                // Find running processes by name
                 processes = Process.GetProcessesByName(_wrapperProcessName);
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Error finding wrapper processes '{_wrapperProcessName}' to terminate: {ex.Message}");
-                return;
+                Logger.LogError($"Error finding wrapper processes '{_wrapperProcessName}' to terminate: {ex.Message}", ex);
+                return; // Cannot proceed if process enumeration fails.
             }
 
             if (processes.Length == 0)
             {
-                Logger.LogInfo("Wrapper process not found, likely already closed.");
+                Logger.LogInfo($"No running instances of wrapper process '{_wrapperProcessName}' found to terminate.");
                 return;
             }
 
-            // Iterate through found processes and attempt termination
+            Logger.LogInfo($"Found {processes.Length} instance(s) of '{_wrapperProcessName}'. Attempting termination...");
             foreach (var process in processes)
             {
-                using (process) // Ensure disposal of process object
+                using (process) // Ensure the Process object is disposed.
                 {
                     try
                     {
-                        if (!process.HasExited) // Check if it's still running
+                        if (!process.HasExited) // Check if the process is still running before attempting to kill.
                         {
-                            Logger.LogInfo($"Terminating wrapper process ID: {process.Id}");
-                            process.Kill(true); // Force kill process and descendants
-                            process.WaitForExit(2000); // Wait briefly for termination
-                            if (process.HasExited)
-                                Logger.LogInfo($"Wrapper process {process.Id} terminated.");
+                            Logger.LogInfo($"Terminating wrapper process ID: {process.Id}, Name: '{process.ProcessName}', StartTime: {TryGetProcessStartTime(process)}");
+                            process.Kill(true); // Forcefully kill the process and its descendants.
+                            if (process.WaitForExit(2000)) // Wait up to 2 seconds for termination.
+                            {
+                                Logger.LogInfo($"Wrapper process ID {process.Id} terminated successfully.");
+                            }
                             else
-                                Logger.LogWarning($"Wrapper process {process.Id} did not terminate after Kill.");
+                            {
+                                Logger.LogWarning($"Wrapper process ID {process.Id} did not confirm termination within 2 seconds after Kill command.");
+                            }
+                        }
+                        else
+                        {
+                            Logger.LogInfo($"Wrapper process ID {process.Id} had already exited before termination attempt.");
                         }
                     }
-                    catch (Exception ex) // Catch errors during termination (permissions, process already exited)
+                    catch (Win32Exception ex) when (ex.NativeErrorCode == 5) // NativeErrorCode 5 is Access Denied.
                     {
-                        // Log less severely as this often happens during shutdown if process exited quickly
-                        Logger.LogWarning($"Error or expected condition terminating wrapper process ID {process.Id}: {ex.Message}");
+                        Logger.LogWarning($"Access denied attempting to terminate wrapper process ID {process.Id}. It may require higher privileges or be a protected process. Error: {ex.Message}");
+                    }
+                    catch (InvalidOperationException ex) // Can occur if process has already exited or no process associated.
+                    {
+                        Logger.LogWarning($"Invalid operation terminating wrapper process ID {process.Id} (likely already exited): {ex.Message}");
+                    }
+                    catch (Exception ex) // Catch other errors during termination.
+                    {
+                        Logger.LogError($"Error terminating wrapper process ID {process.Id}: {ex.Message}", ex);
                     }
                 }
             }
-            Logger.LogInfo("Finished attempting to terminate wrapper processes.");
+            Logger.LogInfo($"Finished attempting to terminate wrapper process(es) '{_wrapperProcessName}'.");
         }
-
         #endregion
 
         #region Private Methods
-
         /// <summary>
-        /// Launches the wrapper executable specified by _wrapperExePath. Synchronous.
-        /// Intended to be called via Task.Run from async methods.
+        /// Launches the wrapper executable specified by <see cref="_wrapperExePath"/>.
+        /// This method is synchronous and intended to be called via `Task.Run` from asynchronous contexts.
         /// </summary>
-        /// <exception cref="FileNotFoundException">Thrown if the executable path is invalid or file not found.</exception>
-        /// <exception cref="Exception">Thrown if Process.Start fails for other reasons (permissions, etc.).</exception>
+        /// <exception cref="FileNotFoundException">Thrown if the wrapper executable path is invalid or the file is not found.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if <see cref="Process.Start(ProcessStartInfo)"/> fails to start the process for other reasons (e.g., permissions, invalid executable).</exception>
+        /// <exception cref="Win32Exception">Can be thrown by <see cref="Process.Start(ProcessStartInfo)"/> for various system-level errors.</exception>
         private void LaunchWrapper()
         {
-            if (!File.Exists(_wrapperExePath))
+            if (!File.Exists(_wrapperExePath)) // Pre-check for file existence.
             {
-                throw new FileNotFoundException($"Wrapper executable not found at the configured path: {_wrapperExePath}", _wrapperExePath);
+                Logger.LogError($"Wrapper executable not found at the configured path: {_wrapperExePath}");
+                throw new FileNotFoundException($"The report service executable ('{Path.GetFileName(_wrapperExePath)}') was not found at the configured path.", _wrapperExePath);
             }
 
             try
             {
-                Logger.LogInfo($"Launching wrapper: {_wrapperExePath}");
-                // Configure start info: UseShellExecute is generally preferred for launching external EXEs.
-                // Set WorkingDirectory in case the wrapper depends on files in its own folder.
+                Logger.LogInfo($"Attempting to launch wrapper executable: '{_wrapperExePath}'");
                 var startInfo = new ProcessStartInfo(_wrapperExePath)
                 {
+                    // Set WorkingDirectory to the directory of the executable.
+                    // This can be important if the wrapper relies on relative paths for its own resources.
                     WorkingDirectory = Path.GetDirectoryName(_wrapperExePath) ?? string.Empty,
-                    UseShellExecute = true // Use OS shell to start (handles associations, UAC if needed)
-                    // Consider CreateNoWindow = true if the wrapper is a console app you don't want visible
+                    UseShellExecute = true // UseShellExecute = true is generally preferred for launching .exe files.
+                                           // It allows the OS to handle elevation (UAC) if required by the .exe's manifest.
+                                           // If set to false, you might need to handle elevation manually or run into issues.
+                                           // CreateNoWindow = true; // Consider if the wrapper is a console app and you don't want its window shown.
                 };
-                // Start the process (fire-and-forget, we don't wait for exit here)
-                using Process? process = Process.Start(startInfo);
+
+                using Process? process = Process.Start(startInfo); // Attempt to start the process.
+
                 if (process == null)
                 {
-                    // This case is rare with UseShellExecute=true but possible
-                    throw new Exception($"Process.Start returned null for '{_wrapperExePath}'. The process might not have started correctly.");
+                    // This scenario is rare with UseShellExecute = true but is a possible failure point.
+                    Logger.LogError($"Process.Start returned null for '{_wrapperExePath}'. The wrapper process might not have started correctly.");
+                    throw new InvalidOperationException($"Failed to start the report service ('{Path.GetFileName(_wrapperExePath)}'). Process.Start returned null.");
                 }
-                Logger.LogInfo($"Wrapper launch command initiated for '{_wrapperExePath}'. Process ID (if available): {process.Id}");
+                // Process started, but it might exit immediately if there's an issue within the wrapper itself.
+                // We don't wait for exit here; IsWrapperRunning will check its status after a grace period.
+                Logger.LogInfo($"Wrapper launch command initiated for '{_wrapperExePath}'. Process ID (if available and not exited quickly): {TryGetProcessId(process)}");
             }
-            catch (Exception ex) // Catch errors during Process.Start
+            catch (Win32Exception w32Ex) // Catch specific system-level errors from Process.Start.
+            {
+                Logger.LogError($"Failed to start wrapper process '{_wrapperExePath}' due to a system error (Win32Exception): {w32Ex.Message} (NativeErrorCode: 0x{w32Ex.NativeErrorCode:X})", w32Ex);
+                throw new InvalidOperationException($"Failed to start the report service ('{Path.GetFileName(_wrapperExePath)}') due to a system error. Please check event logs or permissions. Error: {w32Ex.Message}", w32Ex);
+            }
+            catch (Exception ex) // Catch other general errors from Process.Start.
             {
                 Logger.LogError($"Failed to start wrapper process '{_wrapperExePath}': {ex.Message}", ex);
-                // Re-throw wrapped exception for better context in calling method
-                throw new Exception($"Failed to start the wrapper process '{_wrapperExePath}'. Check permissions and path.", ex);
+                throw new InvalidOperationException($"Failed to start the report service ('{Path.GetFileName(_wrapperExePath)}'). Error: {ex.Message}", ex);
             }
         }
 
+        /// <summary>
+        /// Safely tries to get the Process ID.
+        /// </summary>
+        private static int TryGetProcessId(Process process)
+        {
+            try { return process.Id; } catch { return -1; }
+        }
+
+        /// <summary>
+        /// Safely tries to get the Process StartTime.
+        /// </summary>
+        private static string TryGetProcessStartTime(Process process)
+        {
+            try { return process.StartTime.ToString("o"); } catch { return "N/A"; }
+        }
         #endregion
     }
 }

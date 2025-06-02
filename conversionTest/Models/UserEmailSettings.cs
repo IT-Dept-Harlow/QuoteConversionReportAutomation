@@ -1,7 +1,7 @@
-﻿// UserEmailSettings.cs
+﻿// UserEmailSettings.cs (Legacy Code Removed)
 // Defines the structure for user-specific overrides of email recipient lists.
 // This allows users to customise who receives reports for various scenarios,
-// including both manual and automated report runs.
+// including both manual and automated report runs using RecipientCategoryKey.
 // Utilises C# 10+ features.
 
 #region Using Directives
@@ -18,7 +18,7 @@ namespace QuoteConversionReportAutomation.Models
     /// </summary>
     public class UserEmailSettings
     {
-        #region Production Email Settings - Automated Reports
+        #region Production Email Settings - Automated Reports (Category-Based)
         // These properties correspond to RecipientCategoryKey values defined in appsettings.json
         // and allow users to override the default recipient lists for specific automated reports.
 
@@ -26,7 +26,7 @@ namespace QuoteConversionReportAutomation.Models
         /// Gets or sets the user-override 'To' recipients for the automated "Standard Daily" report.
         /// Corresponds to the "AutoRunDailyStandardRecipients" category key.
         /// </summary>
-        [JsonPropertyName("AutoRunDailyStandardRecipientsTo")] // Ensure JSON property name matches potential future use in appsettings.json structure for overrides
+        [JsonPropertyName("AutoRunDailyStandardRecipientsTo")]
         public List<string>? AutoRunDailyStandardRecipientsTo { get; set; }
 
         /// <summary>
@@ -64,8 +64,7 @@ namespace QuoteConversionReportAutomation.Models
         [JsonPropertyName("AutoRunWeeklyRecipientsCC")]
         public List<string>? AutoRunWeeklyRecipientsCC { get; set; }
 
-        // Add more properties here if new RecipientCategoryKeys are defined in appsettings.json
-        // for other automated reports that need user-overridable recipient lists.
+        // Add more properties here if new RecipientCategoryKeys are defined for other automated reports.
         // Example:
         // [JsonPropertyName("AutoRunMonthlyMarketingRecipientsTo")]
         // public List<string>? AutoRunMonthlyMarketingRecipientsTo { get; set; }
@@ -74,12 +73,12 @@ namespace QuoteConversionReportAutomation.Models
 
         #endregion
 
-        #region Production Email Settings - Manual Reports (Existing and Phase 1)
+        #region Production Email Settings - Manual Reports
 
         /// <summary>
         /// Gets or sets the user-override 'To' recipients for the standard MANUALLY RUN daily report.
         /// </summary>
-        [JsonPropertyName("ProdManualRunDailyTo")] // Keep existing JsonPropertyName for compatibility
+        [JsonPropertyName("ProdManualRunDailyTo")]
         public List<string>? ProdManualRunDailyTo { get; set; }
 
         /// <summary>
@@ -122,50 +121,6 @@ namespace QuoteConversionReportAutomation.Models
         /// </summary>
         public List<string>? ProdTeamCC { get; set; }
 
-        // Note: The original ProdAutoRunDailyTo, ProdAutoRunDaily5Day1kTo, ProdAutoRunWeeklyTo (and their CC counterparts)
-        // might become redundant for *automated* runs if all automated reports now use the new RecipientCategoryKey system.
-        // However, they are kept for now as they might still be referenced by older logic or if a direct override
-        // tied to the old automated report types (rather than categories) is still desired for some reason.
-        // For new automated reports, it's recommended to use the RecipientCategoryKey approach.
-        // The EmailRecipientManager will need to be updated to prioritise the new category-based lookups for automated runs.
-        // These older properties might still be used by the "Automated Reports" tab in ManageEmailRecipientsForm if it's not updated
-        // to reflect the new category-based overrides.
-
-        /// <summary>
-        /// (Potentially legacy/for specific UI) Gets or sets the 'To' recipients for the standard automated daily report in production.
-        /// </summary>
-        public List<string>? ProdAutoRunDailyTo { get; set; } // This was from the original selection, might be superseded by AutoRunDailyStandardRecipientsTo
-
-        /// <summary>
-        /// (Potentially legacy/for specific UI) Gets or sets the 'CC' recipients for the standard automated daily report in production.
-        /// </summary>
-        public List<string>? ProdAutoRunDailyCC { get; set; } // Might be superseded by AutoRunDailyStandardRecipientsCC
-
-        /// <summary>
-        /// (Potentially legacy/for specific UI) Gets or sets the 'To' recipients for the automated "Daily (5days >= £1000)" report in production.
-        /// </summary>
-        [JsonPropertyName("ProdAutoRunDaily5Day1kTo")]
-        public List<string>? ProdAutoRunDaily5Day1kTo { get; set; } // Might be superseded by AutoRunDaily5Day1kRecipientsTo
-
-        /// <summary>
-        /// (Potentially legacy/for specific UI) Gets or sets the 'CC' recipients for the automated "Daily (5days >= £1000)" report in production.
-        /// </summary>
-        [JsonPropertyName("ProdAutoRunDaily5Day1kCC")]
-        public List<string>? ProdAutoRunDaily5Day1kCC { get; set; } // Might be superseded by AutoRunDaily5Day1kRecipientsCC
-
-        /// <summary>
-        /// (Potentially legacy/for specific UI) Gets or sets the 'To' recipients for the automated Weekly report in production.
-        /// </summary>
-        [JsonPropertyName("ProdAutoRunWeeklyTo")]
-        public List<string>? ProdAutoRunWeeklyTo { get; set; } // Might be superseded by AutoRunWeeklyRecipientsTo
-
-        /// <summary>
-        /// (Potentially legacy/for specific UI) Gets or sets the 'CC' recipients for the automated Weekly report in production.
-        /// </summary>
-        [JsonPropertyName("ProdAutoRunWeeklyCC")]
-        public List<string>? ProdAutoRunWeeklyCC { get; set; } // Might be superseded by AutoRunWeeklyRecipientsCC
-
-
         #endregion
 
         #region Debug Email Settings
@@ -203,7 +158,7 @@ namespace QuoteConversionReportAutomation.Models
             // AutoRunMonthlyMarketingRecipientsTo = new List<string>();
             // AutoRunMonthlyMarketingRecipientsCC = new List<string>();
 
-            // Initialise lists for manual reports (including Phase 1 additions)
+            // Initialise lists for manual reports
             ProdManualRunDailyTo = new List<string>();
             ProdManualRunDailyCC = new List<string>();
             ProdManualCustomTo = new List<string>();
@@ -212,14 +167,6 @@ namespace QuoteConversionReportAutomation.Models
             ProdFemiCC = new List<string>();
             ProdTeamTo = new List<string>();
             ProdTeamCC = new List<string>();
-
-            // Initialise potentially legacy/UI-specific automated lists
-            ProdAutoRunDailyTo = new List<string>();
-            ProdAutoRunDailyCC = new List<string>();
-            ProdAutoRunDaily5Day1kTo = new List<string>();
-            ProdAutoRunDaily5Day1kCC = new List<string>();
-            ProdAutoRunWeeklyTo = new List<string>();
-            ProdAutoRunWeeklyCC = new List<string>();
 
             // Initialise debug settings
             DebugTo = string.Empty;

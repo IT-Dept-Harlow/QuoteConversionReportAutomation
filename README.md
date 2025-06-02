@@ -8,17 +8,111 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ---
 
+## [1.9.3] - 2025-06-02
+
+### Added
+-   **Comprehensive Application Settings UI (`SettingsForm.cs`)**:
+    -   Introduced a new "Settings..." top-level menu item in `Form1.cs` (between "Options" and "Help") to launch a dedicated `SettingsForm`.
+    -   `SettingsForm` allows viewing and editing of application-wide default settings stored in `appsettings.json`.
+    -   Features a tabbed interface for organized settings groups: "Application Info", "Paths", "SMTP Configuration", "Email Defaults", "Logging", "Operational Parameters", "Inter-Process Communication", and "AutoRun Process".
+    -   Includes appropriate UI controls for different setting types (TextBoxes, NumericUpDowns, CheckBoxes, ComboBoxes).
+    -   Incorporates file/folder pickers for path settings.
+    -   Implements input validation with an `ErrorProvider` for all editable settings.
+    -   Supports dark/light mode theming consistent with the main application.
+    -   Provides descriptive tooltips for all settings.
+    -   Handles loading settings from `IConfiguration` and saving changes back to `appsettings.json` using `Newtonsoft.Json.Linq` for structured updates.
+-   **Logger Enhancements (`Logger.cs`)**:
+    -   Added a public static property `IsInitialized` to check if the logger has completed its initialization attempt.
+    -   Added a `LogWarning(string message, Exception ex)` overload for logging warnings with associated exception details.
+-   **Dynamic Application Identity (`Form1.cs`)**:
+    -   `Form1.cs` now reads `AppName` and `AppVersion` from the `ApplicationInfo` section in `appsettings.json`. These values are used for the main window title and in the help information.
+
+### Changed
+-   **Major Configuration Refactoring (Alignment with new `appsettings.json` structure)**:
+    -   **`appsettings.json` Restructured**: The application's primary configuration file was significantly reorganized. Settings previously under a monolithic "settings" object are now grouped into more specific top-level JSON objects: `ApplicationInfo`, `Paths`, `SmtpConfiguration`, `EmailSettings`, `Logging`, `OperationalParameters`, `InterProcessCommunication`, and `AutoRunProcess`. This improves the clarity, organization, and maintainability of application settings.
+    -   **All Relevant Classes Updated**:
+        -   `Program.cs`: Enhanced for robust loading of the restructured `appsettings.json` and now passes the `IConfiguration` instance and the full `AppSettingsFilePath` to `Form1.cs`. Improved error handling during startup configuration loading.
+        -   `Form1.cs`: Constructor updated to accept `AppSettingsFilePath`. All internal path properties and direct configuration value lookups (e.g., for auto-run hour, timeouts, sheet names, default signature) now use the new keys from the restructured `appsettings.json`. Includes logic to attempt `IConfiguration.Reload()` and call `ReinitializeConfigurableComponents()` after settings are saved via `SettingsForm`, and informs the user about potential restart requirements. Help text generation updated.
+        -   `EmailRecipientManager.cs` & `GreetingManager.cs`: Configuration key constants updated to match new paths under `EmailSettings:ProductionRecipients` and `EmailSettings:DebugRecipients` (including nested `EmailGreetings`).
+        -   `Logger.cs`: Now reads its settings (base directory, log levels, filename format, archive days, fallback directory) from the new `Paths` and `Logging` sections. `LogLevel` ComboBoxes in `SettingsForm` now include `LogLevel.None` and are ordered by enum value.
+        -   `EmailSender.cs` (`EmailUtility` class): Reads SMTP settings from `SmtpConfiguration` and general email/attachment settings (sender info, max size, read retries) from `EmailSettings`.
+        -   `NamedPipeCommunicator.cs`: Constructor now takes `IConfiguration`; reads pipe name, connection timeout, and max response size from the `InterProcessCommunication` section.
+        -   `ReportArchiver.cs`: `ArchiveOldReportsAsync` method signature changed to accept `configuredArchiveFolderName` parameter, which `Form1.cs` reads from `OperationalParameters:ReportArchiveFolderName`.
+        -   `ExcelCopyData.cs`: Constructor now accepts `IConfiguration`. Reads various operational parameters (Excel sheet names, pivot table names, filtering thresholds, financial year start month/day, file operation retry settings) directly from the `OperationalParameters` section.
+        -   `FolderCreation.cs`: `GetReportSpecificFolderPath` and `CreateReportSpecificFolder` methods now accept an `IConfiguration` parameter to dynamically use report type folder names from `OperationalParameters:ReportTypeFolderNames`.
+        -   `ReportHelper.cs`: `GetFinancialYearDates` method modified to require `startMonth` and `startDay` as parameters (which `Form1.cs` now supplies from `OperationalParameters`). `OpenFileWithDefaultApp` refactored to throw exceptions instead of showing UI messages directly, allowing the UI layer to handle error display.
+        -   `ReportProcessManager.cs`: Refactored to remove direct UI calls (`FlexibleMessageBox.Show`). It now throws specific exceptions for failures (e.g., wrapper executable not found, launch errors), which `Form1.cs` can catch and display appropriately. (Receives its executable path from `Form1`, which reads it from `Paths:WrapperExecutable`).
+        -   `AutoRunManager.cs`: All internal path properties and direct configuration key access (for `AutoRunProcess:CheckHour`, `AutoRunProcess:LastRunDate`, `AutoRunProcess:DailyRunStatus`, and paths) updated to align with the new `appsettings.json` structure. Uses configured `Paths:ReportDefinitionsFileName`.
+
+### Fixed
+-   **Path Handling in `SettingsForm.cs`**: Implemented logic to correctly handle paths intended to be relative to the user's profile. When saving, if a path in the UI (e.g., for `FinalReportOutputBase`, `TemplateBase`, `RawReportOutputBase`) starts with the user's profile path, the profile part is stripped, and a relative path is stored in `appsettings.json`. Application logic correctly prepends the user profile path when using these settings.
+-   **Compilation Errors from Refactoring Process**:
+    -   Resolved `CS1503` (Argument 4 type mismatch for `ReportArchiver.ArchiveOldReportsAsync` in `Form1.cs`).
+    -   Resolved `CS1501` (Incorrect argument count for `FolderCreation.GetReportSpecificFolderPath` in `Form1.cs` - subsequently addressed by signature change in `FolderCreation.cs`).
+    -   Resolved `CS0117` (`Logger.IsInitialized` not found in `Program.cs` - addressed by adding public property).
+    -   Resolved `CS1739` (Incorrect parameter name `checkExists` for `ValidatePathControl` in `SettingsForm.cs`).
+    -   Resolved `CS0165` (Use of unassigned local variable `tlp` in `SettingsForm.cs` theming logic).
+    -   Resolved `CS7036` (Missing `IConfiguration` argument for `FolderCreation.GetReportSpecificFolderPath` in `AutoRunManager.cs`).
+
+---
+
+## [1.9.1] - 2025-05-30
+
+### Added
+-   **UI for Managing Automated Report Definitions**:
+    -   Introduced a new "Manage Automated Reports..." option under the "Options" menu in `Form1.cs`.
+    -   Created `ManageAutoReportDefinitionsForm.cs` to allow users to:
+        -   View all existing `AutoReportDefinition` objects in a DataGridView.
+        -   Add new report definitions through a detailed input form.
+        -   Edit existing report definitions by selecting them in the DataGridView and modifying their properties in the input form.
+        -   Delete report definitions with a confirmation prompt.
+        -   Directly toggle the `IsEnabled` status of a report definition via a checkbox column in the DataGridView.
+-   **UI Enhancements**:
+		-   Added descriptive tooltips to various input fields and buttons on the `ManageAutoReportDefinitionsForm` for improved usability and user guidance.
+    -   The form includes functionality to save all changes (additions, updates, deletions, enabled status) to a dedicated configuration file.
+    -   Added a prompt on closing the `ManageAutoReportDefinitionsForm` to save any unsaved changes.
+    -   The new form supports dark/light mode theming consistent with the main application.
+
+### Changed
+-   **Automated Report Definitions Storage & Management**:
+    -   `AutoReportDefinition` objects are now stored in a dedicated `autoReportDefinitions.json` file, located in the same directory as `appsettings.json`. This declutters `appsettings.json`.
+    -   `AutoRunManager.cs` has been significantly updated:
+        -   Now loads and saves the report definitions from/to this new `autoReportDefinitions.json` file.
+        -   The `ReportDefinitions` array has been removed from the `AutoReport` section of `appsettings.json`.
+        -   Uses the `IsEnabled` property directly from the `AutoReportDefinition` objects to determine if an automated report should run, replacing the old individual `EnableConfigKey` boolean flags from `appsettings.json`.
+        -   Includes a `ReloadReportDefinitions()` method to refresh its internal list if changes are made via the UI.
+    -   `ManageAutoReportDefinitionsForm.cs` interacts with static methods in `AutoRunManager` to load/save definitions using the new dedicated file path.
+-   **Model Update (`AutoReportDefinition.cs`)**:
+    -   Added an `IsEnabled` boolean property to control if a report definition is active.
+    -   Added a `ReportId` (string GUID) property to uniquely identify each definition, which is auto-generated if missing upon loading legacy definitions.
+    -   Enhanced with `[JsonProperty]` attributes (Newtonsoft.Json) for all properties to ensure reliable serialization and deserialization with correct PascalCase naming, matching the JSON structure.
+-   **`Form1.cs` UI for Auto-Run Configuration**:
+    -   Removed the old "Options -> Configure Auto-Run Reports" sub-menu and its individual toggle items.
+    -   The click handler for the new "Manage Automated Reports..." menu item now opens `ManageAutoReportDefinitionsForm` and calls `AutoRunManager.ReloadReportDefinitions()` if changes were saved.
+-   **Legacy Code Removal**:
+    -   Refined `AutoReportDefinition.cs` by removing the obsolete `EnableConfigKey` property.
+    -   Updated `ManageAutoReportDefinitionsForm.cs` and its designer to remove UI elements (TextBox and Label) related to the legacy `EnableConfigKey`.
+    -   Cleaned up `UserEmailSettings.cs` by removing properties for legacy specific automated report email recipient lists (e.g., `ProdAutoRunDailyTo`, `ProdAutoRunWeeklyCC`), as the system now fully relies on the `RecipientCategoryKey` for automated report recipients.
+    -   Removed corresponding legacy email list configurations from `appsettings.json` (user performed this step based on previous instructions).
+    -   Updated `EmailRecipientManager.cs` to remove logic associated with these removed legacy email recipient list configurations.
+
+### Fixed
+-   **Saving Report Definitions**: Resolved issues where changes made in the `ManageAutoReportDefinitionsForm` (e.g., enabling/disabling reports, adding/deleting definitions, assigning `ReportId`s) were not correctly persisting to the configuration file. This was largely addressed by ensuring correct serialization with `[JsonProperty]` attributes and refining the save logic in `AutoRunManager.cs`.
+-   **Deleting Report Definitions**: Fixed a `NullReferenceException` that could occur in `ManageAutoReportDefinitionsForm.btnDelete_Click` by making the delete operation more robust.
+-   **GUID Assignment**: Ensured that `ReportId` (GUIDs) assigned to newly loaded legacy definitions (those previously without an ID) are now correctly persisted when changes are saved.
+-   **Form Closing Prompt**: Improved the "unsaved changes" prompt logic in `ManageAutoReportDefinitionsForm` to correctly cancel closing if a save operation initiated by the prompt fails and changes are still pending.
+
+---
+
 ## [1.9.0] - 2025-05-28
 
 ### Added
-
 -   **Manual Custom Report Configuration**:
     -   Users can now define specific 'To' recipients, 'CC' recipients, and a unique email greeting for manually run "Custom" type reports.
     -   **`ManageEmailRecipientsForm.cs`**: Added UI elements (programmatically if not in designer, ideally via a new "Manual Custom" tab or section within the "Manual Reports" tab) to configure `ProdManualCustomTo` and `ProdManualCustomCC` lists.
     -   **`ManageGreetingsForm.cs`**: Added UI elements (programmatically if not in designer, typically by adding a new row to the `mainTableLayoutPanel`) to configure a `ManualCustom` greeting.
     -   **`UserEmailSettings.cs` and `UserGreetingSettings.cs`**: Models updated with corresponding properties (`ProdManualCustomTo`, `ProdManualCustomCC` in `UserEmailSettings`; `ManualCustom` in `UserGreetingSettings`).
     -   **`appsettings.json`**: Default entries for `"ManualCustomTo"`, `"ManualCustomCC"`, and `"ManualCustom"` greeting added under `settings:ProductionEmails` and `settings:ProductionEmails:EmailGreetings` respectively.
-
 -   **Flexible Automated Report Recipient Configuration**:
     -   **`AutoReportDefinition.cs`**: Added a `RecipientCategoryKey` string property. This key links an automated report definition to a specific set of recipient lists defined in `appsettings.json` and potentially overridden by the user.
     -   **`appsettings.json`**:
@@ -28,30 +122,24 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
     -   **`ManageEmailRecipientsForm.cs`**: The "Automated Reports" tab's `TableLayoutPanel` (`automatedReportsTableLayoutPanel`) is now programmatically cleared and repopulated by `InitializeAutomatedReportControls()`. This method creates new `Label` and `TextBox` controls for each defined automated report recipient category (e.g., "Auto Std. Daily TO:", "Auto Weekly CC:"), allowing users to override the default lists for these categories.
 
 ### Changed
-
 -   **Email Recipient Logic for Manual Custom Reports (`EmailRecipientManager.cs`)**:
     -   `GetCurrentEffectiveSettings()`: Now loads `ProdManualCustomTo` and `ProdManualCustomCC` from user overrides or `appsettings.json`.
     -   `GetRecipients()`: When handling manual runs (i.e., `isAutoRunContext` is `false`), if the `reportTypeIndex` is `CustomReportIndex`, it now uses the `ProdManualCustomTo` and `ProdManualCustomCC` lists from the effective settings.
-
 -   **Email Greeting Logic for Manual Custom Reports**:
     -   **`GreetingManager.cs`**: `GetCurrentEffectiveGreetings()` now populates the `ManualCustom` property by calling `GetGreeting("ManualCustom")`.
     -   **`Form1.cs`**: In `GetEmailSubjectAndBody()`, when processing a manual "Custom" report (and not in debug mode), `greetingKeyName` is now set to `"ManualCustom"` to use the specific greeting for this scenario.
-
 -   **Email Recipient Logic for Automated Reports (`EmailRecipientManager.cs`)**:
     -   The `GetRecipients()` method signature was changed for the auto-run context. It now requires an `AutoReportDefinition` object to be passed when `isAutoRunContext` is `true`.
     -   For automated reports (when `isAutoRunContext` is `true` and not in debug mode), recipients are now determined based on the `RecipientCategoryKey` provided in the `AutoReportDefinition` object. This involves looking up corresponding lists (e.g., `settings.AutoRunDailyStandardRecipientsTo`) from the effective settings.
     -   `GetCurrentEffectiveSettings()`: Updated to load all new category-based recipient lists (e.g., `AutoRunDailyStandardRecipientsTo`) from `appsettings.json` and merge them with user overrides from `UserEmailSettings.cs`.
-
 -   **Automated Report Processing (`AutoRunManager.cs`)**:
     -   The `RunConfiguredAutomatedReportAsync()` method now passes the full `AutoReportDefinition` object (which contains the `RecipientCategoryKey`) to `_emailRecipientManager.GetRecipients()` when `isAutoRunContext` is `true`.
-
 -   **UI for Automated Report Recipients (`ManageEmailRecipientsForm.cs`)**:
     -   `InitializeAutomatedReportControls()`: This method now dynamically creates the UI for editing category-based automated report recipients, clearing previous controls on the "Automated Reports" tab.
     -   `LoadSettingsToForm()` and `BtnSave_Click()`: Updated to correctly load from and save to the new category-based properties in `UserEmailSettings` (e.g., `AutoRunDailyStandardRecipientsTo`).
     -   `SetupToolTips()`: Added tooltips for the new category-based recipient `TextBox` controls.
 
 ### Fixed
-
 -   **CS1996 Error in `AutoRunManager.cs`**: Resolved "Cannot await in the body of a lock statement" error in `SetAutoRunHourAsync` by changing the `File.WriteAllTextAsync` call to its synchronous counterpart `File.WriteAllText` within the `lock(_jsonFileLock)` statement. This ensures thread-safe modification of `appsettings.json` while avoiding the await-in-lock issue.
 ---
 
@@ -82,7 +170,7 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
     - Added "Enable Weekly Auto Report" toggle in `Form1.cs` under "Options -> Configure Auto-Run Reports".
     - Added fields for "Automated Weekly Report TO/CC" in the `ManageEmailRecipientsForm`.
 - **Dynamic Daily Report Status Tracking**:
-    - `DailyReportRunStatus.cs` model updated to use `JsonExtensionData` to dynamically store and retrieve success statuses for any report defined in `ReportDefinitions`, rather than relying on fixed properties.
+    - `DailyRunStatus.cs` model updated to use `JsonExtensionData` to dynamically store and retrieve success statuses for any report defined in `ReportDefinitions`, rather than relying on fixed properties.
 - **`GetPreviousDayOfWeek` Method**: Added to `ReportHelper.cs` to facilitate date calculations for specific days of the week.
 
 ### Changed
@@ -111,8 +199,6 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 - **`AutoRunManager.cs` Compile Error (CS1739)**: Removed an incorrect `isAutoRun` parameter from a call to `FolderCreation.CreateReportSpecificFolder`.
 
 ---
-
-## ChangeLog
 
 ## [1.8.8] - 2025-05-20
 

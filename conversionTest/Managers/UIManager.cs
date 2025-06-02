@@ -1,5 +1,4 @@
-﻿// C# 10+ Features
-namespace QuoteConversionReportAutomation.Managers
+﻿namespace QuoteConversionReportAutomation.Managers
 {
     // --- Standard and Third-Party Using Statements ---
     using Microsoft.Win32; // For Registry access to detect Windows theme.

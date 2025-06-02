@@ -1,10 +1,15 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿// DailyRunStatus.cs
+
+#region Using Directives
+using Microsoft.Extensions.Configuration; // Keep for now if other methods use it, or remove if not needed anywhere else in this class
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq; // Required for JObject
-using System; // Required for DayOfWeek
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using QuoteConversionReportAutomation.Services.Logging;
+using QuoteConversionReportAutomation.Models; // Ensure this is present if AutoReportDefinition is used directly
+#endregion
 
 namespace QuoteConversionReportAutomation.Models
 {
@@ -22,7 +27,7 @@ namespace QuoteConversionReportAutomation.Models
         [JsonExtensionData]
         public IDictionary<string, JToken> AdditionalReportStatuses { get; set; } = new Dictionary<string, JToken>();
 
-        // --- Convenience properties for existing known reports (can be phased out or kept for direct access) ---
+        // --- Convenience properties (can be kept or removed if direct Get/Set is preferred) ---
         [JsonIgnore]
         public bool StandardDailyReportSucceeded
         {
@@ -43,7 +48,6 @@ namespace QuoteConversionReportAutomation.Models
             get => GetReportSuccessStatus("WeeklyReportSucceeded");
             set => SetReportSuccessStatus("WeeklyReportSucceeded", value);
         }
-
 
         /// <summary>
         /// Gets the success status for a report identified by its success flag JSON name.
@@ -72,13 +76,11 @@ namespace QuoteConversionReportAutomation.Models
         /// <summary>
         /// Checks if all currently enabled AND DUE automated reports (based on ReportDefinitions) have succeeded for the StatusDate.
         /// </summary>
-        /// <param name="configuration">The application configuration to check which reports are enabled.</param>
         /// <param name="reportDefinitions">A list of configured report definitions.</param>
         /// <param name="currentDayOfWeek">The current day of the week to determine if day-specific reports were due.</param>
         /// <returns>True if all enabled and due reports have succeeded, false otherwise.</returns>
         public bool AllCurrentlyEnabledAndDueReportsSucceeded(
-            IConfiguration configuration,
-            IEnumerable<AutoReportDefinition> reportDefinitions,
+            IEnumerable<AutoReportDefinition> reportDefinitions, // IConfiguration parameter removed
             DayOfWeek currentDayOfWeek)
         {
             if (reportDefinitions == null || !reportDefinitions.Any())
@@ -90,8 +92,8 @@ namespace QuoteConversionReportAutomation.Models
             {
                 if (definition == null) continue; // Skip null definitions
 
-                bool isEnabled = configuration.GetValue<bool>($"AutoReport:{definition.EnableConfigKey}", false);
-                if (isEnabled)
+                // Use the IsEnabled property directly from the definition
+                if (definition.IsEnabled)
                 {
                     // Check if the report was supposed to run today
                     bool wasDueToday = !definition.RunOnDayOfWeek.HasValue || definition.RunOnDayOfWeek.Value == currentDayOfWeek;
@@ -105,8 +107,6 @@ namespace QuoteConversionReportAutomation.Models
                             return false; // Found an enabled and due report that has not succeeded.
                         }
                     }
-                    // If it's enabled but wasn't due today, its success status for *this specific check* is ignored.
-                    // Its actual flag (e.g., WeeklyReportSucceeded=false on a Wednesday) is correct as it didn't run.
                 }
             }
             return true; // All enabled and due reports (for today) have succeeded.

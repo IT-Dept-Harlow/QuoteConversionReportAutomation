@@ -1,7 +1,9 @@
 ﻿// AutoRunManager.cs
 // Manages the automated execution of predefined reports based on a schedule
 // and configuration settings. It co-ordinates report generation, processing,
-// and emailing for these automated tasks.
+// and emailing for these automated tasks for the QCRA application.
+// Configuration for paths and operational parameters is read from appsettings.json using the new structure.
+// Report definitions are managed in a separate autoReportDefinitions.json file.
 // Utilises C# 10+ features.
 
 #region Using Directives
@@ -18,38 +20,30 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration; // For IConfiguration.
 using Newtonsoft.Json.Linq; // For JObject manipulation when updating appsettings.json.
 using Newtonsoft.Json; // For JSON serialisation/deserialisation.
+using Newtonsoft.Json.Serialization; // For DefaultContractResolver
 
 // Project specific namespaces
-using QuoteConversionReportAutomation.Helpers; // For ReportHelper, FolderCreation.
-using QuoteConversionReportAutomation.Models;   // For DailyReportRunStatus, AutoReportDefinition.
-using QuoteConversionReportAutomation.Services.Communication; // For EmailUtility, NamedPipeCommunicator.
-using QuoteConversionReportAutomation.Services.Excel; // For ExcelCopyData.
-using QuoteConversionReportAutomation.Services.Logging; // For Logger.
+using QuoteConversionReportAutomation.Helpers;
+using QuoteConversionReportAutomation.Models;
+using QuoteConversionReportAutomation.Services.Communication;
+using QuoteConversionReportAutomation.Services.Excel;
+using QuoteConversionReportAutomation.Services.Logging;
 #endregion
 
 namespace QuoteConversionReportAutomation.Managers
 {
     /// <summary>
-    /// Enum to represent the outcome of an automated run check.
-    /// </summary>
-    public enum AutoRunActionResult
-    {
-        /// <summary>Indicates no action was needed or taken during the check.</summary>
-        NoActionNeeded,
-        /// <summary>Indicates that at least one automated report processing was attempted.</summary>
-        ActionAttempted,
-        /// <summary>Indicates a critical error occurred during the auto-run process.</summary>
-        CriticalError
-    }
-
-    /// <summary>
-    /// Manages the automated (scheduled) generation and processing of reports.
-    /// It checks daily at a configured hour if any predefined reports are due,
-    /// then orchestrates their creation, processing, and emailing.
+    /// Manages the automated (scheduled) generation and processing of reports for the QCRA application.
+    /// This class checks daily at a configured hour if any predefined automated reports are due for execution.
+    /// If so, it orchestrates their creation, processing, and email distribution.
+    /// It loads and saves <see cref="AutoReportDefinition"/> objects to `autoReportDefinitions.json`
+    /// and manages its own operational state (like run times and daily success flags) in `appsettings.json`
+    /// under the "AutoRunProcess" section.
     /// </summary>
     public class AutoRunManager
     {
         #region Fields and Properties
+
         // --- Dependencies ---
         private readonly IConfiguration _configuration;
         private readonly EmailUtility _emailUtility;
@@ -59,58 +53,164 @@ namespace QuoteConversionReportAutomation.Managers
         private readonly ExcelCopyData _excelProcessor;
         private readonly EmailRecipientManager _emailRecipientManager;
         private readonly GreetingManager _greetingManager;
-        private readonly string _appSettingsPath; // Full path to appsettings.json for updating run statuses.
+        private readonly string _appSettingsPath;
+        private readonly string _reportDefinitionsFilePath;
 
         // --- State Variables ---
-        private static readonly object _jsonFileLock = new object(); // Lock for thread-safe access to appsettings.json.
-        private bool _isAutoRunTaskExecuting = false; // Flag to prevent concurrent auto-run executions.
-        private DateTime _lastGlobalSuccessDate = DateTime.MinValue; // Tracks the last date all due reports succeeded.
-        private int _autoRunCheckHour; // The configured hour (0-23) for daily auto-run checks.
+        private static readonly object s_jsonFileLock = new object();
+        private bool _isAutoRunTaskExecuting = false;
+        private DateTime _lastGlobalSuccessDate = DateTime.MinValue;
+        private int _autoRunCheckHour;
 
         // --- Report Definitions ---
-        private readonly List<AutoReportDefinition> _reportDefinitions; // Loaded from configuration.
+        private List<AutoReportDefinition> _reportDefinitions;
 
-        // --- JSON Keys ---
-        // Constants for keys used in appsettings.json.
-        private const string JsonSectionSettings = "settings";
-        private const string JsonSectionAutoReport = "AutoReport";
+        // --- JSON Keys and Filenames (Updated for new appsettings.json structure) ---
+        private const string JsonSectionAutoRunProcess = "AutoRunProcess";
         private const string JsonKeyDailyRunStatus = "DailyRunStatus";
         private const string JsonKeyStatusDate = "StatusDate";
-        private const string JsonKeyLastRunDate = "LastRunDate"; // Tracks overall success for a day.
-        private const string JsonKeyAutoRunCheckHour = "AutoRunCheckHour";
+        private const string JsonKeyLastRunDate = "LastRunDate";
+        private const string JsonKeyAutoRunCheckHour = "CheckHour";
+        private readonly string _reportDefinitionsFileName;
 
         // --- Build Configuration ---
-        /// <summary>Gets a value indicating whether the application is running in DEBUG mode.</summary>
         private static bool IsDebug =>
 #if DEBUG
             true;
 #else
             false;
 #endif
+        #endregion
 
-        // --- Convenience Path Properties (derived from configuration) ---
-        private string UserProfilePath => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        private string ExcelFinalSaveLocation => Path.Combine(UserProfilePath, _configuration[$"{JsonSectionSettings}:ExcelFinalSaveLocation"]?.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) ?? @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimates");
-        private string CrystalReportLocation => _configuration[$"{JsonSectionSettings}:CrystalReportPath"] ?? string.Empty;
-        private string RawReportExportBaseDir => Path.Combine(UserProfilePath, _configuration[$"{JsonSectionSettings}:RawReportExportBaseDir"]?.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) ?? @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimate Reports Exports");
-        public string ExcelTemplateBaseDir => Path.Combine(UserProfilePath, _configuration[$"{JsonSectionSettings}:ExcelTemplateFolder"]?.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) ?? @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\TEMPLATE");
+        #region Configuration-derived Path Properties
+        /// <summary>
+        /// Gets the current user's profile directory path.
+        /// </summary>
+        private string UserProfilePath
+        {
+            get
+            {
+                try { return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile); }
+                catch (Exception ex)
+                {
+                    Logger.LogError($"AutoRunManager: Error getting UserProfilePath: {ex.Message}. Defaulting to current directory.", ex);
+                    return Environment.CurrentDirectory;
+                }
+            }
+        }
 
+        /// <summary>
+        /// Gets the base directory for saving final processed Excel analysis files for automated reports.
+        /// Path is UserProfile + configured "Paths:FinalReportOutputBase".
+        /// </summary>
+        private string ExcelFinalSaveLocation
+        {
+            get
+            {
+                string? relativePath = _configuration["Paths:FinalReportOutputBase"];
+                string defaultRelativePath = @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimates";
+                if (string.IsNullOrWhiteSpace(relativePath))
+                {
+                    Logger.LogWarning($"AutoRunManager: Config key 'Paths:FinalReportOutputBase' missing. Using default: '{defaultRelativePath}'");
+                    relativePath = defaultRelativePath;
+                }
+                else { relativePath = relativePath.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar); }
+                try { return Path.Combine(UserProfilePath, relativePath); }
+                catch (ArgumentException argEx)
+                {
+                    Logger.LogError($"AutoRunManager: Error constructing ExcelFinalSaveLocation. UserProfile='{UserProfilePath}', Relative='{relativePath}'. Error: {argEx.Message}", argEx);
+                    return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "QCRA_AutoRun_Fallback", "FinalReports");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the full path to the Crystal Report definition file (.rpt) from "Paths:CrystalReportRptFile".
+        /// </summary>
+        private string CrystalReportLocation
+        {
+            get
+            {
+                string? configuredPath = _configuration["Paths:CrystalReportRptFile"];
+                if (string.IsNullOrWhiteSpace(configuredPath))
+                {
+                    Logger.LogWarning("AutoRunManager: Config key 'Paths:CrystalReportRptFile' missing. Crystal Report location unknown.");
+                    return string.Empty;
+                }
+                try { return Path.GetFullPath(configuredPath); }
+                catch (Exception ex)
+                {
+                    Logger.LogError($"AutoRunManager: Error resolving CrystalReportLocation from '{configuredPath}': {ex.Message}", ex);
+                    return string.Empty;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the base directory for exporting raw Crystal Reports for automated runs.
+        /// Path is UserProfile + configured "Paths:RawReportOutputBase".
+        /// </summary>
+        private string RawReportExportBaseDir
+        {
+            get
+            {
+                string? relativePath = _configuration["Paths:RawReportOutputBase"];
+                string defaultRelativePath = @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\Estimate Reports Exports";
+                if (string.IsNullOrWhiteSpace(relativePath))
+                {
+                    Logger.LogWarning($"AutoRunManager: Config key 'Paths:RawReportOutputBase' missing. Using default: '{defaultRelativePath}'");
+                    relativePath = defaultRelativePath;
+                }
+                else { relativePath = relativePath.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar); }
+                try { return Path.Combine(UserProfilePath, relativePath); }
+                catch (ArgumentException argEx)
+                {
+                    Logger.LogError($"AutoRunManager: Error constructing RawReportExportBaseDir. UserProfile='{UserProfilePath}', Relative='{relativePath}'. Error: {argEx.Message}", argEx);
+                    return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "QCRA_AutoRun_Fallback", "RawExports");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the base directory where Excel template files are stored for automated reports.
+        /// Path is UserProfile + configured "Paths:TemplateBase".
+        /// </summary>
+        public string ExcelTemplateBaseDir
+        {
+            get
+            {
+                string? relativePath = _configuration["Paths:TemplateBase"];
+                string defaultRelativePath = @"Harlow Printing\IT Projects - Documents\Dashboard Datasets\Raw_data\Quotes conversion\TEMPLATE";
+                if (string.IsNullOrWhiteSpace(relativePath))
+                {
+                    Logger.LogWarning($"AutoRunManager: Config key 'Paths:TemplateBase' missing. Using default: '{defaultRelativePath}'");
+                    relativePath = defaultRelativePath;
+                }
+                else { relativePath = relativePath.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar); }
+                try { return Path.Combine(UserProfilePath, relativePath); }
+                catch (ArgumentException argEx)
+                {
+                    Logger.LogError($"AutoRunManager: Error constructing ExcelTemplateBaseDir. UserProfile='{UserProfilePath}', Relative='{relativePath}'. Error: {argEx.Message}", argEx);
+                    return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "QCRA_AutoRun_Fallback", "Templates");
+                }
+            }
+        }
         #endregion
 
         #region Constructor
         /// <summary>
         /// Initialises a new instance of the <see cref="AutoRunManager"/> class.
         /// </summary>
-        /// <param name="configuration">The application configuration.</param>
+        /// <param name="configuration">The application's main configuration settings.</param>
         /// <param name="emailUtility">Utility for sending emails.</param>
         /// <param name="processManager">Manager for the Crystal Report wrapper process.</param>
-        /// <param name="pipeCommunicator">Communicator for IPC with the wrapper.</param>
+        /// <param name="pipeCommunicator">Service for IPC with the report wrapper.</param>
         /// <param name="uiManager">Manager for UI updates.</param>
-        /// <param name="excelProcessor">Service for Excel processing.</param>
-        /// <param name="appSettingsPath">Full path to the appsettings.json file.</param>
-        /// <param name="emailRecipientManager">Manager for email recipients.</param>
-        /// <param name="greetingManager">Manager for email greetings.</param>
-        /// <param name="initialAutoRunHour">The initial configured hour for auto-run checks.</param>
+        /// <param name="excelProcessor">Service for Excel file processing.</param>
+        /// <param name="appSettingsPath">Full path to `appsettings.json`, used to locate `autoReportDefinitions.json` and store operational state.</param>
+        /// <param name="emailRecipientManager">Manager for email recipient lists.</param>
+        /// <param name="greetingManager">Manager for email greeting messages.</param>
+        /// <param name="initialAutoRunHour">Initial configured hour (0-23) for daily auto-run checks.</param>
         public AutoRunManager(
             IConfiguration configuration,
             EmailUtility emailUtility,
@@ -134,145 +234,269 @@ namespace QuoteConversionReportAutomation.Managers
             _greetingManager = greetingManager ?? throw new ArgumentNullException(nameof(greetingManager));
             _autoRunCheckHour = initialAutoRunHour;
 
-            // Load report definitions from the "AutoReport:ReportDefinitions" section of appsettings.json.
-            _reportDefinitions = _configuration.GetSection($"{JsonSectionAutoReport}:ReportDefinitions").Get<List<AutoReportDefinition>>() ?? new List<AutoReportDefinition>();
-            if (!_reportDefinitions.Any(d => d != null)) // Check if there are any non-null definitions.
+            _reportDefinitionsFileName = _configuration.GetValue<string>("Paths:ReportDefinitionsFileName", "autoReportDefinitions.json")!;
+            if (string.IsNullOrWhiteSpace(_reportDefinitionsFileName))
             {
-                Logger.LogWarning("AutoRunManager: No valid report definitions found in configuration. Auto-run will not process any reports.");
-            }
-            else
-            {
-                Logger.LogInfo($"AutoRunManager: Loaded {_reportDefinitions.Count(d => d != null)} valid report definitions.");
-                foreach (var def in _reportDefinitions.Where(d => d != null))
-                {
-                    Logger.LogDebug($"Loaded Definition: Name='{def.ReportName}', TypeIndex={def.ReportTypeIndex}, EnableKey='{def.EnableConfigKey}', SuccessFlag='{def.SuccessFlagJsonName}', GreetingKey='{def.GreetingKey}', RecipientCategoryKey='{def.RecipientCategoryKey ?? "N/A"}'");
-                }
+                _reportDefinitionsFileName = "autoReportDefinitions.json";
+                Logger.LogWarning($"Config 'Paths:ReportDefinitionsFileName' missing. Defaulting: '{_reportDefinitionsFileName}'");
             }
 
-            _lastGlobalSuccessDate = ReadLastGlobalSuccessDate(); // Read the last date all reports were successfully run.
-            Logger.LogInfo($"AutoRunManager initialised. Auto-run check hour: {_autoRunCheckHour}. Last Global Success Date: {_lastGlobalSuccessDate:yyyy-MM-dd}");
+            string? appSettingsDir = Path.GetDirectoryName(_appSettingsPath);
+            if (string.IsNullOrEmpty(appSettingsDir))
+            {
+                string errorMsg = $"Could not determine directory from appSettingsPath: '{_appSettingsPath}'. Critical for '{_reportDefinitionsFileName}'.";
+                Logger.LogCritical(errorMsg);
+                throw new DirectoryNotFoundException(errorMsg);
+            }
+            _reportDefinitionsFilePath = Path.Combine(appSettingsDir, _reportDefinitionsFileName);
+            Logger.LogInfo($"AutoRunManager: Report definitions path: '{_reportDefinitionsFilePath}'");
+
+            _reportDefinitions = LoadReportDefinitions(_reportDefinitionsFilePath);
+            Logger.LogInfo($"AutoRunManager: Loaded {_reportDefinitions.Count} report definitions.");
+
+            _lastGlobalSuccessDate = ReadLastGlobalSuccessDate();
+            Logger.LogInfo($"AutoRunManager initialised. Check Hour: {_autoRunCheckHour}. Last Global Success: {_lastGlobalSuccessDate:yyyy-MM-dd}");
         }
         #endregion
 
-        #region Public Methods
+        #region Report Definition Management (Static Methods)
         /// <summary>
-        /// Performs the daily check to see if any automated reports are due and processes them.
-        /// This method is typically called by a timer.
+        /// Loads <see cref="AutoReportDefinition"/> objects from the specified dedicated JSON file.
+        /// Static to allow UI forms to manage definitions.
         /// </summary>
-        /// <param name="isTimerCurrentlyEnabled">Indicates if the master auto-run timer is currently enabled by the user.</param>
-        /// <param name="configuredHour">The hour (0-23) configured for the auto-run check.</param>
-        /// <returns>An <see cref="AutoRunActionResult"/> indicating the outcome of the check.</returns>
-        public async Task<AutoRunActionResult> PerformDailyCheckAsync(bool isTimerCurrentlyEnabled, int configuredHour)
+        /// <param name="definitionsFilePath">Full path to the JSON file (e.g., `autoReportDefinitions.json`).</param>
+        /// <returns>A list of <see cref="AutoReportDefinition"/>. Empty list on error or if file not found.</returns>
+        public static List<AutoReportDefinition> LoadReportDefinitions(string definitionsFilePath)
         {
-            // Do not proceed if the main auto-run timer is disabled by the user, or if no valid report definitions are loaded.
-            if (!isTimerCurrentlyEnabled || !_reportDefinitions.Any(d => d != null))
+            ArgumentException.ThrowIfNullOrEmpty(definitionsFilePath, nameof(definitionsFilePath));
+            List<AutoReportDefinition>? definitions = null;
+
+            if (File.Exists(definitionsFilePath))
             {
-                if (!_reportDefinitions.Any(d => d != null)) Logger.LogInfo("Auto Run: No valid report definitions loaded. Skipping check.");
-                else Logger.LogInfo("Auto Run: Timer is disabled by user. Skipping check.");
-                return AutoRunActionResult.NoActionNeeded;
+                try
+                {
+                    string jsonContent;
+                    lock (s_jsonFileLock)
+                    {
+                        jsonContent = File.ReadAllText(definitionsFilePath);
+                    }
+
+                    if (string.IsNullOrWhiteSpace(jsonContent))
+                    {
+                        Logger.LogInfo($"Report definitions file '{definitionsFilePath}' is empty. Returning empty list.");
+                        return new List<AutoReportDefinition>();
+                    }
+
+                    definitions = JsonConvert.DeserializeObject<List<AutoReportDefinition>>(jsonContent,
+                        new JsonSerializerSettings
+                        {
+                            NullValueHandling = NullValueHandling.Ignore,
+                            ContractResolver = new DefaultContractResolver() // Respects JsonProperty attributes
+                        });
+                    Logger.LogDebug($"Loaded {definitions?.Count ?? 0} definitions from file: '{definitionsFilePath}'.");
+                }
+                catch (JsonException jsonEx)
+                {
+                    Logger.LogError($"Error parsing report definitions from '{definitionsFilePath}': {jsonEx.Message}. File might be corrupt.", jsonEx);
+                    definitions = null;
+                }
+                catch (IOException ioEx)
+                {
+                    Logger.LogError($"IO Error reading report definitions file '{definitionsFilePath}': {ioEx.Message}", ioEx);
+                    definitions = null;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError($"Unexpected error reading report definitions from '{definitionsFilePath}': {ex.Message}", ex);
+                    definitions = null;
+                }
+            }
+            else
+            {
+                Logger.LogWarning($"Report definitions file not found: '{definitionsFilePath}'. Returning empty list.");
             }
 
-            // Prevent concurrent execution of the auto-run task.
+            if (definitions == null)
+            {
+                return new List<AutoReportDefinition>();
+            }
+
+            bool idsGenerated = false;
+            foreach (var def in definitions)
+            {
+                if (string.IsNullOrWhiteSpace(def.ReportId))
+                {
+                    def.ReportId = Guid.NewGuid().ToString();
+                    idsGenerated = true;
+                    Logger.LogWarning($"Generated new ReportId '{def.ReportId}' for definition named '{def.ReportName}' as its ID was missing.");
+                }
+            }
+            if (idsGenerated)
+            {
+                Logger.LogInfo("New ReportIds were generated for some definitions. These will be saved when 'Save All Changes' is used in the management UI.");
+            }
+            return definitions;
+        }
+
+        /// <summary>
+        /// Saves the provided list of <see cref="AutoReportDefinition"/> objects to the dedicated JSON file.
+        /// Static to allow UI forms to call it directly.
+        /// </summary>
+        /// <param name="definitionsFilePath">Full path to the JSON file (e.g., `autoReportDefinitions.json`).</param>
+        /// <param name="definitionsToSave">The list of definitions to save.</param>
+        public static void SaveReportDefinitions(string definitionsFilePath, List<AutoReportDefinition> definitionsToSave)
+        {
+            ArgumentNullException.ThrowIfNull(definitionsToSave, nameof(definitionsToSave));
+            ArgumentException.ThrowIfNullOrEmpty(definitionsFilePath, nameof(definitionsFilePath));
+
+            lock (s_jsonFileLock)
+            {
+                try
+                {
+                    string definitionsJsonString = JsonConvert.SerializeObject(definitionsToSave, Formatting.Indented,
+                                                       new JsonSerializerSettings
+                                                       {
+                                                           NullValueHandling = NullValueHandling.Ignore,
+                                                           ContractResolver = new DefaultContractResolver()
+                                                       });
+                    string? directoryPath = Path.GetDirectoryName(definitionsFilePath);
+                    if (!string.IsNullOrEmpty(directoryPath) && !Directory.Exists(directoryPath))
+                    {
+                        Directory.CreateDirectory(directoryPath);
+                        Logger.LogInfo($"Created directory for report definitions: {directoryPath}");
+                    }
+                    File.WriteAllText(definitionsFilePath, definitionsJsonString);
+                    Logger.LogInfo($"Successfully saved {definitionsToSave.Count} report definitions to '{definitionsFilePath}'.");
+                }
+                catch (JsonException jsonEx)
+                {
+                    Logger.LogError($"Error serializing report definitions for '{definitionsFilePath}': {jsonEx.Message}", jsonEx);
+                    throw;
+                }
+                catch (IOException ioEx)
+                {
+                    Logger.LogError($"IO error saving report definitions to '{definitionsFilePath}': {ioEx.Message}", ioEx);
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError($"Unexpected error saving report definitions to '{definitionsFilePath}': {ex.Message}", ex);
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reloads report definitions from the configured file path into the manager's internal list.
+        /// </summary>
+        public void ReloadReportDefinitions()
+        {
+            _reportDefinitions = LoadReportDefinitions(_reportDefinitionsFilePath);
+            Logger.LogInfo($"AutoRunManager: Report definitions reloaded from '{_reportDefinitionsFilePath}'. Count: {_reportDefinitions.Count}");
+        }
+        #endregion
+
+        #region Public Methods (PerformDailyCheckAsync, SetAutoRunHourAsync)
+        /// <summary>
+        /// Performs the daily check for automated reports.
+        /// Reads operational state from "AutoRunProcess" section in `appsettings.json`.
+        /// </summary>
+        /// <param name="isTimerCurrentlyEnabled">If the main UI timer is enabled.</param>
+        /// <param name="configuredHour">The current auto-run hour from `Form1` (read from "AutoRunProcess:CheckHour").</param>
+        /// <returns>An <see cref="AutoRunActionResult"/> indicating the outcome.</returns>
+        public async Task<AutoRunActionResult> PerformDailyCheckAsync(bool isTimerCurrentlyEnabled, int configuredHour)
+        {
+            ReloadReportDefinitions();
+
+            if (!isTimerCurrentlyEnabled)
+            {
+                Logger.LogInfo("Auto Run: Timer is disabled by user. Skipping daily check.");
+                return AutoRunActionResult.NoActionNeeded;
+            }
+            if (!_reportDefinitions.Any())
+            {
+                Logger.LogInfo("Auto Run: No report definitions loaded. Skipping daily check.");
+                return AutoRunActionResult.NoActionNeeded;
+            }
             if (_isAutoRunTaskExecuting)
             {
-                Logger.LogInfo("Auto Run: Task is already executing. Skipping this check cycle.");
+                Logger.LogInfo("Auto Run: A daily check task is already executing. Skipping this cycle.");
                 return AutoRunActionResult.NoActionNeeded;
             }
 
             DateTime now = DateTime.Now;
-            _autoRunCheckHour = configuredHour; // Update with the potentially changed configured hour.
-            AutoRunActionResult overallResult = AutoRunActionResult.NoActionNeeded; // Default outcome.
+            _autoRunCheckHour = configuredHour; // This comes from Form1, which reads "AutoRunProcess:CheckHour"
+            AutoRunActionResult overallResult = AutoRunActionResult.NoActionNeeded;
+            DailyReportRunStatus currentDayStatuses = ReadDailyReportStatuses(); // Reads from "AutoRunProcess:DailyRunStatus"
 
-            // Read the persisted status of daily report runs.
-            DailyReportRunStatus currentDayStatuses = ReadDailyReportStatuses();
-
-            // If the persisted status date is not today, reset all statuses for the new day.
             if (currentDayStatuses.StatusDate != now.ToString("yyyy-MM-dd"))
             {
-                Logger.LogInfo($"Persisted StatusDate ({currentDayStatuses.StatusDate}) is not for today ({now:yyyy-MM-dd}). Resetting daily report statuses for today.");
-                ResetDailyReportStatuses(now.Date);
-                currentDayStatuses = ReadDailyReportStatuses(); // Re-read after reset.
-                // Update UI to reflect that checks are pending for the new day.
+                Logger.LogInfo($"New day detected ({now:yyyy-MM-dd}). Resetting daily report success flags.");
+                ResetDailyReportStatuses(now.Date); // Writes to "AutoRunProcess:DailyRunStatus"
+                currentDayStatuses = ReadDailyReportStatuses();
                 _uiManager.UpdateAutoRunUI(true, false, UIManager.IsWindowsDarkModeEnabled(), $"Auto Run: Enabled (Next check ~{_autoRunCheckHour}:00)");
             }
 
-            // Only proceed if the current hour matches the configured auto-run check hour.
             if (now.Hour != _autoRunCheckHour)
             {
-                Logger.LogDebug($"Auto Run: Not the configured hour ({_autoRunCheckHour}). Current hour: {now.Hour}. Skipping report execution.");
+                Logger.LogDebug($"Auto Run: Not the configured execution hour ({_autoRunCheckHour}). Current: {now.Hour}. Skipping for this tick.");
                 return AutoRunActionResult.NoActionNeeded;
             }
 
-            // Check if all reports that are enabled AND due to run today have already succeeded.
-            bool allDueReportsAlreadySucceeded = currentDayStatuses.AllCurrentlyEnabledAndDueReportsSucceeded(_configuration, _reportDefinitions, now.DayOfWeek);
+            bool allDueReportsAlreadySucceeded = currentDayStatuses.AllCurrentlyEnabledAndDueReportsSucceeded(_reportDefinitions, now.DayOfWeek);
             int totalEnabledAndDueTodayForInitialCheck = _reportDefinitions.Count(def =>
-                def != null &&
-                _configuration.GetValue<bool>($"{JsonSectionAutoReport}:{def.EnableConfigKey}", false) && // Is enabled in config?
-                (!def.RunOnDayOfWeek.HasValue || def.RunOnDayOfWeek.Value == now.DayOfWeek) // Is it due today?
-            );
+                def.IsEnabled && (!def.RunOnDayOfWeek.HasValue || def.RunOnDayOfWeek.Value == now.DayOfWeek));
 
-            // If there were reports due today and all of them have already succeeded, no further action is needed.
             if (allDueReportsAlreadySucceeded && totalEnabledAndDueTodayForInitialCheck > 0)
             {
-                Logger.LogInfo($"Auto Run: All enabled AND DUE reports already succeeded for today ({now:yyyy-MM-dd}). No further action needed at this hour.");
+                Logger.LogInfo($"Auto Run: All enabled AND DUE reports have already succeeded for {now:yyyy-MM-dd}. No further action needed at this hour.");
                 _uiManager.UpdateStatusRight($"Auto Run: Done for {now:dd/MM}");
                 _uiManager.UpdateAutoRunUI(true, true, UIManager.IsWindowsDarkModeEnabled(), $"Auto Run: Done for {now:dd/MM}");
                 return AutoRunActionResult.NoActionNeeded;
             }
 
-            // If we reach here, it's either the correct hour and some reports might be pending,
-            // or no reports were due today (in which case we still log this).
-            _isAutoRunTaskExecuting = true; // Set flag to indicate task is starting.
-            overallResult = AutoRunActionResult.ActionAttempted; // Assume an action will be attempted.
-            _uiManager.DisableControlsForAutoRun(); // Disable relevant UI controls on the main form.
+            _isAutoRunTaskExecuting = true;
+            overallResult = AutoRunActionResult.ActionAttempted; // Assume action will be attempted
+            _uiManager.DisableControlsForAutoRun();
             _uiManager.UpdateStatusMain($"Auto Run: Starting checks for {now:dd-MM-yyyy} (scheduled ~{_autoRunCheckHour}:00)...");
-            Logger.LogInfo($"Auto Run: Triggered for {now:yyyy-MM-dd} at {now:HH:mm:ss}. Persisted StatusDate: {currentDayStatuses.StatusDate}");
+            Logger.LogInfo($"Auto Run: Daily check triggered for {now:yyyy-MM-dd} at {now:HH:mm:ss}.");
 
-            bool anyReportActuallyAttemptedThisCycle = false; // Track if any report processing is initiated in this cycle.
-
+            bool anyReportActuallyAttemptedThisCycle = false;
             try
             {
-                // Iterate through each defined automated report.
-                foreach (var definition in _reportDefinitions.Where(d => d != null)) // Ensure definition object itself is not null.
+                foreach (var definition in _reportDefinitions)
                 {
-                    // Check if this specific report definition is enabled in the configuration.
-                    bool isEnabled = _configuration.GetValue<bool>($"{JsonSectionAutoReport}:{definition.EnableConfigKey}", false);
-                    if (!isEnabled)
+                    if (!definition.IsEnabled)
                     {
-                        Logger.LogInfo($"Auto Run: Report '{definition.ReportName}' (Key: {definition.EnableConfigKey}) is DISABLED. Skipping.");
-                        continue; // Skip this report if it's not enabled.
+                        Logger.LogInfo($"Auto Run: Report '{definition.ReportName}' (ID: {definition.ReportId}) is DISABLED. Skipping.");
+                        continue;
                     }
-
-                    // If the report is configured to run only on a specific day of the week, check if today is that day.
                     if (definition.RunOnDayOfWeek.HasValue && now.DayOfWeek != definition.RunOnDayOfWeek.Value)
                     {
-                        Logger.LogInfo($"Auto Run: Report '{definition.ReportName}' is configured to run on {definition.RunOnDayOfWeek.Value}, but today is {now.DayOfWeek}. Skipping.");
-                        continue; // Skip if not the correct day of the week.
+                        Logger.LogInfo($"Auto Run: Report '{definition.ReportName}' runs on {definition.RunOnDayOfWeek.Value}, today is {now.DayOfWeek}. Skipping.");
+                        continue;
                     }
 
                     currentDayStatuses = ReadDailyReportStatuses(); // Refresh status before checking this specific report.
-                    // Check if this report has already succeeded today.
                     if (currentDayStatuses.GetReportSuccessStatus(definition.SuccessFlagJsonName))
                     {
                         Logger.LogInfo($"Auto Run: Report '{definition.ReportName}' (Flag: {definition.SuccessFlagJsonName}) already succeeded today. Skipping.");
-                        continue; // Skip if already successfully run today.
+                        continue;
                     }
 
-                    anyReportActuallyAttemptedThisCycle = true; // A report will be attempted.
+                    anyReportActuallyAttemptedThisCycle = true;
                     _uiManager.UpdateStatusMain($"Auto Run: Processing {definition.ReportName}...");
-                    Logger.LogInfo($"Auto Run: Report '{definition.ReportName}' is ENABLED and PENDING. Attempting to run.");
+                    Logger.LogInfo($"Auto Run: Report '{definition.ReportName}' (ID: {definition.ReportId}) is ENABLED and PENDING. Attempting to run.");
 
-                    // Determine the report's date range.
                     DateTime reportEndDate;
                     DateTime? reportStartDate = null;
 
-                    if (definition.ReportName == "Weekly Estimate Success Rate") // Specific logic for weekly report.
+                    if (definition.ReportName.Equals("Weekly Estimate Success Rate", StringComparison.OrdinalIgnoreCase))
                     {
-                        reportEndDate = now.Date; // Ends today.
-                        reportStartDate = reportEndDate.AddDays(-14); // Covers the last 15 days.
-                        Logger.LogDebug($"Weekly Report Dates: Start={reportStartDate:yyyy-MM-dd}, End={reportEndDate:yyyy-MM-dd}");
+                        reportEndDate = now.Date; // Report ends today.
+                        reportStartDate = reportEndDate.AddDays(-14); // Covers the last 15 days (inclusive).
                     }
-                    else if (definition.ReportEndDateOffsetDays.HasValue) // For reports defined by date offsets.
+                    else if (definition.ReportEndDateOffsetDays.HasValue)
                     {
                         reportEndDate = ReportHelper.GetNthPreviousWorkday(now.Date, definition.ReportEndDateOffsetDays.Value);
                         if (definition.ReportDurationDays.HasValue && definition.ReportDurationDays.Value > 1)
@@ -281,87 +505,68 @@ namespace QuoteConversionReportAutomation.Managers
                         }
                         else
                         {
-                            reportStartDate = reportEndDate; // Single day report.
+                            reportStartDate = reportEndDate;
                         }
-                        Logger.LogDebug($"Offset-based Report '{definition.ReportName}' Dates: Start={reportStartDate:yyyy-MM-dd}, End={reportEndDate:yyyy-MM-dd}");
                     }
-                    else // Fallback date calculation if no specific offsets are defined.
+                    else
                     {
-                        reportEndDate = ReportHelper.GetPreviousWorkday(now.Date);
+                        reportEndDate = ReportHelper.GetPreviousWorkday(now.Date); // Fallback
                         reportStartDate = reportEndDate;
                         Logger.LogWarning($"Auto Run: Report '{definition.ReportName}' has no specific date offset or duration defined. Defaulting to previous workday ({reportEndDate:yyyy-MM-dd}).");
                     }
 
-                    // Run the configured report.
                     await RunConfiguredAutomatedReportAsync(definition, reportEndDate, reportStartDate, now.Date);
-                }
+                } // End foreach report definition loop.
 
-                // After attempting all due reports, update the overall status.
                 if (!anyReportActuallyAttemptedThisCycle && totalEnabledAndDueTodayForInitialCheck > 0 && allDueReportsAlreadySucceeded)
                 {
-                    // This case implies all due reports were already done before this cycle started.
                     overallResult = AutoRunActionResult.NoActionNeeded;
                 }
                 else if (!anyReportActuallyAttemptedThisCycle && totalEnabledAndDueTodayForInitialCheck == 0)
                 {
-                    // No reports were due to run today.
                     overallResult = AutoRunActionResult.NoActionNeeded;
-                    Logger.LogInfo("Auto Run: No reports were due for execution in this cycle.");
+                    Logger.LogInfo("Auto Run: No reports were enabled and due for execution in this cycle.");
                 }
 
-                // Final status update based on the outcomes of this cycle.
-                currentDayStatuses = ReadDailyReportStatuses(); // Re-read statuses after processing.
-                DayOfWeek todayDayOfWeek = now.DayOfWeek;
-                bool allEnabledAndDueReportsSucceededToday = currentDayStatuses.AllCurrentlyEnabledAndDueReportsSucceeded(_configuration, _reportDefinitions, todayDayOfWeek);
-
-                string finalStatusMessage;
-                int totalEnabledAndDueReportsToday = _reportDefinitions.Count(def =>
-                    def != null &&
-                    _configuration.GetValue<bool>($"{JsonSectionAutoReport}:{def.EnableConfigKey}", false) &&
-                    (!def.RunOnDayOfWeek.HasValue || def.RunOnDayOfWeek.Value == todayDayOfWeek)
-                );
+                currentDayStatuses = ReadDailyReportStatuses(); // Re-read statuses from appsettings.json after processing.
+                bool allEnabledAndDueReportsSucceededToday = currentDayStatuses.AllCurrentlyEnabledAndDueReportsSucceeded(_reportDefinitions, now.DayOfWeek);
                 int totalSucceededAmongEnabledAndDueToday = _reportDefinitions.Count(def =>
-                    def != null &&
-                    _configuration.GetValue<bool>($"{JsonSectionAutoReport}:{def.EnableConfigKey}", false) &&
-                    (!def.RunOnDayOfWeek.HasValue || def.RunOnDayOfWeek.Value == todayDayOfWeek) &&
+                    def.IsEnabled &&
+                    (!def.RunOnDayOfWeek.HasValue || def.RunOnDayOfWeek.Value == now.DayOfWeek) &&
                     currentDayStatuses.GetReportSuccessStatus(def.SuccessFlagJsonName)
                 );
 
-                if (totalEnabledAndDueReportsToday == 0) // No reports were scheduled to run today.
+                string finalStatusMessage;
+                if (totalEnabledAndDueTodayForInitialCheck == 0)
                 {
-                    int totalAnyEnabledReports = _reportDefinitions.Count(def => def != null && _configuration.GetValue<bool>($"{JsonSectionAutoReport}:{def.EnableConfigKey}", false));
-                    finalStatusMessage = totalAnyEnabledReports == 0 ? $"Auto Run: No reports enabled {now:dd/MM HH:mm}"
-                                                                  : $"Auto Run: No reports due today {now:dd/MM HH:mm}";
-                    Logger.LogInfo(finalStatusMessage);
-                    if (!anyReportActuallyAttemptedThisCycle) overallResult = AutoRunActionResult.NoActionNeeded;
+                    finalStatusMessage = _reportDefinitions.Any(d => d.IsEnabled) ? $"Auto Run: No reports due today {now:dd/MM HH:mm}"
+                                                                  : $"Auto Run: No reports currently enabled {now:dd/MM HH:mm}";
                 }
-                else if (allEnabledAndDueReportsSucceededToday) // All due reports for today completed successfully.
+                else if (allEnabledAndDueReportsSucceededToday)
                 {
-                    SaveLastGlobalSuccessDate(now.Date); // Mark the day as globally successful.
+                    SaveLastGlobalSuccessDate(now.Date); // Mark the day as globally successful in "AutoRunProcess:LastRunDate"
                     _lastGlobalSuccessDate = now.Date;
-                    finalStatusMessage = $"Auto Run: All due reports DONE ({totalSucceededAmongEnabledAndDueToday}/{totalEnabledAndDueReportsToday}) for {now:dd/MM HH:mm}";
-                    Logger.LogInfo(finalStatusMessage);
+                    finalStatusMessage = $"Auto Run: All due DONE ({totalSucceededAmongEnabledAndDueToday}/{totalEnabledAndDueTodayForInitialCheck}) {now:dd/MM HH:mm}";
                 }
-                else // Some reports may have failed or are still pending.
+                else
                 {
-                    finalStatusMessage = $"Auto Run: Partial success ({totalSucceededAmongEnabledAndDueToday}/{totalEnabledAndDueReportsToday} due reports succeeded) {now:dd/MM HH:mm}";
-                    Logger.LogWarning(finalStatusMessage + ". Will retry incomplete reports if app restarts or at next check hour if within the same day.");
+                    finalStatusMessage = $"Auto Run: Partial success ({totalSucceededAmongEnabledAndDueToday}/{totalEnabledAndDueTodayForInitialCheck} due reports succeeded) {now:dd/MM HH:mm}";
+                    Logger.LogWarning(finalStatusMessage + ". Check logs for errors. Will retry incomplete reports if app restarts or at next check hour if within the same day.");
                 }
                 _uiManager.UpdateStatusRight(finalStatusMessage);
-                _uiManager.UpdateAutoRunUI(isTimerCurrentlyEnabled, allEnabledAndDueReportsSucceededToday && totalEnabledAndDueReportsToday > 0, UIManager.IsWindowsDarkModeEnabled(), finalStatusMessage);
+                _uiManager.UpdateAutoRunUI(isTimerCurrentlyEnabled, allEnabledAndDueReportsSucceededToday && totalEnabledAndDueTodayForInitialCheck > 0, UIManager.IsWindowsDarkModeEnabled(), finalStatusMessage);
             }
-            catch (Exception ex) // Catch any unhandled exceptions during the main auto-run loop.
+            catch (Exception ex)
             {
-                Logger.LogCritical($"Auto Run: Unhandled exception during PerformDailyCheckAsync: {ex.Message}", ex);
+                Logger.LogCritical($"Auto Run: CRITICAL Unhandled exception during PerformDailyCheckAsync: {ex.Message}", ex);
                 string errorMsg = $"Auto Run: CRITICAL ERROR {now:dd/MM HH:mm}";
                 _uiManager.UpdateStatusRight(errorMsg);
-                _uiManager.UpdateAutoRunUI(isTimerCurrentlyEnabled, true, UIManager.IsWindowsDarkModeEnabled(), errorMsg); // Mark as final status (error) for today.
+                _uiManager.UpdateAutoRunUI(isTimerCurrentlyEnabled, true, UIManager.IsWindowsDarkModeEnabled(), errorMsg); // Mark as final status (error)
                 overallResult = AutoRunActionResult.CriticalError;
             }
             finally
             {
-                _isAutoRunTaskExecuting = false; // Clear the execution flag.
-                // Refine overallResult if no specific action was taken but it was initially set to ActionAttempted.
+                _isAutoRunTaskExecuting = false;
                 if (overallResult == AutoRunActionResult.ActionAttempted && !anyReportActuallyAttemptedThisCycle && totalEnabledAndDueTodayForInitialCheck > 0 && allDueReportsAlreadySucceeded)
                 {
                     overallResult = AutoRunActionResult.NoActionNeeded;
@@ -371,43 +576,110 @@ namespace QuoteConversionReportAutomation.Managers
         }
 
         /// <summary>
-        /// Executes a single configured automated report.
+        /// Sets the configured hour for daily auto-run checks and saves this setting to `appsettings.json`
+        /// under the "AutoRunProcess:CheckHour" key.
         /// </summary>
-        /// <param name="definition">The definition of the report to run.</param>
-        /// <param name="reportEndDate">The calculated end date for the report.</param>
-        /// <param name="reportStartDate">The calculated start date for the report (can be same as end date).</param>
-        /// <param name="processingDate">The current date, used for status tracking.</param>
-        /// <returns>True if the report was processed and emailed successfully, false otherwise.</returns>
+        /// <param name="newHour">The new hour (0-23) for the daily auto-run check.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result is true if the setting was successfully saved; otherwise, false.</returns>
+        public async Task<bool> SetAutoRunHourAsync(int newHour)
+        {
+            if (newHour < 0 || newHour > 23)
+            {
+                Logger.LogError($"SetAutoRunHourAsync: Invalid hour provided: {newHour}. Hour must be between 0 and 23 inclusive.");
+                return false;
+            }
+            // Note: _autoRunCheckHour field in this class instance is updated upon successful save.
+            // The value displayed in Form1 is managed by Form1's _currentAutoRunHour and UIManager.
+            Logger.LogInfo($"SetAutoRunHourAsync: Requested to set auto-run check hour to {newHour}. Attempting to save to appsettings.json.");
+
+            return await Task.Run(() => // Offload file I/O to a background thread.
+            {
+                lock (s_jsonFileLock) // Ensure thread-safe write to appsettings.json.
+                {
+                    try
+                    {
+                        if (!File.Exists(_appSettingsPath))
+                        {
+                            Logger.LogError($"SetAutoRunHourAsync: appsettings.json not found at '{_appSettingsPath}'. Cannot save '{JsonSectionAutoRunProcess}:{JsonKeyAutoRunCheckHour}'.");
+                            return false;
+                        }
+                        string jsonContent = File.ReadAllText(_appSettingsPath);
+                        var jsonRoot = JObject.Parse(string.IsNullOrWhiteSpace(jsonContent) ? "{}" : jsonContent);
+
+                        // Navigate to or create the "AutoRunProcess" section.
+                        JObject autoRunProcessSection = GetOrAddSection(jsonRoot, JsonSectionAutoRunProcess);
+                        // Set the "CheckHour" key within the "AutoRunProcess" section.
+                        autoRunProcessSection[JsonKeyAutoRunCheckHour] = newHour;
+
+                        File.WriteAllText(_appSettingsPath, jsonRoot.ToString(Formatting.Indented)); // Save changes.
+                        Logger.LogInfo($"Successfully saved '{JsonSectionAutoRunProcess}:{JsonKeyAutoRunCheckHour}' (value: {newHour}) to appsettings.json.");
+                        _autoRunCheckHour = newHour; // Update the internal field after successful save.
+                        return true;
+                    }
+                    catch (JsonException jsonEx)
+                    {
+                        Logger.LogError($"SetAutoRunHourAsync: Error parsing '{_appSettingsPath}' to update '{JsonKeyAutoRunCheckHour}': {jsonEx.Message}", jsonEx);
+                        return false;
+                    }
+                    catch (IOException ioEx)
+                    {
+                        Logger.LogError($"SetAutoRunHourAsync: IO error saving '{JsonKeyAutoRunCheckHour}' to appsettings.json: {ioEx.Message}", ioEx);
+                        return false;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError($"SetAutoRunHourAsync: Unexpected error saving '{JsonKeyAutoRunCheckHour}' to appsettings.json: {ex.Message}", ex);
+                        return false;
+                    }
+                }
+            });
+        }
+        #endregion
+
+        #region Private Helper Methods for AutoRun
+        /// <summary>
+        /// Orchestrates the execution of a single configured automated report.
+        /// This includes generating the raw report, processing it via Excel, and emailing the result.
+        /// Uses the class's refactored path properties and configuration settings.
+        /// </summary>
+        /// <param name="definition">The <see cref="AutoReportDefinition"/> for the report to run.</param>
+        /// <param name="reportEndDate">The calculated end date for the report's data period.</param>
+        /// <param name="reportStartDate">The calculated start date for the report's data period.</param>
+        /// <param name="processingDate">The current date, used for recording run status.</param>
+        /// <returns>True if the report was fully processed and emailed successfully; otherwise, false.</returns>
         private async Task<bool> RunConfiguredAutomatedReportAsync(AutoReportDefinition definition, DateTime reportEndDate, DateTime? reportStartDate, DateTime processingDate)
         {
-            DateTime effectiveReportStartDate = reportStartDate ?? reportEndDate; // Use end date if start date is not specified.
-            Logger.LogInfo($"Auto Run: Executing: {definition.ReportName} for date {reportEndDate:yyyy-MM-dd} (Start: {effectiveReportStartDate:yyyy-MM-dd}, Processing Date: {processingDate:yyyy-MM-dd})");
+            DateTime effectiveReportStartDate = reportStartDate ?? reportEndDate;
+            Logger.LogInfo($"Auto Run: Executing report: '{definition.ReportName}' for period {effectiveReportStartDate:yyyy-MM-dd} to {reportEndDate:yyyy-MM-dd}. (Processing on: {processingDate:yyyy-MM-dd})");
 
-            bool success = false; // Assume failure initially.
-            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(15)); // Timeout for this specific report run.
+            bool overallSuccess = false;
+            int processTimeoutMinutes = _configuration.GetValue<int>("OperationalParameters:ProcessTimeoutMinutes", 15); // Default 15 mins
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(processTimeoutMinutes));
             var token = cts.Token;
 
-            // Local progress reporters for logging within this specific report run.
             IProgress<string> localProgress = new Progress<string>(status => Logger.LogDebug($"AutoRun ({definition.ReportName}): {status}"));
-            IProgress<ProgressReport> localExcelProgress = new Progress<ProgressReport>(report => Logger.LogDebug($"AutoRun ({definition.ReportName}) Excel: {report.Message}"));
+            IProgress<ProgressReport> localExcelProgress = new Progress<ProgressReport>(report => Logger.LogDebug($"AutoRun ({definition.ReportName}) Excel: {report.Message} ({report.Percentage}%)"));
 
             string? generatedRawPath = null;
             string? finalAnalysisPath = null;
 
             try
             {
-                // 1. Ensure Crystal Report Wrapper service is running.
-                _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): Ensuring report service...");
+                // Step 1: Ensure Wrapper Service is Running
+                _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): Ensuring report service is active...");
                 if (!await _processManager.EnsureWrapperIsRunningAsync(localProgress, token))
-                { throw new InvalidOperationException($"Auto Run Error ({definition.ReportName}): Failed to start or connect to the report service."); }
+                {
+                    throw new InvalidOperationException($"Auto Run Error ({definition.ReportName}): Failed to start or connect to the report service (CrystalReportWrapper).");
+                }
 
-                // 2. Prepare and send request to generate raw report.
-                _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): Preparing request...");
-                string outputPath = GetAutomatedReportOutputPath(definition.ReportTypeIndex, reportEndDate, definition.ReportName); // Get structured output path.
-
-                string crystalReportPath = CrystalReportLocation; // Get global Crystal Report path.
+                // Step 2: Generate Raw Report
+                _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): Preparing request for raw report data...");
+                string outputPath = GetAutomatedReportOutputPath(definition.ReportTypeIndex, reportEndDate, definition.ReportName); // Uses refactored RawReportExportBaseDir
+                string crystalReportPath = CrystalReportLocation; // Uses refactored CrystalReportLocation
                 if (string.IsNullOrEmpty(crystalReportPath) || !File.Exists(crystalReportPath))
-                { throw new FileNotFoundException($"Auto Run Error ({definition.ReportName}): Crystal Report file path is invalid or missing.", crystalReportPath); }
+                {
+                    throw new FileNotFoundException($"Auto Run Error ({definition.ReportName}): Crystal Report file path ('{crystalReportPath}') is invalid or missing. Check 'Paths:CrystalReportRptFile'.", crystalReportPath);
+                }
 
                 var request = new ReportRequest
                 {
@@ -416,111 +688,91 @@ namespace QuoteConversionReportAutomation.Managers
                     ReportDateFrom = effectiveReportStartDate,
                     ReportDateTo = reportEndDate
                 };
-
-                _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): Requesting raw report...");
                 ReportResponse? response = await _pipeCommunicator.SendRequestReceiveResponseAsync(request, localProgress, token);
 
                 if (response?.Success == true && !string.IsNullOrEmpty(response.OutputPath) && File.Exists(response.OutputPath))
                 {
                     generatedRawPath = response.OutputPath;
-                    Logger.LogInfo($"Auto Run ({definition.ReportName}): Raw report generated: {generatedRawPath}");
-                    _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): Raw report created.");
+                    Logger.LogInfo($"Auto Run ({definition.ReportName}): Raw report generated successfully: {generatedRawPath}");
                 }
-                else // Handle raw report generation failure.
+                else
                 {
-                    string errorMessage = response?.ErrorMessage ?? "Unknown error from report service.";
-                    if (response?.Success == true && (string.IsNullOrEmpty(response.OutputPath) || !File.Exists(response.OutputPath)))
-                    { errorMessage = $"Auto Run Error ({definition.ReportName}): Report service success, but output file invalid/missing ('{response?.OutputPath ?? "NULL"}')."; }
-                    Logger.LogError($"Auto Run Error ({definition.ReportName}): Report generation failed for '{outputPath}'. Message: {errorMessage}");
-                    throw new Exception($"Auto Run Error ({definition.ReportName}): Report generation failed: {errorMessage}");
+                    string errorMsg = response?.ErrorMessage ?? "Unknown error from report service during raw report generation.";
+                    if (response?.Success == true) errorMsg = $"Report service indicated success, but output file ('{response?.OutputPath ?? "NULL"}') is invalid/missing.";
+                    throw new Exception($"Auto Run Error ({definition.ReportName}): Raw report generation failed: {errorMsg}");
                 }
 
-                // 3. Process the raw report into a final analysis file.
-                _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): Processing report...");
-                string templatePath = Path.Combine(ExcelTemplateBaseDir, definition.TemplateName); // Get full template path.
-                string baseSaveLocation = ExcelFinalSaveLocation; // Base directory for final reports.
-                string currentFY = _excelProcessor.GetCurrentFinancialYear(true); // Get current financial year string.
+                // Step 3: Process Excel Report
+                _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): Processing final analysis file...");
+                string templatePath = Path.Combine(ExcelTemplateBaseDir, definition.TemplateName); // Uses refactored ExcelTemplateBaseDir
+                string baseSaveLocation = ExcelFinalSaveLocation; // Uses refactored ExcelFinalSaveLocation
+                string currentFY = _excelProcessor.GetCurrentFinancialYear(true); // Uses configured FY start month/day via ExcelCopyData's IConfig
 
-                if (string.IsNullOrEmpty(templatePath) || !File.Exists(templatePath))
-                { throw new FileNotFoundException($"Auto Run Error ({definition.ReportName}): Template '{definition.TemplateName}' not found at '{templatePath}'.", templatePath); }
+                if (!File.Exists(templatePath))
+                {
+                    throw new FileNotFoundException($"Auto Run Error ({definition.ReportName}): Excel template '{definition.TemplateName}' not found at '{templatePath}'. Check 'Paths:TemplateBase'.", templatePath);
+                }
 
-                // Check for and delete existing final file for this period to ensure a fresh run.
                 string? expectedFinalPath = _excelProcessor.GetExpectedFinalFilePath(definition.ReportTypeIndex, baseSaveLocation, reportEndDate);
                 if (expectedFinalPath != null && File.Exists(expectedFinalPath))
                 {
-                    try
-                    {
-                        File.Delete(expectedFinalPath);
-                        Logger.LogInfo($"Auto Run ({definition.ReportName}): Deleted existing final file: {expectedFinalPath}");
-                    }
-                    catch (Exception delEx)
-                    {
-                        Logger.LogWarning($"Auto Run ({definition.ReportName}): Failed to delete existing file '{expectedFinalPath}': {delEx.Message}. Processing will attempt to overwrite.");
-                    }
+                    try { File.Delete(expectedFinalPath); Logger.LogInfo($"Auto Run ({definition.ReportName}): Deleted existing final analysis file to ensure fresh processing: {expectedFinalPath}"); }
+                    catch (Exception delEx) { Logger.LogWarning($"Auto Run ({definition.ReportName}): Failed to delete existing final file '{expectedFinalPath}': {delEx.Message}. Processing will attempt to overwrite."); }
                 }
 
+                // Get sheet names from configuration
+                string rawDataSourceSheet = _configuration.GetValue<string>("OperationalParameters:ExcelSheetNames:RawDataSourceSheet", "Sheet1")!;
+                string templateDataCopySheet = _configuration.GetValue<string>("OperationalParameters:ExcelSheetNames:TemplateDataCopySheet", "DATA")!;
+
                 finalAnalysisPath = await _excelProcessor.ProcessExcelReportAsync(
-                    currentFY,
-                    definition.ReportTypeIndex,
-                    generatedRawPath,
-                    "Sheet1", // Source sheet name in raw report.
-                    baseSaveLocation,
-                    templatePath,
-                    "DATA",   // Destination sheet name in template for raw data.
-                    1, 1,     // Start row/col for copying.
-                    localExcelProgress,
-                    reportEndDate, // Date for filename and internal logic.
-                    token);
+                    currentFY, definition.ReportTypeIndex, generatedRawPath, rawDataSourceSheet, // Pass configured sheet name
+                    baseSaveLocation, templatePath, templateDataCopySheet, // Pass configured sheet name
+                    1, 1, localExcelProgress, reportEndDate, token);
 
                 if (string.IsNullOrEmpty(finalAnalysisPath) || !File.Exists(finalAnalysisPath))
                 {
-                    if (token.IsCancellationRequested) throw new OperationCanceledException($"Auto Run ({definition.ReportName}): Excel processing cancelled.");
-                    throw new Exception($"Auto Run Error ({definition.ReportName}): Excel processing failed. Check logs.");
+                    if (token.IsCancellationRequested) throw new OperationCanceledException($"Auto Run ({definition.ReportName}): Excel processing was cancelled.");
+                    throw new Exception($"Auto Run Error ({definition.ReportName}): Excel processing failed to produce a final analysis file. Check logs from ExcelCopyData.");
                 }
-                Logger.LogInfo($"Auto Run ({definition.ReportName}): Report processed: {finalAnalysisPath}");
-                _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): Report processed.");
+                Logger.LogInfo($"Auto Run ({definition.ReportName}): Report processed successfully. Final analysis file: {finalAnalysisPath}");
 
-                // 4. Send the completion email.
-                _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): Sending email...");
-                // Get recipients using the definition (which includes RecipientCategoryKey).
+                // Step 4: Send Email
+                _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): Preparing and sending completion email...");
                 var (mailTo, mailCc) = _emailRecipientManager.GetRecipients(
-                                            definition.ReportTypeIndex, // reportTypeIndex might still be useful for EmailRecipientManager's internal logic or logging.
-                                            isFemiOnlyChecked: false,    // "Femi Only" is not applicable for auto-runs.
-                                            IsDebug,
-                                            isAutoRunContext: true,
-                                            definition: definition);     // Pass the full definition.
+                    definition.ReportTypeIndex, false, IsDebug, true, definition); // EmailRecipientManager uses new config
+                var (subject, body) = GetEmailSubjectAndBodyForAutoRun(definition, effectiveReportStartDate, reportEndDate); // Uses GreetingManager (needs new config)
 
-                var (subject, body) = GetEmailSubjectAndBodyForAutoRun(definition, effectiveReportStartDate, reportEndDate);
-
-                bool emailSuccess = await _emailUtility.SendEmailAsync(mailTo, mailCc, subject, body, finalAnalysisPath, localProgress, token);
-                if (!emailSuccess)
+                EmailSendResult emailResult = await _emailUtility.SendEmailAsync(mailTo, mailCc, subject, body, finalAnalysisPath, localProgress, token); // EmailUtility uses new config
+                if (!emailResult.Success)
                 {
-                    if (token.IsCancellationRequested) throw new OperationCanceledException($"Auto Run ({definition.ReportName}): Email sending cancelled.");
-                    throw new Exception($"Auto Run Error ({definition.ReportName}): Email sending failed. Check logs.");
+                    if (token.IsCancellationRequested && emailResult.ErrorMessage?.Contains("cancel", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        throw new OperationCanceledException($"Auto Run ({definition.ReportName}): Email sending was cancelled.");
+                    }
+                    throw new Exception($"Auto Run Error ({definition.ReportName}): Email sending failed. Details: {emailResult.ErrorMessage}");
                 }
-                Logger.LogInfo($"Auto Run ({definition.ReportName}): Email sent successfully for {definition.ReportName}.");
-                _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): Email sent.");
-                success = true; // Mark as successful if all steps complete.
+                Logger.LogInfo($"Auto Run ({definition.ReportName}): Email sent successfully for report '{definition.ReportName}'.");
+                overallSuccess = true; // All steps completed successfully for this report.
             }
             catch (OperationCanceledException)
             {
-                Logger.LogWarning($"Auto Run ({definition.ReportName}): Operation cancelled.");
+                Logger.LogWarning($"Auto Run ({definition.ReportName}): Operation was cancelled.");
                 _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): Operation cancelled.");
-                success = false;
+                overallSuccess = false;
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Auto Run ({definition.ReportName}): Error: {ex.Message}", ex);
-                string shortError = ex.Message.Length > 100 ? ex.Message.Substring(0, 100) + "..." : ex.Message;
+                Logger.LogError($"Auto Run ({definition.ReportName}): An error occurred during processing: {ex.Message}", ex);
+                string shortError = ex.Message.Length > 100 ? ex.Message[..100] + "..." : ex.Message;
                 _uiManager.UpdateProgress($"Auto Run ({definition.ReportName}): ERROR - {shortError}");
-                success = false;
+                overallSuccess = false;
             }
             finally
             {
-                // Update the persisted status for this specific report for today.
-                SaveDailyReportStatus(definition.SuccessFlagJsonName, success, processingDate);
+                // Update the persisted status for this specific report for today in "AutoRunProcess:DailyRunStatus".
+                SaveDailyReportStatus(definition.SuccessFlagJsonName, overallSuccess, processingDate);
             }
-            return success;
+            return overallSuccess;
         }
 
         /// <summary>
@@ -542,287 +794,263 @@ namespace QuoteConversionReportAutomation.Managers
         }
 
         /// <summary>
-        /// Reads the daily report run statuses from appsettings.json.
+        /// Reads daily report run statuses from "AutoRunProcess:DailyRunStatus" in `appsettings.json`.
         /// </summary>
         private DailyReportRunStatus ReadDailyReportStatuses()
         {
-            try
+            lock (s_jsonFileLock)
             {
-                if (!File.Exists(_appSettingsPath))
+                try
                 {
-                    Logger.LogWarning("appsettings.json not found for ReadDailyReportStatuses. Returning new status object with MinValue date.");
-                    return new DailyReportRunStatus { StatusDate = DateTime.MinValue.ToString("yyyy-MM-dd") };
-                }
+                    if (!File.Exists(_appSettingsPath)) { Logger.LogWarning($"appsettings.json not found at '{_appSettingsPath}' for ReadDailyReportStatuses. Returning new status object."); return new DailyReportRunStatus { StatusDate = DateTime.MinValue.ToString("yyyy-MM-dd") }; }
+                    string jsonContent = File.ReadAllText(_appSettingsPath);
+                    if (string.IsNullOrWhiteSpace(jsonContent)) { Logger.LogWarning($"appsettings.json at '{_appSettingsPath}' is empty. Returning new status."); return new DailyReportRunStatus { StatusDate = DateTime.MinValue.ToString("yyyy-MM-dd") }; }
 
-                string jsonContent;
-                lock (_jsonFileLock) { jsonContent = File.ReadAllText(_appSettingsPath); }
-                var jsonRoot = JObject.Parse(jsonContent);
-                JToken? autoReportToken = jsonRoot[JsonSectionAutoReport];
-                JToken? statusToken = autoReportToken?[JsonKeyDailyRunStatus];
+                    var jsonRoot = JObject.Parse(jsonContent);
+                    // Correctly target "AutoRunProcess:DailyRunStatus"
+                    JToken? statusToken = jsonRoot[JsonSectionAutoRunProcess]?[JsonKeyDailyRunStatus];
 
-                if (statusToken != null)
-                {
-                    // Use JsonSerializer that can handle JsonExtensionData for dynamic properties.
-                    var status = statusToken.ToObject<DailyReportRunStatus>(JsonSerializer.CreateDefault(new JsonSerializerSettings
+                    if (statusToken != null)
                     {
-                        NullValueHandling = NullValueHandling.Ignore
-                    }));
-
-                    if (status == null)
-                    {
-                        Logger.LogWarning("DailyRunStatus section is null after parsing. Returning default status with MinValue date.");
-                        return new DailyReportRunStatus { StatusDate = DateTime.MinValue.ToString("yyyy-MM-dd") };
+                        var status = statusToken.ToObject<DailyReportRunStatus>(JsonSerializer.CreateDefault(new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore }));
+                        if (status == null) { Logger.LogWarning("DailyRunStatus section parsed as null from appsettings.json. Returning default status."); return new DailyReportRunStatus { StatusDate = DateTime.MinValue.ToString("yyyy-MM-dd") }; }
+                        status.StatusDate ??= DateTime.MinValue.ToString("yyyy-MM-dd");
+                        return status;
                     }
-                    status.StatusDate ??= DateTime.MinValue.ToString("yyyy-MM-dd"); // Ensure StatusDate is not null.
-                    return status;
+                    Logger.LogWarning($"'{JsonSectionAutoRunProcess}:{JsonKeyDailyRunStatus}' section not found in appsettings.json. Returning default status object.");
                 }
-                Logger.LogWarning($"'{JsonSectionAutoReport}:{JsonKeyDailyRunStatus}' section not found in appsettings.json. Returning default status object with MinValue date.");
+                catch (JsonException jsonEx) { Logger.LogError($"Error parsing DailyRunStatus from appsettings.json (JSON format issue): {jsonEx.Message}", jsonEx); }
+                catch (IOException ioEx) { Logger.LogError($"IO Error reading DailyRunStatus from appsettings.json: {ioEx.Message}", ioEx); }
+                catch (Exception ex) { Logger.LogError($"Error reading DailyReportStatus from appsettings.json: {ex.Message}", ex); }
+                return new DailyReportRunStatus { StatusDate = DateTime.MinValue.ToString("yyyy-MM-dd") }; // Fallback
             }
-            catch (JsonException jsonEx)
-            {
-                Logger.LogError($"Error parsing DailyRunStatus from appsettings.json (JSON format issue): {jsonEx.Message}", jsonEx);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError($"Error reading DailyRunStatus from appsettings.json: {ex.Message}", ex);
-            }
-            return new DailyReportRunStatus { StatusDate = DateTime.MinValue.ToString("yyyy-MM-dd") }; // Fallback.
         }
 
         /// <summary>
-        /// Saves the success status of a specific automated report for a given date to appsettings.json.
+        /// Saves success status of a report for a date to "AutoRunProcess:DailyRunStatus" in `appsettings.json`.
         /// </summary>
         private void SaveDailyReportStatus(string successFlagJsonName, bool success, DateTime statusDate)
         {
-            lock (_jsonFileLock) // Ensure thread-safe file access.
+            lock (s_jsonFileLock)
             {
                 try
                 {
                     string todayDateString = statusDate.ToString("yyyy-MM-dd");
-                    string jsonContent = File.Exists(_appSettingsPath) ? File.ReadAllText(_appSettingsPath) : "{}"; // Read or start with empty JSON.
-                    var jsonRoot = JObject.Parse(jsonContent);
+                    string jsonContent = File.Exists(_appSettingsPath) ? File.ReadAllText(_appSettingsPath) : "{}";
+                    var jsonRoot = JObject.Parse(string.IsNullOrWhiteSpace(jsonContent) ? "{}" : jsonContent);
 
-                    JObject autoReportSection = GetOrAddSection(jsonRoot, JsonSectionAutoReport);
-                    JObject dailyStatusJson = GetOrAddSection(autoReportSection, JsonKeyDailyRunStatus, logCreation: false);
+                    JObject autoRunProcessSection = GetOrAddSection(jsonRoot, JsonSectionAutoRunProcess);
+                    JObject dailyStatusJson = GetOrAddSection(autoRunProcessSection, JsonKeyDailyRunStatus, logCreation: false);
 
-                    // If the date has changed or the section is new/empty, initialise all known report flags for the new day.
                     if (dailyStatusJson[JsonKeyStatusDate]?.ToString() != todayDateString || !dailyStatusJson.HasValues || dailyStatusJson[JsonKeyStatusDate] == null)
                     {
-                        dailyStatusJson.RemoveAll(); // Clear old statuses if any.
+                        dailyStatusJson.RemoveAll();
                         dailyStatusJson[JsonKeyStatusDate] = todayDateString;
-                        // Initialise all defined report flags to false for the new day.
                         foreach (var def in _reportDefinitions.Where(d => d != null && !string.IsNullOrEmpty(d.SuccessFlagJsonName)))
                         {
-                            dailyStatusJson[def.SuccessFlagJsonName] = false;
+                            dailyStatusJson[def.SuccessFlagJsonName] = false; // Initialize all to false for new date
                         }
-                        Logger.LogInfo($"DailyRunStatus in JSON was for a different date or newly created/empty. Initialised for {todayDateString} with all defined report flags set to false.");
+                        Logger.LogInfo($"DailyRunStatus in '{JsonSectionAutoRunProcess}' section was for a different date or newly created/empty. Initialised for {todayDateString}.");
                     }
-
-                    // Set the specific report's success status.
-                    dailyStatusJson[successFlagJsonName] = success;
+                    dailyStatusJson[successFlagJsonName] = success; // Set the specific report's status
 
                     File.WriteAllText(_appSettingsPath, jsonRoot.ToString(Formatting.Indented));
-                    Logger.LogInfo($"Saved DailyRunStatus for '{successFlagJsonName}': Success={success}, Date={todayDateString}");
+                    Logger.LogInfo($"Saved DailyRunStatus for '{successFlagJsonName}': Success={success}, Date={todayDateString} to '{JsonSectionAutoRunProcess}' section in appsettings.json.");
                 }
-                catch (Exception ex)
-                {
-                    Logger.LogError($"Error saving DailyRunStatus to appsettings.json for '{successFlagJsonName}': {ex.Message}", ex);
-                }
+                catch (JsonException jsonEx) { Logger.LogError($"Error parsing appsettings.json for SaveDailyReportStatus ('{successFlagJsonName}'): {jsonEx.Message}", jsonEx); }
+                catch (IOException ioEx) { Logger.LogError($"IO Error saving DailyRunStatus to appsettings.json for '{successFlagJsonName}': {ioEx.Message}", ioEx); }
+                catch (Exception ex) { Logger.LogError($"Error saving DailyRunStatus to appsettings.json for '{successFlagJsonName}': {ex.Message}", ex); }
             }
         }
 
         /// <summary>
-        /// Resets all daily report success statuses in appsettings.json for a given date, setting them to false.
+        /// Resets all daily report statuses in "AutoRunProcess:DailyRunStatus" for a date.
         /// </summary>
         private void ResetDailyReportStatuses(DateTime forDate)
         {
-            lock (_jsonFileLock)
+            lock (s_jsonFileLock)
             {
                 try
                 {
                     string jsonContent = File.Exists(_appSettingsPath) ? File.ReadAllText(_appSettingsPath) : "{}";
-                    var jsonRoot = JObject.Parse(jsonContent);
+                    var jsonRoot = JObject.Parse(string.IsNullOrWhiteSpace(jsonContent) ? "{}" : jsonContent);
 
-                    JObject autoReportSection = GetOrAddSection(jsonRoot, JsonSectionAutoReport);
+                    JObject autoRunProcessSection = GetOrAddSection(jsonRoot, JsonSectionAutoRunProcess);
                     JObject newStatusJson = new JObject { [JsonKeyStatusDate] = forDate.ToString("yyyy-MM-dd") };
-
-                    // Set all defined report success flags to false for the specified date.
                     foreach (var definition in _reportDefinitions.Where(d => d != null && !string.IsNullOrEmpty(d.SuccessFlagJsonName)))
                     {
                         newStatusJson[definition.SuccessFlagJsonName] = false;
                     }
-
-                    autoReportSection[JsonKeyDailyRunStatus] = newStatusJson; // Replace the old status object.
+                    autoRunProcessSection[JsonKeyDailyRunStatus] = newStatusJson; // Replace existing DailyRunStatus
 
                     File.WriteAllText(_appSettingsPath, jsonRoot.ToString(Formatting.Indented));
-                    Logger.LogInfo($"Reset DailyReportStatuses in JSON for date {forDate:yyyy-MM-dd}. All defined report success flags set to false.");
+                    Logger.LogInfo($"Reset DailyReportStatuses in '{JsonSectionAutoRunProcess}' section of appsettings.json for date {forDate:yyyy-MM-dd}.");
                 }
-                catch (Exception ex)
-                {
-                    Logger.LogError($"Error resetting DailyRunStatuses in appsettings.json: {ex.Message}", ex);
-                }
+                catch (JsonException jsonEx) { Logger.LogError($"Error parsing appsettings.json for ResetDailyReportStatuses: {jsonEx.Message}", jsonEx); }
+                catch (IOException ioEx) { Logger.LogError($"IO Error resetting DailyRunStatuses in appsettings.json: {ioEx.Message}", ioEx); }
+                catch (Exception ex) { Logger.LogError($"Error resetting DailyReportStatuses in appsettings.json: {ex.Message}", ex); }
             }
         }
 
         /// <summary>
-        /// Reads the last date on which all due automated reports were successfully completed.
+        /// Reads the last global success date from "AutoRunProcess:LastRunDate" in `appsettings.json`.
         /// </summary>
         private DateTime ReadLastGlobalSuccessDate()
         {
-            try
+            lock (s_jsonFileLock)
             {
-                if (!File.Exists(_appSettingsPath)) return DateTime.MinValue;
-                string jsonContent;
-                lock (_jsonFileLock) { jsonContent = File.ReadAllText(_appSettingsPath); }
-                var json = JObject.Parse(jsonContent);
-                string? dateString = json?[JsonSectionAutoReport]?[JsonKeyLastRunDate]?.ToString();
-                if (DateTime.TryParseExact(dateString, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedDate))
+                try
                 {
-                    return parsedDate.Date;
+                    if (!File.Exists(_appSettingsPath)) { Logger.LogWarning($"appsettings.json not found for ReadLastGlobalSuccessDate. Returning MinValue."); return DateTime.MinValue; }
+                    string jsonContent = File.ReadAllText(_appSettingsPath);
+                    if (string.IsNullOrWhiteSpace(jsonContent)) { Logger.LogWarning($"appsettings.json is empty. Returning MinValue for LastGlobalSuccessDate."); return DateTime.MinValue; }
+
+                    var json = JObject.Parse(jsonContent);
+                    string? dateString = json?[JsonSectionAutoRunProcess]?[JsonKeyLastRunDate]?.ToString();
+                    if (DateTime.TryParseExact(dateString, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsedDate))
+                    {
+                        return parsedDate.Date;
+                    }
                 }
+                catch (JsonException jsonEx) { Logger.LogError($"Error parsing LastGlobalSuccessDate ('{JsonSectionAutoRunProcess}:{JsonKeyLastRunDate}'): {jsonEx.Message}", jsonEx); }
+                catch (IOException ioEx) { Logger.LogError($"IO Error reading LastGlobalSuccessDate from appsettings.json: {ioEx.Message}", ioEx); }
+                catch (Exception ex) { Logger.LogError($"Error reading LastGlobalSuccessDate ('{JsonSectionAutoRunProcess}:{JsonKeyLastRunDate}'): {ex.Message}", ex); }
+                return DateTime.MinValue; // Fallback
             }
-            catch (Exception ex) { Logger.LogError($"Error reading LastGlobalSuccessDate ('{JsonKeyLastRunDate}' from JSON): {ex.Message}", ex); }
-            return DateTime.MinValue; // Return MinValue if not found or error.
         }
 
         /// <summary>
-        /// Saves the date on which all due automated reports were successfully completed.
+        /// Saves the last global success date to "AutoRunProcess:LastRunDate" in `appsettings.json`.
         /// </summary>
         private void SaveLastGlobalSuccessDate(DateTime dateToSave)
         {
-            lock (_jsonFileLock)
+            lock (s_jsonFileLock)
             {
                 try
                 {
                     string jsonContent = File.Exists(_appSettingsPath) ? File.ReadAllText(_appSettingsPath) : "{}";
-                    var json = JObject.Parse(jsonContent);
-                    JObject autoReportSection = GetOrAddSection(json, JsonSectionAutoReport);
-                    autoReportSection[JsonKeyLastRunDate] = dateToSave.ToString("yyyy-MM-dd");
+                    var json = JObject.Parse(string.IsNullOrWhiteSpace(jsonContent) ? "{}" : jsonContent);
+                    JObject autoRunProcessSection = GetOrAddSection(json, JsonSectionAutoRunProcess);
+                    autoRunProcessSection[JsonKeyLastRunDate] = dateToSave.ToString("yyyy-MM-dd");
                     File.WriteAllText(_appSettingsPath, json.ToString(Formatting.Indented));
-                    Logger.LogInfo($"Successfully saved LastGlobalSuccessDate (as '{JsonKeyLastRunDate}' in JSON): {dateToSave:yyyy-MM-dd}");
+                    Logger.LogInfo($"Successfully saved LastGlobalSuccessDate (as '{JsonSectionAutoRunProcess}:{JsonKeyLastRunDate}'): {dateToSave:yyyy-MM-dd}.");
                 }
-                catch (Exception ex) { Logger.LogError($"Error saving LastGlobalSuccessDate (as '{JsonKeyLastRunDate}' in JSON): {ex.Message}", ex); }
-            }
-        }
-
-        /// <summary>
-        /// Sets the configured hour for daily auto-run checks and saves it to appsettings.json.
-        /// </summary>
-        /// <param name="newHour">The new hour (0-23) for auto-run checks.</param>
-        /// <returns>True if the setting was successfully saved; otherwise, false.</returns>
-        public async Task<bool> SetAutoRunHourAsync(int newHour)
-        {
-            if (newHour < 0 || newHour > 23) // Validate hour range.
-            {
-                Logger.LogError($"SetAutoRunHourAsync: Invalid hour provided: {newHour}. Must be between 0 and 23.");
-                return false;
-            }
-            _autoRunCheckHour = newHour; // Update in-memory value.
-            Logger.LogInfo($"SetAutoRunHourAsync: Attempting to set auto-run hour to {newHour}. Internal state updated.");
-
-            try
-            {
-                string jsonContent;
-                lock (_jsonFileLock) { jsonContent = File.ReadAllText(_appSettingsPath); }
-                var json = JObject.Parse(jsonContent);
-                JObject settingsSection = GetOrAddSection(json, JsonSectionSettings); // Ensure "settings" section exists.
-                settingsSection[JsonKeyAutoRunCheckHour] = newHour; // Update or add the AutoRunCheckHour.
-                lock (_jsonFileLock) { File.WriteAllTextAsync(_appSettingsPath, json.ToString(Formatting.Indented)); }
-                Logger.LogInfo($"Successfully saved '{JsonKeyAutoRunCheckHour}' ({newHour}) to appsettings.json.");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError($"SetAutoRunHourAsync: Error saving '{JsonKeyAutoRunCheckHour}': {ex.Message}", ex);
-                return false;
+                catch (JsonException jsonEx) { Logger.LogError($"Error parsing appsettings.json for SaveLastGlobalSuccessDate: {jsonEx.Message}", jsonEx); }
+                catch (IOException ioEx) { Logger.LogError($"IO Error saving LastGlobalSuccessDate to appsettings.json: {ioEx.Message}", ioEx); }
+                catch (Exception ex) { Logger.LogError($"Error saving LastGlobalSuccessDate (as '{JsonSectionAutoRunProcess}:{JsonKeyLastRunDate}'): {ex.Message}", ex); }
             }
         }
 
         /// <summary>
         /// Generates the full output path for a raw automated report file.
+        /// Uses the refactored <see cref="RawReportExportBaseDir"/> property.
         /// </summary>
         private string GetAutomatedReportOutputPath(int reportTypeIndex, DateTime reportDate, string reportName)
         {
-            string baseDir = RawReportExportBaseDir;
-            // Sanitise report name for use in a filename.
+            string baseDir = RawReportExportBaseDir; // This now uses the updated property
+            if (string.IsNullOrEmpty(baseDir) || baseDir.Contains("QCRA_AutoRun_Fallback"))
+            {
+                string errorMsg = $"GetAutomatedReportOutputPath: RawReportExportBaseDir for AutoRun is invalid or a fallback ('{baseDir}'). Cannot determine reliable report output location for '{reportName}'.";
+                Logger.LogError(errorMsg);
+                throw new InvalidOperationException(errorMsg);
+            }
+
             string sanitizedReportName = string.Join("_", reportName.Split(Path.GetInvalidFileNameChars())).Replace(" ", "_");
             string fileName = $"{reportDate:yyyyMMdd}_{sanitizedReportName}_Raw_AutoType{reportTypeIndex}.xlsx";
-
             string fullPath;
+
             try
             {
-                // Get the specific folder path (e.g., Year/Month/Week) for this report type and date.
-                string? folderPath = FolderCreation.GetReportSpecificFolderPath(reportTypeIndex, baseDir, reportDate);
+                // FolderCreation uses its own logic for subfolder names.
+                // If these also need to be configurable, FolderCreation would need IConfiguration or parameters.
+                string? folderPath = FolderCreation.GetReportSpecificFolderPath(reportTypeIndex, baseDir, reportDate, _configuration);
                 if (!string.IsNullOrEmpty(folderPath))
                 {
+                    Directory.CreateDirectory(folderPath); // Ensure folder exists
                     fullPath = Path.Combine(folderPath, fileName);
                 }
-                else // Fallback if specific folder path couldn't be determined.
+                else // Fallback if FolderCreation fails
                 {
-                    string fallbackFolder = Path.Combine(baseDir, $"AutoRun_Fallback_{sanitizedReportName}_Type{reportTypeIndex}");
-                    Directory.CreateDirectory(fallbackFolder); // Ensure fallback directory exists.
+                    Logger.LogWarning($"GetAutomatedReportOutputPath: Could not determine specific folder for Report '{reportName}'. Using fallback structure under base directory.");
+                    // Use configured folder name for report type if available, else a generic one.
+                    string reportTypeFolderName = _configuration.GetValue<string>($"OperationalParameters:ReportTypeFolderNames:{GetReportTypeKeyByIndex(reportTypeIndex)}", $"AutoRun_ReportType{reportTypeIndex}_Fallback")!;
+                    string fallbackFolder = Path.Combine(baseDir, reportTypeFolderName);
+                    Directory.CreateDirectory(fallbackFolder);
                     fullPath = Path.Combine(fallbackFolder, fileName);
-                    Logger.LogWarning($"GetAutomatedReportOutputPath: Using fallback folder for Report '{reportName}': {fullPath}");
                 }
             }
-            catch (Exception ex) // Catch critical errors during path determination.
+            catch (Exception ex)
             {
-                Logger.LogError($"Auto Run: Critical error determining raw output directory for Report '{reportName}': {ex.Message}", ex);
-                // Use a very basic fallback path in case of severe errors.
-                string errorFallbackFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), $"QuoteConversion_ErrorFallback_Raw_{sanitizedReportName}_AutoType{reportTypeIndex}");
-                try { Directory.CreateDirectory(errorFallbackFolder); } catch { /* Best effort for error fallback. */ }
+                Logger.LogError($"Auto Run: Critical error constructing or ensuring output directory for Report '{reportName}': {ex.Message}", ex);
+                string errorFallbackFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "QCRA_ErrorFallback_AutoRaw", sanitizedReportName);
+                try { Directory.CreateDirectory(errorFallbackFolder); } catch { /* Best effort */ }
                 fullPath = Path.Combine(errorFallbackFolder, fileName);
                 Logger.LogError($"GetAutomatedReportOutputPath: Using CRITICAL ErrorFallback path for Report '{reportName}': {fullPath}");
             }
+            Logger.LogDebug($"Automated report output path for '{reportName}': {fullPath}");
             return fullPath;
         }
 
         /// <summary>
-        /// Constructs the email subject and body for an automated report.
+        /// Gets a string key for the report type based on its index, used for looking up configured folder names.
+        /// </summary>
+        private string GetReportTypeKeyByIndex(int reportTypeIndex)
+        {
+            // This should match keys in "OperationalParameters:ReportTypeFolderNames"
+            return reportTypeIndex switch
+            {
+                0 => "Daily",
+                1 => "Daily5Day1k",
+                2 => "Weekly",
+                3 => "Monthly",
+                4 => "Quarterly",
+                5 => "Annual",
+                6 => "Custom",
+                _ => "Other"
+            };
+        }
+
+
+        /// <summary>
+        /// Constructs email subject and body for an automated report.
         /// </summary>
         private (string Subject, string Body) GetEmailSubjectAndBodyForAutoRun(AutoReportDefinition definition, DateTime reportStartDate, DateTime reportEndDate)
         {
             string greeting;
-            // Use debug greeting if in debug mode, otherwise use the greeting key from the definition.
             if (IsDebug)
             {
+                // Key for DebugEmails:EmailGreetings:DebugDefault
                 greeting = _greetingManager.GetGreeting("DebugDefault", isForDebugSection: true);
             }
             else
             {
+                // Key for EmailSettings:ProductionRecipients:EmailGreetings:<GreetingKeyFromDefinition>
                 greeting = _greetingManager.GetGreeting(definition.GreetingKey);
             }
 
-            // Ensure greeting ends with a comma if not empty.
             if (!string.IsNullOrWhiteSpace(greeting) && !greeting.TrimEnd().EndsWith(","))
             {
                 greeting = greeting.TrimEnd() + ",";
             }
 
-            // Format date range information for the email.
             string dateRangeInfo = (reportStartDate.Date == reportEndDate.Date) ?
                                    $"for {reportEndDate:dd MMM yy}" :
                                    $"for period {reportStartDate:dd MMM yy} to {reportEndDate:dd MMM yy}";
-            // Specific override for weekly report's date range display if needed.
-            if (definition.ReportName == "Weekly Estimate Success Rate")
-            {
-                dateRangeInfo = $"for period {reportStartDate:dd MMM yy} to {reportEndDate:dd MMM yy}";
-            }
+            // Specific formatting for certain reports can be added here if needed.
 
-            // Format date suffix for the email subject.
             string subjectDateSuffix = (reportStartDate.Date == reportEndDate.Date) ?
                                        $"({reportEndDate:yyyy-MM-dd})" :
                                        $"({reportStartDate:yyyy-MM-dd} to {reportEndDate:yyyy-MM-dd})";
-            if (definition.ReportName == "Weekly Estimate Success Rate") // Specific subject date format for weekly.
-            {
-                subjectDateSuffix = $"({reportStartDate:yyyy-MM-dd} to {reportEndDate:yyyy-MM-dd})";
-            }
 
-            // Construct the full subject and body.
             string subject = $"AUTOMATED: {definition.SubjectPrefix} Report {subjectDateSuffix}";
-            string body = $"{greeting}\n\nPlease find attached the automated {definition.SubjectPrefix.ToLower()} report {dateRangeInfo}.\n\nThank you,\nAutomation Service";
+            if (IsDebug) subject = $"DEBUG - {subject}";
 
-            Logger.LogDebug($"Auto Run: Email for {definition.ReportName}: Subject='{subject}', GreetingKey='{definition.GreetingKey}' (Resolved: '{greeting.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? ""}')");
+            // Get default email signature from configuration.
+            string emailSignature = _configuration.GetValue<string>("EmailSettings:DefaultEmailSignature", "Thank you,\nQCRA Automation Service")!;
+
+            string body = $"{greeting}\n\nPlease find attached the automated {definition.SubjectPrefix.ToLowerInvariant()} report {dateRangeInfo}.\n\n{emailSignature}";
+
+            Logger.LogDebug($"AutoRun Email for '{definition.ReportName}': Subject='{subject}' (GreetingKey: '{definition.GreetingKey}')");
             return (subject, body);
         }
         #endregion

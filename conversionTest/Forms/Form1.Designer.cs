@@ -1,5 +1,4 @@
-﻿// Form1.Designer.cs
-// Ensure this namespace matches your project structure, e.g., conversionTest
+﻿// Form1.Designer.cs (Menu Fix & Added Settings Menu Item)
 namespace conversionTest
 {
     partial class Form1
@@ -61,10 +60,7 @@ namespace conversionTest
             this.enable1ClickProcessingToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator6 = new System.Windows.Forms.ToolStripSeparator();
             this.setAutoRunHourToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.configureAutoRunReportsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.enableStandardDailyAutoReportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.enableDaily5Day1kAutoReportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.enableWeeklyAutoReportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem(); // Added for Weekly
+            this.manageAutomatedReportsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator8 = new System.Windows.Forms.ToolStripSeparator();
             this.viewConfigToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.validateConfigToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -75,10 +71,12 @@ namespace conversionTest
             this.manageGreetingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator5 = new System.Windows.Forms.ToolStripSeparator();
             this.openLogsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.openAutoReportDefinitionsFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.editConfigToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.settingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem(); // <<< NEWLY DECLARED (moved declaration below)
             this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.mainStatusStrip.SuspendLayout();
@@ -225,10 +223,10 @@ namespace conversionTest
             this.sendToFemiOnlyCheckBox.AutoSize = true;
             this.sendToFemiOnlyCheckBox.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.sendToFemiOnlyCheckBox.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.sendToFemiOnlyCheckBox.Location = new System.Drawing.Point(119, 147);
+            this.sendToFemiOnlyCheckBox.Location = new System.Drawing.Point(119, 147); // Inside GroupBox
             this.sendToFemiOnlyCheckBox.Name = "sendToFemiOnlyCheckBox";
             this.sendToFemiOnlyCheckBox.Size = new System.Drawing.Size(142, 21);
-            this.sendToFemiOnlyCheckBox.TabIndex = 11;
+            this.sendToFemiOnlyCheckBox.TabIndex = 11; // Adjust TabIndex within GroupBox
             this.sendToFemiOnlyCheckBox.Text = "Send to only Femi?";
             this.toolTip1.SetToolTip(this.sendToFemiOnlyCheckBox, "Check this to send the email report only to Femi (and relevant CCs based on build" +
         " mode). Uncheck to send to the broader team.");
@@ -239,10 +237,10 @@ namespace conversionTest
             this.skipEmailCheckBox.AutoSize = true;
             this.skipEmailCheckBox.FlatStyle = System.Windows.Forms.FlatStyle.System;
             this.skipEmailCheckBox.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.skipEmailCheckBox.Location = new System.Drawing.Point(15, 168);
+            this.skipEmailCheckBox.Location = new System.Drawing.Point(15, 168); // Inside GroupBox
             this.skipEmailCheckBox.Name = "skipEmailCheckBox";
             this.skipEmailCheckBox.Size = new System.Drawing.Size(130, 18);
-            this.skipEmailCheckBox.TabIndex = 21;
+            this.skipEmailCheckBox.TabIndex = 21; // Adjust TabIndex within GroupBox
             this.skipEmailCheckBox.Text = "Skip Sending Email";
             this.toolTip1.SetToolTip(this.skipEmailCheckBox, "If checked, the email sending step will be skipped during processing.");
             this.skipEmailCheckBox.UseVisualStyleBackColor = true;
@@ -355,6 +353,7 @@ namespace conversionTest
             // 
             this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.optionsToolStripMenuItem,
+            this.settingsToolStripMenuItem, // <<< NEWLY ADDED TOP-LEVEL MENU ITEM
             this.helpToolStripMenuItem});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
@@ -370,7 +369,7 @@ namespace conversionTest
             this.enable1ClickProcessingToolStripMenuItem,
             this.toolStripSeparator6,
             this.setAutoRunHourToolStripMenuItem,
-            this.configureAutoRunReportsToolStripMenuItem,
+            this.manageAutomatedReportsToolStripMenuItem,
             this.toolStripSeparator8,
             this.viewConfigToolStripMenuItem,
             this.validateConfigToolStripMenuItem,
@@ -381,6 +380,7 @@ namespace conversionTest
             this.manageGreetingsToolStripMenuItem,
             this.toolStripSeparator5,
             this.openLogsToolStripMenuItem,
+            this.openAutoReportDefinitionsFileToolStripMenuItem,
             this.toolStripSeparator1,
             this.editConfigToolStripMenuItem,
             this.toolStripSeparator2,
@@ -393,7 +393,7 @@ namespace conversionTest
             // 
             this.darkModeToolStripMenuItem.CheckOnClick = true;
             this.darkModeToolStripMenuItem.Name = "darkModeToolStripMenuItem";
-            this.darkModeToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.darkModeToolStripMenuItem.Size = new System.Drawing.Size(258, 22);
             this.darkModeToolStripMenuItem.Text = "&Dark Mode";
             this.darkModeToolStripMenuItem.ToolTipText = "Toggle between light and dark visual themes for the application.";
             this.darkModeToolStripMenuItem.Click += new System.EventHandler(this.darkModeToolStripMenuItem_Click);
@@ -401,13 +401,13 @@ namespace conversionTest
             // toolStripSeparator7
             // 
             this.toolStripSeparator7.Name = "toolStripSeparator7";
-            this.toolStripSeparator7.Size = new System.Drawing.Size(237, 6);
+            this.toolStripSeparator7.Size = new System.Drawing.Size(255, 6);
             // 
             // enable1ClickProcessingToolStripMenuItem
             // 
             this.enable1ClickProcessingToolStripMenuItem.CheckOnClick = true;
             this.enable1ClickProcessingToolStripMenuItem.Name = "enable1ClickProcessingToolStripMenuItem";
-            this.enable1ClickProcessingToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.enable1ClickProcessingToolStripMenuItem.Size = new System.Drawing.Size(258, 22);
             this.enable1ClickProcessingToolStripMenuItem.Text = "Enable &1-Click Processing";
             this.enable1ClickProcessingToolStripMenuItem.ToolTipText = "Toggle between 2-button and 1-button processing mode.";
             this.enable1ClickProcessingToolStripMenuItem.Click += new System.EventHandler(this.enable1ClickProcessingToolStripMenuItem_Click);
@@ -415,63 +415,33 @@ namespace conversionTest
             // toolStripSeparator6
             // 
             this.toolStripSeparator6.Name = "toolStripSeparator6";
-            this.toolStripSeparator6.Size = new System.Drawing.Size(237, 6);
+            this.toolStripSeparator6.Size = new System.Drawing.Size(255, 6);
             // 
             // setAutoRunHourToolStripMenuItem
             // 
             this.setAutoRunHourToolStripMenuItem.Name = "setAutoRunHourToolStripMenuItem";
-            this.setAutoRunHourToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.setAutoRunHourToolStripMenuItem.Size = new System.Drawing.Size(258, 22);
             this.setAutoRunHourToolStripMenuItem.Text = "Set Auto-Run &Hour...";
             this.setAutoRunHourToolStripMenuItem.ToolTipText = "Change the hour at which the daily auto-run task executes.";
             this.setAutoRunHourToolStripMenuItem.Click += new System.EventHandler(this.setAutoRunHourToolStripMenuItem_Click);
             // 
-            // configureAutoRunReportsToolStripMenuItem
+            // manageAutomatedReportsToolStripMenuItem
             // 
-            this.configureAutoRunReportsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.enableStandardDailyAutoReportToolStripMenuItem,
-            this.enableDaily5Day1kAutoReportToolStripMenuItem,
-            this.enableWeeklyAutoReportToolStripMenuItem}); // Added Weekly Toggle
-            this.configureAutoRunReportsToolStripMenuItem.Name = "configureAutoRunReportsToolStripMenuItem";
-            this.configureAutoRunReportsToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
-            this.configureAutoRunReportsToolStripMenuItem.Text = "Configure Auto-Run Reports";
-            this.configureAutoRunReportsToolStripMenuItem.ToolTipText = "Enable or disable specific automated reports.";
-            // 
-            // enableStandardDailyAutoReportToolStripMenuItem
-            // 
-            this.enableStandardDailyAutoReportToolStripMenuItem.CheckOnClick = true;
-            this.enableStandardDailyAutoReportToolStripMenuItem.Name = "enableStandardDailyAutoReportToolStripMenuItem";
-            this.enableStandardDailyAutoReportToolStripMenuItem.Size = new System.Drawing.Size(298, 22);
-            this.enableStandardDailyAutoReportToolStripMenuItem.Text = "Enable Standard Daily Auto Report";
-            this.enableStandardDailyAutoReportToolStripMenuItem.ToolTipText = "Toggle the automated generation of the standard daily report.";
-            this.enableStandardDailyAutoReportToolStripMenuItem.Click += new System.EventHandler(this.enableStandardDailyAutoReportToolStripMenuItem_Click);
-            // 
-            // enableDaily5Day1kAutoReportToolStripMenuItem
-            // 
-            this.enableDaily5Day1kAutoReportToolStripMenuItem.CheckOnClick = true;
-            this.enableDaily5Day1kAutoReportToolStripMenuItem.Name = "enableDaily5Day1kAutoReportToolStripMenuItem";
-            this.enableDaily5Day1kAutoReportToolStripMenuItem.Size = new System.Drawing.Size(298, 22);
-            this.enableDaily5Day1kAutoReportToolStripMenuItem.Text = "Enable Daily (5days >= £1000) Auto Report";
-            this.enableDaily5Day1kAutoReportToolStripMenuItem.ToolTipText = "Toggle the automated generation of the \'Daily (5days >= £1000)\' report.";
-            this.enableDaily5Day1kAutoReportToolStripMenuItem.Click += new System.EventHandler(this.enableDaily5Day1kAutoReportToolStripMenuItem_Click);
-            // 
-            // enableWeeklyAutoReportToolStripMenuItem
-            // 
-            this.enableWeeklyAutoReportToolStripMenuItem.CheckOnClick = true;
-            this.enableWeeklyAutoReportToolStripMenuItem.Name = "enableWeeklyAutoReportToolStripMenuItem";
-            this.enableWeeklyAutoReportToolStripMenuItem.Size = new System.Drawing.Size(298, 22);
-            this.enableWeeklyAutoReportToolStripMenuItem.Text = "Enable Weekly Auto Report";
-            this.enableWeeklyAutoReportToolStripMenuItem.ToolTipText = "Toggle the automated generation of the weekly report.";
-            this.enableWeeklyAutoReportToolStripMenuItem.Click += new System.EventHandler(this.enableWeeklyAutoReportToolStripMenuItem_Click);
+            this.manageAutomatedReportsToolStripMenuItem.Name = "manageAutomatedReportsToolStripMenuItem";
+            this.manageAutomatedReportsToolStripMenuItem.Size = new System.Drawing.Size(258, 22);
+            this.manageAutomatedReportsToolStripMenuItem.Text = "Manage Automated Reports...";
+            this.manageAutomatedReportsToolStripMenuItem.ToolTipText = "Configure, add, or remove automated report definitions.";
+            this.manageAutomatedReportsToolStripMenuItem.Click += new System.EventHandler(this.manageAutomatedReportsToolStripMenuItem_Click);
             // 
             // toolStripSeparator8
             // 
             this.toolStripSeparator8.Name = "toolStripSeparator8";
-            this.toolStripSeparator8.Size = new System.Drawing.Size(237, 6);
+            this.toolStripSeparator8.Size = new System.Drawing.Size(255, 6);
             // 
             // viewConfigToolStripMenuItem
             // 
             this.viewConfigToolStripMenuItem.Name = "viewConfigToolStripMenuItem";
-            this.viewConfigToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.viewConfigToolStripMenuItem.Size = new System.Drawing.Size(258, 22);
             this.viewConfigToolStripMenuItem.Text = "&View Configuration";
             this.viewConfigToolStripMenuItem.ToolTipText = "Show detailed status of configuration settings like file paths.";
             this.viewConfigToolStripMenuItem.Click += new System.EventHandler(this.viewConfigToolStripMenuItem_Click);
@@ -479,7 +449,7 @@ namespace conversionTest
             // validateConfigToolStripMenuItem
             // 
             this.validateConfigToolStripMenuItem.Name = "validateConfigToolStripMenuItem";
-            this.validateConfigToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.validateConfigToolStripMenuItem.Size = new System.Drawing.Size(258, 22);
             this.validateConfigToolStripMenuItem.Text = "V&alidate Configuration";
             this.validateConfigToolStripMenuItem.ToolTipText = "Quickly validate essential configuration and update status bar.";
             this.validateConfigToolStripMenuItem.Click += new System.EventHandler(this.validateConfigToolStripMenuItem_Click);
@@ -487,12 +457,12 @@ namespace conversionTest
             // toolStripSeparator4
             // 
             this.toolStripSeparator4.Name = "toolStripSeparator4";
-            this.toolStripSeparator4.Size = new System.Drawing.Size(237, 6);
+            this.toolStripSeparator4.Size = new System.Drawing.Size(255, 6);
             // 
             // manageCustomBankHolidaysToolStripMenuItem
             // 
             this.manageCustomBankHolidaysToolStripMenuItem.Name = "manageCustomBankHolidaysToolStripMenuItem";
-            this.manageCustomBankHolidaysToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.manageCustomBankHolidaysToolStripMenuItem.Size = new System.Drawing.Size(258, 22);
             this.manageCustomBankHolidaysToolStripMenuItem.Text = "Manage Custom &Bank Holidays";
             this.manageCustomBankHolidaysToolStripMenuItem.ToolTipText = "Add or remove custom bank holidays.";
             this.manageCustomBankHolidaysToolStripMenuItem.Click += new System.EventHandler(this.manageCustomBankHolidaysToolStripMenuItem_Click);
@@ -500,12 +470,12 @@ namespace conversionTest
             // toolStripSeparator3
             // 
             this.toolStripSeparator3.Name = "toolStripSeparator3";
-            this.toolStripSeparator3.Size = new System.Drawing.Size(237, 6);
+            this.toolStripSeparator3.Size = new System.Drawing.Size(255, 6);
             // 
             // manageEmailRecipientsToolStripMenuItem
             // 
             this.manageEmailRecipientsToolStripMenuItem.Name = "manageEmailRecipientsToolStripMenuItem";
-            this.manageEmailRecipientsToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.manageEmailRecipientsToolStripMenuItem.Size = new System.Drawing.Size(258, 22);
             this.manageEmailRecipientsToolStripMenuItem.Text = "Manage Email &Recipients";
             this.manageEmailRecipientsToolStripMenuItem.ToolTipText = "Configure custom email recipients for different report types.";
             this.manageEmailRecipientsToolStripMenuItem.Click += new System.EventHandler(this.manageEmailRecipientsToolStripMenuItem_Click);
@@ -513,7 +483,7 @@ namespace conversionTest
             // manageGreetingsToolStripMenuItem
             // 
             this.manageGreetingsToolStripMenuItem.Name = "manageGreetingsToolStripMenuItem";
-            this.manageGreetingsToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.manageGreetingsToolStripMenuItem.Size = new System.Drawing.Size(258, 22);
             this.manageGreetingsToolStripMenuItem.Text = "Manage Email &Greetings";
             this.manageGreetingsToolStripMenuItem.ToolTipText = "Configure custom email greetings for different report scenarios.";
             this.manageGreetingsToolStripMenuItem.Click += new System.EventHandler(this.manageGreetingsToolStripMenuItem_Click);
@@ -521,25 +491,33 @@ namespace conversionTest
             // toolStripSeparator5
             // 
             this.toolStripSeparator5.Name = "toolStripSeparator5";
-            this.toolStripSeparator5.Size = new System.Drawing.Size(237, 6);
+            this.toolStripSeparator5.Size = new System.Drawing.Size(255, 6);
             // 
             // openLogsToolStripMenuItem
             // 
             this.openLogsToolStripMenuItem.Name = "openLogsToolStripMenuItem";
-            this.openLogsToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.openLogsToolStripMenuItem.Size = new System.Drawing.Size(258, 22);
             this.openLogsToolStripMenuItem.Text = "Open &Logs Folder";
             this.openLogsToolStripMenuItem.ToolTipText = "Open the folder containing application log files.";
             this.openLogsToolStripMenuItem.Click += new System.EventHandler(this.openLogsToolStripMenuItem_Click);
             // 
+            // openAutoReportDefinitionsFileToolStripMenuItem
+            // 
+            this.openAutoReportDefinitionsFileToolStripMenuItem.Name = "openAutoReportDefinitionsFileToolStripMenuItem";
+            this.openAutoReportDefinitionsFileToolStripMenuItem.Size = new System.Drawing.Size(258, 22);
+            this.openAutoReportDefinitionsFileToolStripMenuItem.Text = "Open Auto Report Definitions File";
+            this.openAutoReportDefinitionsFileToolStripMenuItem.ToolTipText = "Opens the autoReportDefinitions.json file for viewing.";
+            this.openAutoReportDefinitionsFileToolStripMenuItem.Click += new System.EventHandler(this.openAutoReportDefinitionsFileToolStripMenuItem_Click);
+            // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(237, 6);
+            this.toolStripSeparator1.Size = new System.Drawing.Size(255, 6);
             // 
             // editConfigToolStripMenuItem
             // 
             this.editConfigToolStripMenuItem.Name = "editConfigToolStripMenuItem";
-            this.editConfigToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.editConfigToolStripMenuItem.Size = new System.Drawing.Size(258, 22);
             this.editConfigToolStripMenuItem.Text = "&Edit appsettings.json";
             this.editConfigToolStripMenuItem.ToolTipText = "Open the appsettings.json file for manual editing (use with caution).";
             this.editConfigToolStripMenuItem.Click += new System.EventHandler(this.editConfigToolStripMenuItem_Click);
@@ -547,15 +525,23 @@ namespace conversionTest
             // toolStripSeparator2
             // 
             this.toolStripSeparator2.Name = "toolStripSeparator2";
-            this.toolStripSeparator2.Size = new System.Drawing.Size(237, 6);
+            this.toolStripSeparator2.Size = new System.Drawing.Size(255, 6);
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(258, 22);
             this.exitToolStripMenuItem.Text = "E&xit";
             this.exitToolStripMenuItem.ToolTipText = "Close the application.";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
+            //
+            // settingsToolStripMenuItem  // <<< NEWLY ADDED/CONFIGURED
+            //
+            this.settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
+            this.settingsToolStripMenuItem.Size = new System.Drawing.Size(61, 20); // Adjust size if needed
+            this.settingsToolStripMenuItem.Text = "&Settings";
+            this.settingsToolStripMenuItem.ToolTipText = "Configure application settings.";
+            this.settingsToolStripMenuItem.Click += new System.EventHandler(this.settingsToolStripMenuItem_Click);
             // 
             // helpToolStripMenuItem
             // 
@@ -583,7 +569,7 @@ namespace conversionTest
             this.Controls.Add(this.reportTypeLabel);
             this.Controls.Add(this.reportTypeComboBox);
             this.Controls.Add(this.mainStatusStrip);
-            this.Controls.Add(this.menuStrip1);
+            this.Controls.Add(this.menuStrip1); // Must be before other controls that dock or anchor
             this.Controls.Add(this.viewAnalysisButton);
             this.Controls.Add(this.viewReportButton);
             this.Controls.Add(this.processEmailButton);
@@ -598,8 +584,9 @@ namespace conversionTest
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.menuStrip1;
             this.Name = "Form1";
-            this.Text = "Quote Conversion Automation";
+            this.Text = "Quote Conversion Automation"; // This will be updated from appsettings.json by Form1.cs logic
             this.Load += new System.EventHandler(this.Form1_Load);
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
             this.mainStatusStrip.ResumeLayout(false);
             this.mainStatusStrip.PerformLayout();
             this.reportSettingsGroupBox.ResumeLayout(false);
@@ -657,10 +644,9 @@ namespace conversionTest
         private System.Windows.Forms.ToolStripMenuItem setAutoRunHourToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator7;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator6;
-        private System.Windows.Forms.ToolStripMenuItem configureAutoRunReportsToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem enableStandardDailyAutoReportToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem enableDaily5Day1kAutoReportToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem enableWeeklyAutoReportToolStripMenuItem; // Added
+        private System.Windows.Forms.ToolStripMenuItem manageAutomatedReportsToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator8;
+        private System.Windows.Forms.ToolStripMenuItem openAutoReportDefinitionsFileToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem settingsToolStripMenuItem; // <<< FIELD DECLARATION FOR NEW MENU ITEM
     }
 }

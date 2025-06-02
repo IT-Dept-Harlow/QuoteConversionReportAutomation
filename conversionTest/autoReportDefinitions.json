@@ -1,0 +1,47 @@
+[
+  {
+    "ReportId": "55c1336f-30bf-4582-9418-1de1f8531c5d",
+    "IsEnabled": true,
+    "ReportTypeIndex": 0,
+    "ReportName": "Daily",
+    "SuccessFlagJsonName": "StandardDailyReportSucceeded",
+    "GreetingKey": "AutoRunDaily",
+    "RecipientCategoryKey": "AutoRunDailyStandardRecipients",
+    "SubjectPrefix": "Daily Estimate Success Rate",
+    "TemplateName": "TEMPLATE_Estimate Success Rate.xlsx",
+    "ReportEndDateOffsetDays": 1,
+    "RequiresNetValueFiltering": false,
+    "AppendToPowerBi": false
+  },
+  {
+    "ReportId": "648d7cb6-9999-4864-a722-8900d78c8fa9",
+    "IsEnabled": true,
+    "ReportTypeIndex": 1,
+    "ReportName": "Daily (5days >= £1000)",
+    "SuccessFlagJsonName": "Daily5Day1kReportSucceeded",
+    "GreetingKey": "AutoRunDaily5Day1k",
+    "RecipientCategoryKey": "AutoRunDaily5Day1kRecipients",
+    "SubjectPrefix": "Daily (5days >= £1000) Estimate Success Rate",
+    "TemplateName": "TEMPLATE_Estimate Success Rate.xlsx",
+    "ReportEndDateOffsetDays": 1,
+    "ReportDurationDays": 5,
+    "RequiresNetValueFiltering": true,
+    "AppendToPowerBi": false
+  },
+  {
+    "ReportId": "4bf24696-a5e6-48df-b6ce-1ec1391c3008",
+    "IsEnabled": true,
+    "ReportTypeIndex": 2,
+    "ReportName": "Weekly Estimate Success Rate",
+    "SuccessFlagJsonName": "WeeklyReportSucceeded",
+    "GreetingKey": "AutoRunWeekly",
+    "RecipientCategoryKey": "AutoRunWeeklyRecipients",
+    "SubjectPrefix": "Weekly Estimate Success Rate",
+    "TemplateName": "TEMPLATE_Estimate Success Rate.xlsx",
+    "ReportEndDateOffsetDays": 0,
+    "ReportDurationDays": 0,
+    "RunOnDayOfWeek": 5,
+    "RequiresNetValueFiltering": false,
+    "AppendToPowerBi": true
+  }
+]
