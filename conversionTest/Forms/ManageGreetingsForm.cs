@@ -1,5 +1,4 @@
-﻿
-#region Using Directives
+﻿#region Using Directives
 // System related namespaces
 using System;
 using System.Drawing;
@@ -10,38 +9,25 @@ using QuoteConversionReportAutomation.Helpers; // For FlexibleMessageBox
 using QuoteConversionReportAutomation.Managers; // For GreetingManager and UIManager
 using QuoteConversionReportAutomation.Models;   // For UserGreetingSettings
 using QuoteConversionReportAutomation.Services.Logging; // For Logger
+using QuoteConversionReportAutomation.Theming; // Required for centralised theming
 #endregion
 
-namespace QuoteConversionReportAutomation
+namespace QuoteConversionReportAutomation.Forms
 {
     /// <summary>
     /// A Windows Form that allows users to view and modify email greeting messages
     /// for different report generation contexts. User-defined greetings are saved
-    /// and will override any application defaults.
+    /// and will override any application defaults. Theming is handled by the centralised ThemeSettings.
     /// </summary>
     public partial class ManageGreetingsForm : Form
     {
-        #region Fields and Constants
-
+        #region Fields
         private readonly GreetingManager _greetingManager; // Service for loading/saving greeting settings.
-        private readonly bool _isDarkMode; // Flag indicating if dark mode is active, passed from parent.
-
-        // --- Theme Colours ---
-        // Define colours for dark and light modes for UI theming.
-        // Dark Mode Colours
-        private static readonly Color DM_ControlBackColor = Color.FromArgb(60, 60, 63);      // Background for input controls.
-        private static readonly Color DM_ButtonBackColor = Color.FromArgb(80, 80, 80);       // Background for buttons.
-        private static readonly Color DM_ControlForeColor = Color.White;                      // Text colour for controls.
-        // Light Mode Colours
-        private static readonly Color LM_ControlBackColor = SystemColors.Window;            // Standard window background.
-        private static readonly Color LM_ButtonBackColor = SystemColors.Control;            // Standard control background.
-        private static readonly Color LM_ControlForeColor = SystemColors.ControlText;       // Standard control text colour.
 
         // --- UI Control Field for Manual Custom Greeting ---
         // This field holds a reference to the dynamically added or designer-placed TextBox
         // for managing the greeting for manually run "Custom" type reports.
         private TextBox txtManualCustom;
-
         #endregion
 
         #region Constructor
@@ -49,11 +35,9 @@ namespace QuoteConversionReportAutomation
         /// Initialises a new instance of the <see cref="ManageGreetingsForm"/> class.
         /// </summary>
         /// <param name="greetingManager">The manager responsible for greeting settings logic.</param>
-        /// <param name="isDarkMode">A flag indicating whether dark mode should be applied to the form.</param>
-        public ManageGreetingsForm(GreetingManager greetingManager, bool isDarkMode)
+        public ManageGreetingsForm(GreetingManager greetingManager)
         {
             _greetingManager = greetingManager ?? throw new ArgumentNullException(nameof(greetingManager));
-            _isDarkMode = isDarkMode;
 
             InitializeComponent(); // Standard WinForms method from ManageGreetingsForm.Designer.cs.
 
@@ -76,11 +60,12 @@ namespace QuoteConversionReportAutomation
         /// <param name="e">An <see cref="EventArgs"/> that contains no event data.</param>
         private void ManageGreetingsForm_Load(object sender, EventArgs e)
         {
-            Logger.LogInfo($"ManageGreetingsForm loading. Initial DarkMode state: {_isDarkMode}");
-            // Apply the theme to the form itself (title bar, main background).
-            UIManager.ApplyThemeToExternalForm(this, _isDarkMode);
+            Logger.LogInfo($"ManageGreetingsForm loading. Theming enabled: {ThemeSettings.EnableCustomTheming}, CurrentMode: {ThemeSettings.CurrentThemeMode}");
+
+            // Apply the theme to the form itself (title bar, main background) using the centralised settings.
+            UIManager.ApplyThemeToExternalForm(this, ThemeSettings.IsCurrentlyDark());
             // Apply the theme to child controls within this form.
-            ApplyChildControlTheme(_isDarkMode);
+            ApplyChildControlTheme();
             // Load current greeting settings into the TextBoxes.
             LoadGreetingsToForm();
             // Set up informational tooltips.
@@ -103,44 +88,43 @@ namespace QuoteConversionReportAutomation
             if (lblDebugDefault != null) lblDebugDefault.Visible = false;
             if (txtDebugDefault != null) txtDebugDefault.Visible = false;
 
-            // If these controls were in a specific row of a TableLayoutPanel,
-            // that row might need to be adjusted to collapse its height.
-            // For this example, simply hiding the controls is the primary action.
-            // Assuming mainTableLayoutPanel is the container.
-            // Row 6 (0-indexed) is assumed for the debug greeting based on typical designer layout.
+            // The original logic noted that simply hiding controls is sufficient for the visual effect.
+            // More complex row collapsing logic is not implemented by default.
             if (mainTableLayoutPanel.RowCount > 6)
             {
-                // To truly collapse the row, its RowStyle SizeType would need to be Absolute and Height set to 0,
-                // or percentages of other rows adjusted. This is complex if other rows are also Percentage based.
-                // For now, hiding controls is sufficient for visual effect.
                 Logger.LogDebug("Debug greeting controls hidden. Row collapsing in TableLayoutPanel is not explicitly handled here beyond control visibility.");
             }
         }
 
         /// <summary>
-        /// Applies the current theme (dark or light) specifically to the child controls of this form.
+        /// Applies the current theme from ThemeSettings specifically to the child controls of this form.
         /// </summary>
-        /// <param name="isDarkModeEnabled">True if dark mode is enabled, false otherwise.</param>
-        private void ApplyChildControlTheme(bool isDarkModeEnabled)
+        private void ApplyChildControlTheme()
         {
-            // Determine appropriate colours based on the theme.
-            Color controlBackColor = isDarkModeEnabled ? DM_ControlBackColor : LM_ControlBackColor;
-            Color buttonBackColor = isDarkModeEnabled ? DM_ButtonBackColor : LM_ButtonBackColor;
-            Color controlForeColor = isDarkModeEnabled ? DM_ControlForeColor : LM_ControlForeColor;
+            if (!ThemeSettings.EnableCustomTheming) return;
+
+            bool isDarkMode = ThemeSettings.IsCurrentlyDark();
+            var palette = ThemeSettings.CurrentPalette;
+
             // Recursively apply these colours to all controls on the form.
-            UpdateControlThemeRecursive(this, controlBackColor, buttonBackColor, controlForeColor, isDarkModeEnabled);
+            UpdateControlThemeRecursive(this, palette, isDarkMode);
         }
 
         /// <summary>
-        /// Recursive helper method to apply theme colours to a control and all its child controls.
+        /// Recursive helper method to apply theme colours to a control and all its child controls using the ThemePalette.
         /// </summary>
         /// <param name="parentControl">The control to start theming from.</param>
-        /// <param name="controlBackColor">The background colour for input-type controls.</param>
-        /// <param name="buttonBackColor">The background colour for buttons.</param>
-        /// <param name="controlForeColor">The general foreground (text) colour.</param>
+        /// <param name="palette">The colour palette to use for theming.</param>
         /// <param name="isDarkMode">A flag indicating if dark mode is currently being applied.</param>
-        private void UpdateControlThemeRecursive(Control parentControl, Color controlBackColor, Color buttonBackColor, Color controlForeColor, bool isDarkMode)
+        private void UpdateControlThemeRecursive(Control parentControl, ThemePalette palette, bool isDarkMode)
         {
+            // The form's own BackColor is set by UIManager.ApplyThemeToExternalForm.
+            // Child container controls should match it.
+            if (parentControl != this)
+            {
+                parentControl.BackColor = this.BackColor;
+            }
+
             foreach (Control control in parentControl.Controls)
             {
                 if (control.IsDisposed) continue; // Skip disposed controls.
@@ -148,42 +132,34 @@ namespace QuoteConversionReportAutomation
                 // Apply theme based on control type.
                 if (control is Button button)
                 {
-                    button.BackColor = buttonBackColor;
-                    button.ForeColor = controlForeColor;
+                    button.BackColor = palette.ButtonBackColor;
+                    button.ForeColor = palette.ButtonForeColor;
                     button.FlatStyle = FlatStyle.Flat;
-                    button.FlatAppearance.BorderColor = isDarkMode ? Color.FromArgb(100, 100, 100) : SystemColors.ControlDarkDark;
+                    button.FlatAppearance.BorderColor = palette.ButtonBorderColor;
                     button.FlatAppearance.BorderSize = 1;
                 }
-                else if (control is TextBox) // Handles TextBox controls.
+                else if (control is TextBox textBox)
                 {
-                    control.BackColor = controlBackColor;
-                    control.ForeColor = controlForeColor;
-                    ((TextBox)control).BorderStyle = isDarkMode ? BorderStyle.FixedSingle : BorderStyle.Fixed3D;
+                    textBox.BackColor = palette.ControlBackColor;
+                    textBox.ForeColor = palette.ControlForeColor;
+                    textBox.BorderStyle = isDarkMode ? BorderStyle.FixedSingle : BorderStyle.Fixed3D;
                 }
-                else if (control is Label)
+                else if (control is Label label)
                 {
-                    control.BackColor = Color.Transparent; // Labels should typically be transparent.
-                    control.ForeColor = controlForeColor;
+                    label.BackColor = Color.Transparent; // Labels should typically be transparent.
+                    label.ForeColor = palette.LabelForeColor;
                 }
-                else if (control is GroupBox gb) // GroupBoxes are containers.
+                else if (control is GroupBox gb)
                 {
-                    gb.ForeColor = controlForeColor; // Text colour for the GroupBox title.
-                    gb.BackColor = parentControl.BackColor; // Match parent's background.
-                    UpdateControlThemeRecursive(gb, controlBackColor, buttonBackColor, controlForeColor, isDarkMode); // Recurse.
+                    gb.ForeColor = palette.GroupBoxForeColor; // Text colour for the GroupBox title.
+                    gb.BackColor = this.BackColor; // Match form's background.
+                    UpdateControlThemeRecursive(gb, palette, isDarkMode); // Recurse.
                 }
-                else if (control is Panel || control is TableLayoutPanel) // Other common containers.
+                else if (control is Panel || control is TableLayoutPanel)
                 {
-                    control.BackColor = parentControl.BackColor; // Match parent's background.
-                    control.ForeColor = controlForeColor;
-                    UpdateControlThemeRecursive(control, controlBackColor, buttonBackColor, controlForeColor, isDarkMode); // Recurse.
-                }
-                else // For other simple controls not explicitly handled.
-                {
-                    if (control.Visible) // Only theme visible controls.
-                    {
-                        control.BackColor = controlBackColor;
-                        control.ForeColor = controlForeColor;
-                    }
+                    control.BackColor = this.BackColor; // Match form's background.
+                    control.ForeColor = palette.FormForeColor;
+                    UpdateControlThemeRecursive(control, palette, isDarkMode); // Recurse.
                 }
             }
         }
@@ -198,45 +174,40 @@ namespace QuoteConversionReportAutomation
         /// </summary>
         private void InitializeManualCustomGreetingControl()
         {
-            // Attempt to find the TextBox by name, assuming it might have been added in the designer.
+            // This method's logic is for control creation, not theming, so it remains unchanged.
+            // Theming is applied globally in Form_Load after this method runs.
+            #region Original Method Content
             Control[] foundControls = this.Controls.Find("txtManualCustom", true);
             if (foundControls.Length > 0 && foundControls[0] is TextBox)
             {
                 txtManualCustom = (TextBox)foundControls[0];
                 Logger.LogDebug("Manual Custom greeting TextBox found by name (likely from designer).");
             }
-            else // If the TextBox was not found, create it programmatically.
+            else
             {
                 Logger.LogDebug("Manual Custom greeting TextBox not found by name. Creating it programmatically.");
 
-                // Create the Label for the "Manual Custom" greeting.
                 Label lblManualCustom = new Label
                 {
                     Text = "Manual Custom Greeting:",
-                    Anchor = AnchorStyles.Right | AnchorStyles.Top, // Align like other labels.
+                    Anchor = AnchorStyles.Right | AnchorStyles.Top,
                     AutoSize = true,
-                    Margin = new Padding(3, 6, 3, 3) // Consistent margin.
+                    Margin = new Padding(3, 6, 3, 3)
                 };
 
-                // Create the TextBox for the "Manual Custom" greeting.
                 txtManualCustom = new TextBox
                 {
                     Name = "txtManualCustom",
-                    Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top, // Fill width.
-                    Height = 20 // Standard height.
+                    Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top,
+                    Height = 20
                 };
 
-                // Add a new row to the TableLayoutPanel for these controls.
-                // This assumes mainTableLayoutPanel is correctly initialised from the designer.
                 if (mainTableLayoutPanel != null)
                 {
                     int newRowIndex = mainTableLayoutPanel.RowCount;
                     mainTableLayoutPanel.RowCount = newRowIndex + 1;
-                    // Define the style for the new row (e.g., percentage-based height).
-                    // This should match the style of other data rows for consistency.
-                    mainTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F / (mainTableLayoutPanel.RowCount - 1))); // Adjust percentage based on new total rows (excluding header)
+                    mainTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F / (mainTableLayoutPanel.RowCount - 1)));
 
-                    // Add the new label and textbox to the TableLayoutPanel.
                     mainTableLayoutPanel.Controls.Add(lblManualCustom, 0, newRowIndex);
                     mainTableLayoutPanel.Controls.Add(txtManualCustom, 1, newRowIndex);
                     Logger.LogInfo("Programmatically added UI elements for Manual Custom greeting.");
@@ -246,6 +217,7 @@ namespace QuoteConversionReportAutomation
                     Logger.LogError("mainTableLayoutPanel is null. Cannot add Manual Custom greeting controls programmatically.");
                 }
             }
+            #endregion
         }
 
         /// <summary>
@@ -254,29 +226,29 @@ namespace QuoteConversionReportAutomation
         /// </summary>
         private void LoadGreetingsToForm()
         {
+            // This method's logic is unchanged.
+            #region Original Method Content
             UserGreetingSettings effectiveGreetings = _greetingManager.GetCurrentEffectiveGreetings();
 
-            // Populate TextBoxes with greetings for standard scenarios.
             txtAutoRunDaily.Text = effectiveGreetings.AutoRunDaily;
             txtManualStdDaily.Text = effectiveGreetings.ManualStdDaily;
             txtAutoRunDaily5Day1k.Text = effectiveGreetings.AutoRunDaily5Day1k;
             txtManualFemi.Text = effectiveGreetings.ManualFemi;
             txtManualTeam.Text = effectiveGreetings.ManualTeam;
 
-            // Populate the "Manual Custom" greeting TextBox (check for null if dynamically added).
             if (txtManualCustom != null)
             {
                 txtManualCustom.Text = effectiveGreetings.ManualCustom;
             }
 
 #if DEBUG
-            // Populate the debug greeting TextBox (only compiled in Debug mode).
-            if (txtDebugDefault != null) 
+            if (txtDebugDefault != null)
             {
                 txtDebugDefault.Text = effectiveGreetings.DebugDefault;
             }
 #endif
             Logger.LogInfo("Loaded current greetings into ManageGreetingsForm.");
+            #endregion
         }
 
         /// <summary>
@@ -284,32 +256,30 @@ namespace QuoteConversionReportAutomation
         /// </summary>
         private void SetupToolTips()
         {
-            // Ensure the ToolTipProvider component is initialised.
+            // This method's logic is unchanged.
+            #region Original Method Content
             if (this.toolTipProvider == null)
             {
                 this.toolTipProvider = new ToolTip(this.components ?? (this.components = new System.ComponentModel.Container()));
             }
-            // Set tooltips for each greeting field.
             toolTipProvider.SetToolTip(txtAutoRunDaily, "Greeting for automated standard daily reports.");
             toolTipProvider.SetToolTip(txtManualStdDaily, "Greeting for manually run standard daily reports.");
             toolTipProvider.SetToolTip(txtAutoRunDaily5Day1k, "Greeting for automated 'Daily (5days >= £1k)' reports.");
             toolTipProvider.SetToolTip(txtManualFemi, "Greeting for manual non-daily reports when 'Femi Only' is selected.");
             toolTipProvider.SetToolTip(txtManualTeam, "Greeting for manual non-daily reports for the general team.");
 
-            // Tooltip for "Manual Custom" greeting (check for null if dynamically added).
             if (txtManualCustom != null)
             {
                 toolTipProvider.SetToolTip(txtManualCustom, "Greeting for manually run 'Custom' type reports.");
             }
 
 #if DEBUG
-            // Tooltip for debug greeting (only compiled in Debug mode).
             if (txtDebugDefault != null) toolTipProvider.SetToolTip(txtDebugDefault, "Default greeting for all reports in DEBUG mode.");
 #endif
-            // Tooltips for action buttons.
             toolTipProvider.SetToolTip(btnSave, "Save your custom greetings. They will override app defaults.");
             toolTipProvider.SetToolTip(btnRestoreDefaults, "Remove all custom greetings and revert to those defined in appsettings.json.");
             toolTipProvider.SetToolTip(btnClose, "Close this window without saving current changes.");
+            #endregion
         }
         #endregion
 
@@ -319,13 +289,11 @@ namespace QuoteConversionReportAutomation
         /// Gathers the greeting texts from the form, creates a <see cref="UserGreetingSettings"/> object,
         /// and saves it using the <see cref="GreetingManager"/>.
         /// </summary>
-        /// <param name="sender">The source of the event.</param>
-        /// <param name="e">An <see cref="EventArgs"/> that contains no event data.</param>
         private void BtnSave_Click(object sender, EventArgs e)
         {
+            // This method's logic is unchanged.
+            #region Original Method Content
             Logger.LogInfo("Save button clicked on ManageGreetingsForm.");
-            // Create a new UserGreetingSettings object from the current form values.
-            // Use null if a TextBox is empty, so the GreetingManager can fall back to defaults.
             var newOverrides = new UserGreetingSettings
             {
                 AutoRunDaily = string.IsNullOrWhiteSpace(txtAutoRunDaily.Text) ? null : txtAutoRunDaily.Text.Trim(),
@@ -333,25 +301,18 @@ namespace QuoteConversionReportAutomation
                 AutoRunDaily5Day1k = string.IsNullOrWhiteSpace(txtAutoRunDaily5Day1k.Text) ? null : txtAutoRunDaily5Day1k.Text.Trim(),
                 ManualFemi = string.IsNullOrWhiteSpace(txtManualFemi.Text) ? null : txtManualFemi.Text.Trim(),
                 ManualTeam = string.IsNullOrWhiteSpace(txtManualTeam.Text) ? null : txtManualTeam.Text.Trim(),
-                // Get value for "Manual Custom" greeting (check for null if dynamically added).
                 ManualCustom = (txtManualCustom != null && !string.IsNullOrWhiteSpace(txtManualCustom.Text)) ? txtManualCustom.Text.Trim() : null
             };
 
 #if DEBUG
-            // Handle debug greeting (only compiled in Debug mode).
             if (txtDebugDefault != null)
             {
                 newOverrides.DebugDefault = string.IsNullOrWhiteSpace(txtDebugDefault.Text) ? null : txtDebugDefault.Text.Trim();
             }
 #else
-            // In Release mode, preserve the existing debug override to prevent accidental clearing.
-            // This requires getting the current user-specific override for DebugDefault if one exists.
-            // For simplicity here, we'll assume if not in DEBUG, the DebugDefault from effective settings (which could be app default) is preserved.
-            // A more robust way would be for GreetingManager to expose a method to get *only* user overrides.
             newOverrides.DebugDefault = _greetingManager.GetCurrentEffectiveGreetings().DebugDefault;
 #endif
 
-            // Confirm with the user before saving.
             DialogResult confirmSaveResult = FlexibleMessageBox.Show(this, "Do you want to save these email greetings?\nEmpty fields will revert to application defaults.",
                 "Confirm Save Greetings", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
@@ -359,21 +320,21 @@ namespace QuoteConversionReportAutomation
             {
                 try
                 {
-                    // Save the new overrides using the GreetingManager.
                     _greetingManager.SaveUserGreetingOverrides(newOverrides);
                     Logger.LogInfo("User confirmed and email greetings saved successfully.");
                     FlexibleMessageBox.Show(this, "Email greeting settings have been saved.",
                         "Settings Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    DialogResult = DialogResult.OK; // Set DialogResult for the calling form.
-                    Close(); // Close the form.
+                    DialogResult = DialogResult.OK;
+                    Close();
                 }
-                catch (Exception ex) // Handle potential errors during saving.
+                catch (Exception ex)
                 {
                     Logger.LogError($"Failed to save email greeting settings: {ex.Message}", ex);
                     FlexibleMessageBox.Show(this, $"An error occurred while saving the greeting settings:\n\n{ex.Message}",
                         "Save Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+            #endregion
         }
 
         /// <summary>
@@ -381,12 +342,11 @@ namespace QuoteConversionReportAutomation
         /// Clears all user-defined greeting overrides, causing the application to revert to
         /// the default greetings specified in `appsettings.json`.
         /// </summary>
-        /// <param name="sender">The source of the event.</param>
-        /// <param name="e">An <see cref="EventArgs"/> that contains no event data.</param>
         private void BtnRestoreDefaults_Click(object sender, EventArgs e)
         {
+            // This method's logic is unchanged.
+            #region Original Method Content
             Logger.LogInfo("Restore Defaults button clicked on ManageGreetingsForm.");
-            // Confirm with the user before clearing their custom settings.
             DialogResult confirmRestoreResult = FlexibleMessageBox.Show(this, "Are you sure you want to restore all greetings to application defaults?\nThis will remove any custom greetings you have saved.",
                 "Confirm Restore Defaults", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
 
@@ -394,33 +354,30 @@ namespace QuoteConversionReportAutomation
             {
                 try
                 {
-                    // Clear user overrides via the GreetingManager.
                     _greetingManager.ClearUserGreetingOverrides();
-                    // Reload the form fields to reflect the restored default settings.
                     LoadGreetingsToForm();
                     Logger.LogInfo("User confirmed and email greetings restored to defaults.");
                     FlexibleMessageBox.Show(this, "Email greeting settings have been restored to application defaults.",
                         "Defaults Restored", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
-                catch (Exception ex) // Handle potential errors during the restore process.
+                catch (Exception ex)
                 {
                     Logger.LogError($"Failed to restore default email greeting settings: {ex.Message}", ex);
                     FlexibleMessageBox.Show(this, $"An error occurred while restoring default settings:\n\n{ex.Message}",
                         "Restore Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
+            #endregion
         }
 
         /// <summary>
         /// Handles the Click event for the "Close" button.
         /// Closes the form without saving any pending changes.
         /// </summary>
-        /// <param name="sender">The source of the event.</param>
-        /// <param name="e">An <see cref="EventArgs"/> that contains no event data.</param>
         private void BtnClose_Click(object sender, EventArgs e)
         {
-            DialogResult = DialogResult.Cancel; // Set DialogResult to Cancel.
-            Close(); // Close the form.
+            DialogResult = DialogResult.Cancel;
+            Close();
         }
         #endregion
     }

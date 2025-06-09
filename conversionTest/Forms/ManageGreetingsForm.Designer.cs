@@ -1,4 +1,4 @@
-﻿namespace QuoteConversionReportAutomation
+﻿namespace QuoteConversionReportAutomation.Forms
 {
     partial class ManageGreetingsForm
     {

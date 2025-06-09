@@ -16,8 +16,8 @@ using System.Text.Json; // For System.Text.Json serialization/deserialization.
 using Microsoft.Extensions.Configuration; // For IConfiguration.
 
 // Project specific namespaces
-using QuoteConversionReportAutomation.Helpers; // For EmailUtility (specifically IsValidEmail).
 using QuoteConversionReportAutomation.Models;   // For UserEmailSettings, AutoReportDefinition.
+using QuoteConversionReportAutomation.Services.Communication;
 using QuoteConversionReportAutomation.Services.Logging; // For Logger.
 #endregion
 

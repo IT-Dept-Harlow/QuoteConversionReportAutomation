@@ -8,6 +8,72 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
 
 ---
 
+## [1.9.4] - 2025-06-05
+
+### Added
+-   **Dependency Injection (`Microsoft.Extensions.DependencyInjection`)**:
+    -   Integrated DI container setup in `Program.cs` to manage service lifetimes and dependencies.
+    -   Services (`IReportPathService`, `EmailUtility`, `NamedPipeCommunicator`, `ExcelCopyData`, `ReportProcessManager`, `EmailRecipientManager`, `GreetingManager`, `IManualReportOrchestrator`, `AutoRunManager`) registered as singletons.
+    -   Dialog forms (`SettingsForm`, `ManageAutoReportDefinitionsForm`, etc.) registered with transient lifetimes using factories (`Func<bool, TForm>`) to allow passing runtime parameters (e.g., dark mode state).
+-   **`IAutoRunUIContext` Interface**:
+    -   Defined in `QuoteConversionReportAutomation.Interfaces` to decouple `AutoRunManager` from `Form1`'s `UIManager`.
+    -   `Form1` now implements this interface, providing UI update methods for `AutoRunManager`.
+-   **Centralized Theming Engine (`ThemeSettings.cs`)**:
+    -   Created `ThemeSettings.cs` in `QuoteConversionReportAutomation.Theming` namespace.
+    -   This static class holds:
+        -   `ApplicationThemeMode` enum (Light, Dark, System).
+        -   `ThemePalette` struct defining a comprehensive set of UI colors for various controls and states (including `MenuDropDownBackColor`).
+        -   Static `LightPalette` and `DarkPalette` properties.
+        -   `CurrentPalette` property to get the active theme's colors.
+        -   `EnableCustomTheming` static boolean flag to globally enable or disable custom application theming.
+        -   `IsWindowsDarkModeEnabled()` static method (moved from `UIManager`) to detect OS dark mode preference via the registry.
+        -   `SyncThemeWithSystem()` static method to initialize `CurrentThemeMode` based on OS settings.
+-   **Externalized Menu Renderers (`CustomMenuRenderers.cs`)**:
+    -   Moved `CustomThemeMenuRenderer` and `CustomThemeColorTable` classes from `UIManager.cs` into a new dedicated file, `CustomMenuRenderers.cs`, under the `QuoteConversionReportAutomation.Theming` namespace.
+
+### Changed
+-   **Application Startup (`Program.cs`)**:
+    -   Modified to initialize and build the DI service provider.
+    -   `Form1` is now resolved from the DI container.
+    -   Calls `ThemeSettings.SyncThemeWithSystem()` on startup.
+    -   Corrected `Lazy<T>` registration for `AutoRunManager` by explicitly registering `Lazy<IAutoRunUIContext>` with its own factory.
+-   **`Form1.cs` Refactoring**:
+    -   Constructor updated for DI (receives services, managers, `IServiceProvider`).
+    -   Implements `IAutoRunUIContext`.
+    -   Dialog forms are opened using `_serviceProvider` and registered factories, passing `ThemeSettings.IsCurrentlyDark()`.
+    -   Dark mode toggle (`darkModeToolStripMenuItem_Click`) now updates `ThemeSettings.CurrentThemeMode` and calls `_uiManager.ApplyTheme()`.
+    -   Uses `ThemeSettings.IsCurrentlyDark()` for determining theme state for dialogs and internal logic.
+    -   Help text (`helpToolStripMenuItem_Click`) now loaded from external RTF files (`Help_Template_Dark.rtf` and `Help_Template_Light.rtf`) with placeholder replacement for dynamic content.
+-   **`AutoRunManager.cs` Refactoring**:
+    -   Constructor updated for DI, now accepts `Lazy<IAutoRunUIContext>` to resolve circular dependency.
+    -   Derives `appSettingsDirectory` (for `autoReportDefinitions.json`) from injected `IReportPathService` and `initialAutoRunHour` from injected `IConfiguration`, simplifying its constructor signature for DI.
+    -   UI updates are now done via `_lazyAutoRunUIContext.Value` (which is `Form1`).
+-   **`UIManager.cs` Refactoring**:
+    -   Removed hardcoded color constants; all colors are fetched from `ThemeSettings.CurrentPalette`.
+    * `CustomThemeMenuRenderer` and `CustomThemeColorTable` updated to use `ThemePalette` and `isCustomThemeEnabled` flag.
+    -   Theming methods (`ApplyThemeInternal`, `ApplyThemeToExternalForm`, `UpdateControlThemeRecursive`, `UpdateAutoRunUI`) now respect `ThemeSettings.EnableCustomTheming` and use `ThemeSettings.CurrentPalette`.
+    -   Reverts to system default appearances if `ThemeSettings.EnableCustomTheming` is `false`.
+    -   Removed its local `IsWindowsDarkModeEnabled()`; calls `ThemeSettings.IsWindowsDarkModeEnabled()`.
+    -   Corrected `DataGridViewCellStyle` reset when custom theming is disabled.
+    -   Corrected menu strip text rendering in `CustomThemeMenuRenderer`.
+-   **`HelpForm.cs` Refactoring**:
+    * Constructor simplified (removed `isDarkMode` parameter).
+    * Theming logic (`HelpForm_Load`, `ApplyChildControlTheme`) updated to use the centralized `ThemeSettings` for all color and theme state decisions.
+    * Correctly calls `UIManager.ApplyThemeToExternalForm(this, ThemeSettings.IsCurrentlyDark())`.
+
+### Fixed
+-   **Circular Dependency**: Resolved startup issue between `Form1` and `AutoRunManager` using `Lazy<IAutoRunUIContext>` and correct DI registration.
+-   **DI `Lazy<T>` Resolution Error**: Corrected registration of `Lazy<IAutoRunUIContext>` in `Program.cs` for `AutoRunManager`'s factory.
+-   **Namespace/Type Not Found Errors (CS0246)**: Addressed by ensuring correct `namespace` declarations in form files and corresponding `using` directives.
+-   **Duplicate Control Definitions (CS0229, CS0102)**: Fixed in `HelpForm.cs` by removing manual control field declarations, relying on those in `HelpForm.Designer.cs`.
+-   **MenuStrip Text Rendering**: Corrected `CustomThemeMenuRenderer.OnRenderItemText` to call base method, making menu text visible again.
+-   **`IsWindowsDarkModeEnabled` Call Chain**: Ensured `ThemeSettings.SyncThemeWithSystem()` calls its local method and `UIManager` calls `ThemeSettings.IsWindowsDarkModeEnabled()`.
+-   **`DataGridViewCellStyle.Reset` (CS1061)**: Implemented proper reset logic for `DataGridViewCellStyle` in `UIManager.cs`.
+-   **`_toggleAutoRunButton` Access (CS0103)**: Corrected in `Form1.cs` by delegating to `UIManager`. Added `ReEnableControlsAfterAutoRun` to `UIManager`.
+-   **`MenuBackColor` Property (CS1061)**: Added missing `MenuDropDownBackColor` to `ThemePalette` in `ThemeSettings.cs` and updated `UIManager.cs`'s renderers to use it.
+
+---
+
 ## [1.9.3] - 2025-06-02
 
 ### Added

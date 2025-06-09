@@ -50,7 +50,7 @@ namespace QuoteConversionReportAutomation.Helpers
         private static string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         private static string companyFolder = "HarlowSolutions";
         private static string appFolder = "QuoteConversionReportAutomation";
-        private static readonly string s_customHolidaysFilePath = Path.Combine(appDataPath, companyFolder, appFolder, "user_email_settings.json");
+        private static readonly string s_customHolidaysFilePath = Path.Combine(appDataPath, companyFolder, appFolder, "custom_bank_holidays.json");
 
         /// <summary>
         /// Initializes the BankHolidayHelper by loading custom bank holidays from the persistent store.

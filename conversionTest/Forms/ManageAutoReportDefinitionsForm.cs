@@ -13,6 +13,7 @@ using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Extensions.Configuration; // Required for IConfiguration
 using System.IO;
+using QuoteConversionReportAutomation.Theming; // Import the new Theming namespace
 #endregion
 
 namespace QuoteConversionReportAutomation.Forms
@@ -58,11 +59,6 @@ namespace QuoteConversionReportAutomation.Forms
         private BindingList<AutoReportDefinition> _bindingList;
 
         /// <summary>
-        /// Flag indicating whether the dark mode theme is currently active, passed from the parent form.
-        /// </summary>
-        private readonly bool _isDarkMode;
-
-        /// <summary>
         /// Holds a reference to the <see cref="AutoReportDefinition"/> object that is currently
         /// selected in the DataGridView and whose details are populated in the input fields for editing or viewing.
         /// </summary>
@@ -84,14 +80,12 @@ namespace QuoteConversionReportAutomation.Forms
         /// </summary>
         /// <param name="configuration">The application's main configuration settings.</param>
         /// <param name="appSettingsPath">The full path to the main `appsettings.json` file. This is used to locate the directory for `autoReportDefinitions.json`.</param>
-        /// <param name="isDarkMode">A flag indicating whether dark mode should be applied to the form's visual theme.</param>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="configuration"/> or <paramref name="appSettingsPath"/> is null.</exception>
         /// <exception cref="DirectoryNotFoundException">Thrown if the directory containing `appSettingsPath` cannot be determined, which prevents locating the `autoReportDefinitions.json` file.</exception>
-        public ManageAutoReportDefinitionsForm(IConfiguration configuration, string appSettingsPath, bool isDarkMode)
+        public ManageAutoReportDefinitionsForm(IConfiguration configuration, string appSettingsPath)
         {
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _appSettingsPath = appSettingsPath ?? throw new ArgumentNullException(nameof(appSettingsPath));
-            _isDarkMode = isDarkMode;
 
             // Determine the path for the dedicated report definitions file.
             // It's expected to be in the same directory as the main appsettings.json.
@@ -131,11 +125,11 @@ namespace QuoteConversionReportAutomation.Forms
         /// <param name="e">An <see cref="EventArgs"/> that contains no event data.</param>
         private void ManageAutoReportDefinitionsForm_Load(object? sender, EventArgs e)
         {
-            Logger.LogInfo($"ManageAutoReportDefinitionsForm loading. DarkMode: {_isDarkMode}");
+            Logger.LogInfo($"ManageAutoReportDefinitionsForm loading. Theme: {ThemeSettings.CurrentThemeMode}");
             // Apply the theme to the form itself (title bar, main background/foreground).
-            UIManager.ApplyThemeToExternalForm(this, _isDarkMode);
+            UIManager.ApplyThemeToExternalForm(this, ThemeSettings.IsCurrentlyDark());
             // Apply the theme to all child controls within this form.
-            ApplyChildControlTheme(_isDarkMode);
+            ApplyChildControlTheme();
             // Set input fields to a default empty/initial state.
             ClearInputFields();
             // Ensure no row in the DataGridView is initially selected.
@@ -151,17 +145,13 @@ namespace QuoteConversionReportAutomation.Forms
         /// <summary>
         /// Applies the current theme (dark or light mode) specifically to the child controls of this form.
         /// This method iterates through controls and customizes their appearance (BackColor, ForeColor, etc.)
-        /// based on the active theme.
+        /// based on the active theme from <see cref="ThemeSettings"/>.
         /// </summary>
-        /// <param name="isDarkModeEnabled">True if dark mode is enabled; otherwise, false for light mode.</param>
-        private void ApplyChildControlTheme(bool isDarkModeEnabled)
+        private void ApplyChildControlTheme()
         {
-            // Define color palettes for dark and light modes for various control types.
-            Color formBackColor = isDarkModeEnabled ? Color.FromArgb(45, 45, 48) : SystemColors.Control;
-            Color controlBackColor = isDarkModeEnabled ? Color.FromArgb(60, 60, 63) : SystemColors.Window;
-            Color buttonBackColor = isDarkModeEnabled ? Color.FromArgb(80, 80, 80) : SystemColors.Control;
-            Color controlForeColor = isDarkModeEnabled ? Color.WhiteSmoke : SystemColors.ControlText;
-            Color labelForeColor = isDarkModeEnabled ? Color.FromArgb(200, 200, 200) : SystemColors.ControlText;
+            // Get the current color palette from the centralized ThemeSettings.
+            var palette = ThemeSettings.CurrentPalette;
+            bool isDarkModeEnabled = ThemeSettings.IsCurrentlyDark();
 
             // Recursive action to apply themes to a control and all its children.
             Action<Control> themeAction = null!;
@@ -174,61 +164,61 @@ namespace QuoteConversionReportAutomation.Forms
                     // Apply theme based on the type of the control.
                     if (control is Button button)
                     {
-                        button.BackColor = buttonBackColor;
-                        button.ForeColor = controlForeColor;
+                        button.BackColor = palette.ButtonBackColor;
+                        button.ForeColor = palette.ButtonForeColor;
                         button.FlatStyle = FlatStyle.Flat; // Use flat style for better custom theme appearance.
-                        button.FlatAppearance.BorderColor = isDarkModeEnabled ? Color.FromArgb(100, 100, 100) : SystemColors.ControlDarkDark;
+                        button.FlatAppearance.BorderColor = palette.ButtonBorderColor;
                         button.FlatAppearance.BorderSize = 1;
                     }
                     else if (control is TextBox || control is RichTextBox || control is NumericUpDown)
                     {
-                        control.BackColor = controlBackColor;
-                        control.ForeColor = controlForeColor;
+                        control.BackColor = palette.ControlBackColor;
+                        control.ForeColor = palette.ControlForeColor;
                         if (control is TextBox tb) tb.BorderStyle = isDarkModeEnabled ? BorderStyle.FixedSingle : BorderStyle.Fixed3D;
                     }
                     else if (control is ComboBox cb)
                     {
-                        cb.BackColor = controlBackColor;
-                        cb.ForeColor = controlForeColor;
+                        cb.BackColor = palette.ControlBackColor;
+                        cb.ForeColor = palette.ControlForeColor;
                         cb.FlatStyle = FlatStyle.Flat; // Flat style for ComboBox.
                     }
                     else if (control is CheckBox chk)
                     {
                         chk.BackColor = Color.Transparent; // Checkboxes often look better with transparent backgrounds.
-                        chk.ForeColor = labelForeColor;
+                        chk.ForeColor = palette.LabelForeColor;
                     }
                     else if (control is Label lbl)
                     {
                         lbl.BackColor = Color.Transparent; // Labels should have transparent backgrounds.
-                        lbl.ForeColor = labelForeColor;
+                        lbl.ForeColor = palette.LabelForeColor;
                     }
                     else if (control is DataGridView dgv)
                     {
-                        // Apply detailed theming to the DataGridView.
+                        // Apply detailed theming to the DataGridView using the palette.
                         dgv.EnableHeadersVisualStyles = false; // Required for custom header styling.
-                        dgv.ColumnHeadersDefaultCellStyle.BackColor = isDarkModeEnabled ? Color.FromArgb(55, 55, 58) : SystemColors.Control;
-                        dgv.ColumnHeadersDefaultCellStyle.ForeColor = controlForeColor;
-                        dgv.ColumnHeadersDefaultCellStyle.SelectionBackColor = dgv.ColumnHeadersDefaultCellStyle.BackColor; // Prevent selection highlight on header.
-                        dgv.RowHeadersDefaultCellStyle.BackColor = isDarkModeEnabled ? Color.FromArgb(55, 55, 58) : SystemColors.Control;
+                        dgv.ColumnHeadersDefaultCellStyle.BackColor = palette.DataGridViewHeaderBackColor;
+                        dgv.ColumnHeadersDefaultCellStyle.ForeColor = palette.DataGridViewHeaderForeColor;
+                        dgv.ColumnHeadersDefaultCellStyle.SelectionBackColor = palette.DataGridViewHeaderBackColor; // Prevent selection highlight on header.
+                        dgv.RowHeadersDefaultCellStyle.BackColor = palette.DataGridViewRowHeaderBackColor;
 
-                        dgv.DefaultCellStyle.BackColor = controlBackColor; // Background for cells.
-                        dgv.DefaultCellStyle.ForeColor = controlForeColor; // Text color for cells.
-                        dgv.DefaultCellStyle.SelectionBackColor = isDarkModeEnabled ? Color.FromArgb(0, 120, 215) : SystemColors.Highlight; // Selection background.
-                        dgv.DefaultCellStyle.SelectionForeColor = isDarkModeEnabled ? Color.White : SystemColors.HighlightText; // Selection text color.
+                        dgv.DefaultCellStyle.BackColor = palette.DataGridViewCellBackColor; // Background for cells.
+                        dgv.DefaultCellStyle.ForeColor = palette.DataGridViewCellForeColor; // Text color for cells.
+                        dgv.DefaultCellStyle.SelectionBackColor = palette.DataGridViewSelectionBackColor; // Selection background.
+                        dgv.DefaultCellStyle.SelectionForeColor = palette.DataGridViewSelectionForeColor; // Selection text color.
 
-                        dgv.BackgroundColor = formBackColor; // Grid background to match form.
-                        dgv.GridColor = isDarkModeEnabled ? Color.FromArgb(80, 80, 80) : SystemColors.ControlDark; // Grid line color.
+                        dgv.BackgroundColor = palette.FormBackColor; // Grid background to match form.
+                        dgv.GridColor = palette.DataGridViewGridColor; // Grid line color.
                     }
                     else if (control is GroupBox gb)
                     {
-                        gb.ForeColor = labelForeColor; // GroupBox title text color.
-                        gb.BackColor = formBackColor;  // GroupBox background matches form.
-                        themeAction(gb);               // Recursively theme controls within the GroupBox.
+                        gb.ForeColor = palette.GroupBoxForeColor; // GroupBox title text color.
+                        gb.BackColor = palette.FormBackColor;     // GroupBox background matches form.
+                        themeAction(gb);                          // Recursively theme controls within the GroupBox.
                     }
                     else if (control is Panel pnl) // Handle Panels (like FlowLayoutPanel for buttons)
                     {
-                        pnl.BackColor = formBackColor; // Panel background matches form.
-                        themeAction(pnl);              // Recursively theme controls within the Panel.
+                        pnl.BackColor = palette.FormBackColor; // Panel background matches form.
+                        themeAction(pnl);                     // Recursively theme controls within the Panel.
                     }
                     else if (control.HasChildren) // For other container controls.
                     {

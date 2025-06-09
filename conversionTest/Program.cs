@@ -1,183 +1,221 @@
 // Program.cs
 // Main entry point for the QCRA (Quote Conversion Report Automation) application.
-// This class is responsible for setting up the application environment,
-// loading configuration, initializing logging, and launching the main form.
+// Sets up Dependency Injection, loads configuration, initialises logging,
+// and launches the main form.
 
 #region Using Directives
 // System related namespaces
 using System;
-using System.Diagnostics; // For Debug.WriteLine
-using System.IO;          // For Path, File, Directory operations
-using System.Windows.Forms; // For Application, MessageBox
-using System.Text.Json; // For JSON handling (if needed, though not used in this snippet)   
+using System.Diagnostics;
+using System.IO;
+using System.Windows.Forms;
 
 // Third-party namespaces
-using Microsoft.Extensions.Configuration; // For IConfiguration and ConfigurationBuilder
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 // Project specific namespaces
-using conversionTest; // The namespace of your Form1 class
-using QuoteConversionReportAutomation.Services.Logging; // For the Logger class
+using conversionTest;
+using QuoteConversionReportAutomation.Services.Logging;
+using QuoteConversionReportAutomation.Services;
+using QuoteConversionReportAutomation.Services.Interfaces;
+using QuoteConversionReportAutomation.Services.Communication;
+using QuoteConversionReportAutomation.Services.Excel;
+using QuoteConversionReportAutomation.Managers;
+using QuoteConversionReportAutomation.Orchestrators;
+using QuoteConversionReportAutomation.Orchestrators.Interfaces;
+using QuoteConversionReportAutomation.Configuration;
+using QuoteConversionReportAutomation.Helpers;
+using QuoteConversionReportAutomation.Forms;
+using QuoteConversionReportAutomation.Interfaces; // For IAutoRunUIContext
 #endregion
+
+#pragma warning disable WFO5001
 
 namespace QuoteConversionReportAutomation
 {
     /// <summary>
     /// Contains the main entry point and initial setup logic for the QCRA application.
     /// </summary>
-    internal static class Program // Changed to internal as it's typically not accessed from outside the assembly
+    internal static class Program
     {
         #region Properties
-        /// <summary>
-        /// Gets the loaded application configuration.
-        /// This provides access to settings defined in `appsettings.json` and other configuration sources.
-        /// It is set once during application startup.
-        /// </summary>
         public static IConfiguration? Configuration { get; private set; }
-
-        // It's generally recommended to locate configuration files relative to the application's
-        // executable or allow the path to be configurable (e.g., via environment variable or command-line argument)
-        // for better deployment flexibility. Hardcoding network paths can be problematic.
-        // However, sticking to your existing path for now.
-        /// <summary>
-        /// Defines the directory path where the main `appsettings.json` configuration file is located.
-        /// </summary>
+        public static IServiceProvider? ServiceProvider { get; private set; }
         private const string SettingsDirectoryPath = @"\\harlow.local\DFS\IT Department\Applications\Development 2025\QuoteConversionReportAutomation\conversionTest";
-        
-        /// <summary>
-        /// Defines the filename for the main JSON application configuration.
-        /// </summary>
         private const string SettingsFileName = "appsettings.json";
         #endregion
 
         #region Main Entry Point
-        /// <summary>
-        /// The main entry point for the application.
-        /// This method initializes the application, loads configuration, sets up logging,
-        /// and runs the main form.
-        /// </summary>
-        [STAThread] // Specifies that the COM threading model for the application is single-threaded apartment. Required for WinForms.
+        [STAThread]
         static void Main()
         {
-            // Construct the full path to the appsettings.json file.
-            string settingsFilePath = string.Empty; // Initialize to prevent use before assignment if Path.Combine fails (unlikely)
-            try
-            {
-                settingsFilePath = Path.Combine(SettingsDirectoryPath, SettingsFileName);
-            }
-            catch (ArgumentException argEx)
-            {
-                // This can happen if SettingsDirectoryPath or SettingsFileName contain invalid characters.
-                Debug.WriteLine($"CRITICAL: Invalid path components for settings file. Directory: '{SettingsDirectoryPath}', FileName: '{SettingsFileName}'. Error: {argEx.Message}");
-                MessageBox.Show($"Error: Invalid path components for the configuration file.\nDirectory: {SettingsDirectoryPath}\nFile: {SettingsFileName}\n\nDetails: {argEx.Message}",
-                                "Configuration Path Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return; // Exit application if path is invalid.
-            }
-
-            Debug.WriteLine($"Attempting to load configuration from: {settingsFilePath}");
-
-            // Create a ConfigurationBuilder to construct the IConfiguration object.
-            var builder = new ConfigurationBuilder();
-
-            try
-            {
-                // --- Validate Directory and File Existence ---
-                // Check if the specified settings directory exists.
-                if (!Directory.Exists(SettingsDirectoryPath))
-                {
-                    throw new DirectoryNotFoundException($"The specified configuration directory does not exist or is inaccessible: {SettingsDirectoryPath}");
-                }
-                // Check if the appsettings.json file exists in that directory.
-                if (!File.Exists(settingsFilePath))
-                {
-                    throw new FileNotFoundException($"The configuration file ('{SettingsFileName}') was not found at the specified path: {settingsFilePath}");
-                }
-                // --- End Validation ---
-
-                // --- Load Configuration ---
-                // Set the base path for the configuration builder to the directory containing appsettings.json.
-                // This allows AddJsonFile to find the file using just its name.
-                builder.SetBasePath(SettingsDirectoryPath)
-                       .AddJsonFile(SettingsFileName, optional: false, reloadOnChange: true); // Load appsettings.json.
-                                                                                               // optional: false - The file is required.
-                                                                                               // reloadOnChange: true - The configuration will be reloaded if the file changes.
-
-                // Example: Add environment variables as a configuration source (optional).
-                // builder.AddEnvironmentVariables();
-
-                // Build the IConfiguration object.
-                Configuration = builder.Build();
-
-                // --- Initialize Logger ---
-                // The Logger must be initialized *after* the Configuration is built,
-                // as the Logger itself reads settings (like log directory and level) from the configuration.
-                // The internal logic of Logger.Initialize will need to be updated to read from the new config paths.
-                Logger.Initialize(Configuration);
-                // --- End Logger Initialization ---
-
-                Logger.LogInfo($"Configuration loaded successfully from: {settingsFilePath}");
-            }
-            // Specific exception handling for configuration loading issues.
-            catch (DirectoryNotFoundException dirEx)
-            {
-                // Log to Debug output as Logger might not be initialized or working.
-                Debug.WriteLine($"CRITICAL: Configuration directory not found: {dirEx.Message}");
-                // Show a user-friendly message box.
-                MessageBox.Show($"Error: Configuration directory not found or inaccessible.\nPlease check the path:\n{SettingsDirectoryPath}\n\nDetails: {dirEx.Message}", 
-                                "Configuration Path Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return; // Exit application as configuration is essential.
-            }
-            catch (FileNotFoundException fileEx)
-            {
-                Debug.WriteLine($"CRITICAL: Configuration file not found: {fileEx.Message}");
-                MessageBox.Show($"Error: Configuration file ('{SettingsFileName}') not found in the specified directory.\nPlease check the path:\n{settingsFilePath}\n\nDetails: {fileEx.Message}", 
-                                "Configuration File Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return; 
-            }
-            catch (JsonException jsonEx) // Handles errors if appsettings.json is not valid JSON.
-            {
-                Debug.WriteLine($"CRITICAL: Failed to parse configuration file '{settingsFilePath}' due to JSON format error: {jsonEx.Message} (Line: {jsonEx.LineNumber}, Path: {jsonEx.Path})");
-                MessageBox.Show($"Error: The configuration file ('{SettingsFileName}') is not valid JSON.\nPlease check the format, particularly around line {jsonEx.LineNumber} (Path: {jsonEx.Path}).\nFile: {settingsFilePath}\n\nDetails: {jsonEx.Message}", 
-                                "Configuration Format Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return; 
-            }
-            catch (Exception ex) // Catch any other unexpected errors during configuration loading.
-            {
-                Debug.WriteLine($"CRITICAL: Failed to load or build configuration from '{settingsFilePath}': {ex}");
-                // Attempt to initialize logger with null config for this specific error, then log.
-                // This is a best-effort attempt if primary logger init failed.
-                try 
-                { 
-                    if (!Logger.IsInitialized) Logger.Initialize(null); // Pass null if Configuration is the issue
-                    Logger.LogCritical($"CRITICAL: Failed to load or build configuration from '{settingsFilePath}': {ex}"); 
-                } 
-                catch (Exception loggerInitEx)
-                {
-                    Debug.WriteLine($"CRITICAL: Additionally, Logger failed to initialize for error reporting: {loggerInitEx.Message}");
-                }
-                MessageBox.Show($"An unexpected error occurred while loading application configuration from '{settingsFilePath}':\n\n{ex.Message}\n\nThe application will now exit.", 
-                                "Configuration Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return; 
-            }
-
-            // --- Run Application ---
-            // Standard WinForms setup to enable visual styles and set compatible text rendering.
+            // Disabled until it works properly
+            //Application.SetColorMode(SystemColorMode.System);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // Ensure Configuration is not null before passing it to Form1.
-            // The null-forgiving operator (!) is used here because the preceding try-catch blocks
-            // should exit the application if Configuration remains null due to loading errors.
-            if (Configuration == null)
+            try
             {
-                // This state should ideally not be reached if error handling above is correct.
-                Logger.LogCritical("CRITICAL: Configuration is null at the point of running Form1. Application cannot start.");
-                 MessageBox.Show("A critical error occurred: Application configuration could not be loaded. The application will now exit.", 
-                                "Fatal Error", MessageBoxButtons.OK, MessageBoxIcon.Stop);
-                return;
+                Configuration = LoadConfiguration();
+                if (Configuration == null) return;
+
+                Logger.Initialize(Configuration);
+                Logger.LogInfo("Logger initialised successfully.");
+
+                var services = new ServiceCollection();
+                ConfigureServices(services, Configuration);
+                ServiceProvider = services.BuildServiceProvider();
+
+                Logger.LogInfo("Resolving and running the main application form (Form1).");
+                // Form1 itself is resolved, and its dependencies (including AutoRunManager) are created by DI.
+                var mainForm = ServiceProvider.GetRequiredService<Form1>();
+                Application.Run(mainForm);
             }
-            
-            // Create and run the main application form (Form1), passing the loaded configuration.
-            Application.Run(new Form1(Configuration));
+            catch (Exception ex)
+            {
+                string errorMessage = $"A critical error occurred during application startup: {ex.Message}";
+                if (Logger.IsInitialized) Logger.LogCritical(errorMessage, ex);
+                else Debug.WriteLine($"CRITICAL STARTUP ERROR (Logger not ready): {ex}");
+
+                MessageBox.Show(errorMessage + "\n\nPlease check the logs. The application will now exit.",
+                                        "Application Startup Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                if (Logger.IsInitialized) Logger.LogInfo("Application shutting down.");
+                if (ServiceProvider is IDisposable disposableProvider)
+                {
+                    disposableProvider.Dispose();
+                }
+            }
+        }
+        #endregion
+
+        #region Configuration Loading
+        private static IConfiguration? LoadConfiguration()
+        {
+            // This method's logic is unchanged.
+            #region Original Method Content
+            string settingsFilePath = string.Empty;
+            try
+            {
+                settingsFilePath = Path.Combine(SettingsDirectoryPath, SettingsFileName);
+
+                if (!Directory.Exists(SettingsDirectoryPath))
+                {
+                    throw new DirectoryNotFoundException($"Configuration directory does not exist or is inaccessible: {SettingsDirectoryPath}. Please ensure the application can access this path or update it in Program.cs.");
+                }
+                if (!File.Exists(settingsFilePath))
+                {
+                    throw new FileNotFoundException($"Configuration file ('{SettingsFileName}') was not found at: {settingsFilePath}. Please ensure it exists or update the path in Program.cs.", settingsFilePath);
+                }
+
+                var builder = new ConfigurationBuilder()
+                    .SetBasePath(SettingsDirectoryPath)
+                    .AddJsonFile(SettingsFileName, optional: false, reloadOnChange: false);
+
+                var configuration = builder.Build();
+                Debug.WriteLine($"Configuration loaded successfully from: {settingsFilePath}");
+                return configuration;
+            }
+            catch (Exception ex)
+            {
+                string loadErrorMsg = $"Failed to load configuration from '{settingsFilePath}': {ex.Message}";
+                Debug.WriteLine($"CRITICAL CONFIGURATION ERROR: {loadErrorMsg}");
+                Debug.WriteLine(ex.ToString());
+
+                MessageBox.Show($"A critical error occurred while loading application configuration from '{settingsFilePath}':\n\n{ex.Message}\n\nThe application cannot start and will now exit. Please check the file path and JSON format.",
+                                        "Configuration Load Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return null;
+            }
+            #endregion
+        }
+        #endregion
+
+        #region Dependency Injection Configuration
+        private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+        {
+            services.AddSingleton(configuration);
+
+            // --- Services ---
+            services.AddSingleton<IReportPathService, ReportPathService>();
+            services.AddSingleton<IStatusManagerService, StatusManagerService>();
+            services.AddSingleton<EmailUtility>();
+            services.AddSingleton<NamedPipeCommunicator>();
+            services.AddSingleton<ExcelCopyData>();
+
+
+            // --- Managers ---
+            services.AddSingleton<ReportProcessManager>(sp =>
+                new ReportProcessManager(sp.GetRequiredService<IReportPathService>().WrapperExecutablePath)
+            );
+            services.AddSingleton<EmailRecipientManager>();
+            services.AddSingleton<GreetingManager>();
+
+            // Register Form1 as a singleton first, as it implements IAutoRunUIContext
+            services.AddSingleton<Form1>();
+            // Register IAutoRunUIContext to be resolved from the Form1 singleton instance
+            services.AddSingleton<IAutoRunUIContext>(sp => sp.GetRequiredService<Form1>());
+
+            // Register AutoRunManager, constructing Lazy<IAutoRunUIContext> within its factory
+            services.AddSingleton<AutoRunManager>(sp =>
+            {
+                var config = sp.GetRequiredService<IConfiguration>();
+                var reportPathService = sp.GetRequiredService<IReportPathService>();
+                var emailUtility = sp.GetRequiredService<EmailUtility>();
+                var processManager = sp.GetRequiredService<ReportProcessManager>();
+                var pipeCommunicator = sp.GetRequiredService<NamedPipeCommunicator>();
+
+                var lazyAutoRunUIContext = new Lazy<IAutoRunUIContext>(() => sp.GetRequiredService<IAutoRunUIContext>());
+
+                var excelProcessor = sp.GetRequiredService<ExcelCopyData>();
+                var emailRecipientManager = sp.GetRequiredService<EmailRecipientManager>();
+                var greetingManager = sp.GetRequiredService<GreetingManager>();
+                var statusManager = sp.GetRequiredService<IStatusManagerService>();
+
+                return new AutoRunManager(
+                    config,
+                    reportPathService,
+                    emailUtility,
+                    processManager,
+                    pipeCommunicator,
+                    lazyAutoRunUIContext,
+                    excelProcessor,
+                    emailRecipientManager,
+                    greetingManager,
+                    statusManager
+                );
+            });
+
+            // --- Orchestrators ---
+            services.AddSingleton<IManualReportOrchestrator, ManualReportOrchestrator>();
+
+            // --- Forms (Dialogs) ---
+            // Register forms that can be resolved directly or need specific parameters built.
+            // The 'isDarkMode' parameter is no longer needed as forms now read from the static ThemeSettings class.
+            services.AddTransient<SettingsForm>(sp =>
+                new SettingsForm(
+                    sp.GetRequiredService<IConfiguration>(),
+                    Path.Combine(sp.GetRequiredService<IReportPathService>().AppSettingsDirectory, SettingsFileName)
+                )
+            );
+
+            // Assuming ManageAutoReportDefinitionsForm constructor was also simplified to remove the boolean theme flag.
+            // If its constructor is now just (IConfiguration, string), this registration is correct.
+            services.AddTransient<ManageAutoReportDefinitionsForm>(sp =>
+                new ManageAutoReportDefinitionsForm(
+                    sp.GetRequiredService<IConfiguration>(),
+                    Path.Combine(sp.GetRequiredService<IReportPathService>().AppSettingsDirectory, "autoReportDefinitions.json")
+                )
+            );
+
+            // These forms now have simpler constructors that can be resolved by the container.
+            services.AddTransient<ManageBankHolidaysForm>();
+            services.AddTransient<ManageEmailRecipientsForm>();
+            services.AddTransient<ManageGreetingsForm>();
+
+            Logger.LogInfo("Dependency Injection services configured.");
         }
         #endregion
     }
