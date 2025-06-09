@@ -1,0 +1,928 @@
+﻿// Form1.Designer.cs
+// Ensure this namespace matches your project structure, e.g., conversionTest
+namespace conversionTest
+{
+    partial class Form1
+    {
+        /// <summary>
+        /// Required designer variable.
+        /// </summary>
+        private System.ComponentModel.IContainer components = null;
+
+        /// <summary>
+        /// Clean up any resources being used.
+        /// </summary>
+        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        #region Windows Form Designer generated code
+
+        /// <summary>
+        /// Required method for Designer support - do not modify
+        /// the contents of this method with the code editor.
+        /// </summary>
+        private void InitializeComponent()
+        {
+            components = new System.ComponentModel.Container();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
+<<<<<<< HEAD
+            startDatePicker = new DateTimePicker();
+            endDatePicker = new DateTimePicker();
+            startDateLabel = new Label();
+            endDateLabel = new Label();
+            createReportButton = new Button();
+            processEmailButton = new Button();
+            oneClickProcessButton = new Button();
+            viewReportButton = new Button();
+            viewAnalysisButton = new Button();
+            statusLabel = new ToolStripStatusLabel();
+            mainStatusStrip = new StatusStrip();
+            autoRunStatusLabel = new ToolStripStatusLabel();
+            sendToFemiOnlyCheckBox = new CheckBox();
+            skipEmailCheckBox = new CheckBox();
+            reportTypeComboBox = new ComboBox();
+            reportTypeLabel = new Label();
+            reportSettingsGroupBox = new GroupBox();
+            emailRecipientLabel = new Label();
+            financialYearLabel = new Label();
+            financialYearComboBox = new ComboBox();
+            toggleAutoRunButton = new Button();
+            dailyCheckTimer = new System.Windows.Forms.Timer(components);
+            menuStrip1 = new MenuStrip();
+            optionsToolStripMenuItem = new ToolStripMenuItem();
+            darkModeToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator7 = new ToolStripSeparator();
+            enable1ClickProcessingToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator6 = new ToolStripSeparator();
+            setAutoRunHourToolStripMenuItem = new ToolStripMenuItem();
+            manageAutomatedReportsToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator8 = new ToolStripSeparator();
+            viewConfigToolStripMenuItem = new ToolStripMenuItem();
+            validateConfigToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator4 = new ToolStripSeparator();
+            manageCustomBankHolidaysToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator3 = new ToolStripSeparator();
+            manageEmailRecipientsToolStripMenuItem = new ToolStripMenuItem();
+            manageGreetingsToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator5 = new ToolStripSeparator();
+            openLogsToolStripMenuItem = new ToolStripMenuItem();
+            openAutoReportDefinitionsFileToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator1 = new ToolStripSeparator();
+            editConfigToolStripMenuItem = new ToolStripMenuItem();
+            toolStripSeparator2 = new ToolStripSeparator();
+            exitToolStripMenuItem = new ToolStripMenuItem();
+            settingsToolStripMenuItem = new ToolStripMenuItem();
+            helpToolStripMenuItem = new ToolStripMenuItem();
+            toolTip1 = new ToolTip(components);
+            mainStatusStrip.SuspendLayout();
+            reportSettingsGroupBox.SuspendLayout();
+            menuStrip1.SuspendLayout();
+            SuspendLayout();
+=======
+            this.startDatePicker = new System.Windows.Forms.DateTimePicker();
+            this.endDatePicker = new System.Windows.Forms.DateTimePicker();
+            this.startDateLabel = new System.Windows.Forms.Label();
+            this.endDateLabel = new System.Windows.Forms.Label();
+            this.createReportButton = new System.Windows.Forms.Button();
+            this.processEmailButton = new System.Windows.Forms.Button();
+            this.oneClickProcessButton = new System.Windows.Forms.Button();
+            this.viewReportButton = new System.Windows.Forms.Button();
+            this.viewAnalysisButton = new System.Windows.Forms.Button();
+            this.statusLabel = new System.Windows.Forms.ToolStripStatusLabel();
+            this.mainStatusStrip = new System.Windows.Forms.StatusStrip();
+            this.autoRunStatusLabel = new System.Windows.Forms.ToolStripStatusLabel();
+            this.sendToFemiOnlyCheckBox = new System.Windows.Forms.CheckBox();
+            this.skipEmailCheckBox = new System.Windows.Forms.CheckBox();
+            this.reportTypeComboBox = new System.Windows.Forms.ComboBox();
+            this.reportTypeLabel = new System.Windows.Forms.Label();
+            this.reportSettingsGroupBox = new System.Windows.Forms.GroupBox();
+            this.emailRecipientLabel = new System.Windows.Forms.Label();
+            this.financialYearLabel = new System.Windows.Forms.Label();
+            this.financialYearComboBox = new System.Windows.Forms.ComboBox();
+            this.toggleAutoRunButton = new System.Windows.Forms.Button();
+            this.dailyCheckTimer = new System.Windows.Forms.Timer(this.components);
+            this.menuStrip1 = new System.Windows.Forms.MenuStrip();
+            this.optionsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.darkModeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator7 = new System.Windows.Forms.ToolStripSeparator();
+            this.enable1ClickProcessingToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator6 = new System.Windows.Forms.ToolStripSeparator();
+            this.setAutoRunHourToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.configureAutoRunReportsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.enableStandardDailyAutoReportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.enableDaily5Day1kAutoReportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.enableWeeklyAutoReportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem(); // Added for Weekly
+            this.toolStripSeparator8 = new System.Windows.Forms.ToolStripSeparator();
+            this.viewConfigToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.validateConfigToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator4 = new System.Windows.Forms.ToolStripSeparator();
+            this.manageCustomBankHolidaysToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator3 = new System.Windows.Forms.ToolStripSeparator();
+            this.manageEmailRecipientsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.manageGreetingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator5 = new System.Windows.Forms.ToolStripSeparator();
+            this.openLogsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.editConfigToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
+            this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
+            this.mainStatusStrip.SuspendLayout();
+            this.reportSettingsGroupBox.SuspendLayout();
+            this.menuStrip1.SuspendLayout();
+            this.SuspendLayout();
+>>>>>>> parent of 171b8e4 (v1.9.2)
+            // 
+            // startDatePicker
+            // 
+            startDatePicker.Location = new Point(261, 103);
+            startDatePicker.Name = "startDatePicker";
+            startDatePicker.Size = new Size(200, 22);
+            startDatePicker.TabIndex = 0;
+            toolTip1.SetToolTip(startDatePicker, "Select the start date for the report period. Modifying this will set the Report Type to 'Custom'.");
+            startDatePicker.ValueChanged += DatePicker_ValueChanged;
+            // 
+            // endDatePicker
+            // 
+            endDatePicker.Location = new Point(261, 135);
+            endDatePicker.Name = "endDatePicker";
+            endDatePicker.Size = new Size(200, 22);
+            endDatePicker.TabIndex = 1;
+            toolTip1.SetToolTip(endDatePicker, "Select the end date for the report period. Modifying this will set the Report Type to 'Custom'.");
+            endDatePicker.ValueChanged += DatePicker_ValueChanged;
+            // 
+            // startDateLabel
+            // 
+            startDateLabel.AutoSize = true;
+            startDateLabel.Location = new Point(157, 109);
+            startDateLabel.Name = "startDateLabel";
+            startDateLabel.Size = new Size(93, 13);
+            startDateLabel.TabIndex = 2;
+            startDateLabel.Text = "Enter From Date:";
+            // 
+            // endDateLabel
+            // 
+            endDateLabel.AutoSize = true;
+            endDateLabel.Location = new Point(157, 141);
+            endDateLabel.Name = "endDateLabel";
+            endDateLabel.Size = new Size(79, 13);
+            endDateLabel.TabIndex = 3;
+            endDateLabel.Text = "Enter To Date:";
+            // 
+            // createReportButton
+            // 
+            createReportButton.FlatStyle = FlatStyle.System;
+            createReportButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            createReportButton.Location = new Point(142, 260);
+            createReportButton.Name = "createReportButton";
+            createReportButton.Size = new Size(130, 71);
+            createReportButton.TabIndex = 5;
+            createReportButton.Text = "Create Report";
+            toolTip1.SetToolTip(createReportButton, "Click to generate the raw Crystal Report based on the selected dates and report type.");
+            createReportButton.UseVisualStyleBackColor = true;
+            createReportButton.Click += createReportButton_Click;
+            // 
+            // processEmailButton
+            // 
+            processEmailButton.FlatStyle = FlatStyle.System;
+            processEmailButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            processEmailButton.Location = new Point(358, 260);
+            processEmailButton.Name = "processEmailButton";
+            processEmailButton.Size = new Size(130, 71);
+            processEmailButton.TabIndex = 6;
+            processEmailButton.Text = "Create Analysis &\r\nSend Email";
+            toolTip1.SetToolTip(processEmailButton, "Click to process the generated raw report, create the final analysis, and email it.");
+            processEmailButton.UseVisualStyleBackColor = true;
+            processEmailButton.Click += processEmailButton_Click;
+            // 
+            // oneClickProcessButton
+            // 
+            oneClickProcessButton.FlatStyle = FlatStyle.System;
+            oneClickProcessButton.Font = new Font("Segoe UI", 9F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            oneClickProcessButton.Location = new Point(220, 260);
+            oneClickProcessButton.Name = "oneClickProcessButton";
+            oneClickProcessButton.Size = new Size(200, 71);
+            oneClickProcessButton.TabIndex = 20;
+            oneClickProcessButton.Text = "Generate, Process && Email Report";
+            toolTip1.SetToolTip(oneClickProcessButton, "Performs all steps: generates the raw report, processes it into the final analysis, and emails it (unless skipped).");
+            oneClickProcessButton.UseVisualStyleBackColor = true;
+            oneClickProcessButton.Click += oneClickProcessButton_Click;
+            // 
+            // viewReportButton
+            // 
+            viewReportButton.AutoSize = true;
+            viewReportButton.FlatStyle = FlatStyle.System;
+            viewReportButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            viewReportButton.Location = new Point(165, 339);
+            viewReportButton.Name = "viewReportButton";
+            viewReportButton.Size = new Size(92, 23);
+            viewReportButton.TabIndex = 8;
+            viewReportButton.Text = "View Raw File";
+            toolTip1.SetToolTip(viewReportButton, "Click to open the generated raw report file.");
+            viewReportButton.UseVisualStyleBackColor = true;
+            viewReportButton.Click += viewReportButton_Click;
+            // 
+            // viewAnalysisButton
+            // 
+            viewAnalysisButton.AutoSize = true;
+            viewAnalysisButton.FlatStyle = FlatStyle.System;
+            viewAnalysisButton.Font = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+            viewAnalysisButton.Location = new Point(355, 339);
+            viewAnalysisButton.Name = "viewAnalysisButton";
+            viewAnalysisButton.Size = new Size(122, 23);
+            viewAnalysisButton.TabIndex = 9;
+            viewAnalysisButton.Text = "View Processed File";
+            toolTip1.SetToolTip(viewAnalysisButton, "Click to open the final processed analysis file.");
+            viewAnalysisButton.UseVisualStyleBackColor = true;
+            viewAnalysisButton.Click += viewAnalysisButton_Click;
+            // 
+            // statusLabel
+            // 
+            statusLabel.Name = "statusLabel";
+            statusLabel.Size = new Size(512, 17);
+            statusLabel.Spring = true;
+            statusLabel.Text = "Ready";
+            statusLabel.TextAlign = ContentAlignment.MiddleLeft;
+            // 
+            // mainStatusStrip
+            // 
+            mainStatusStrip.Items.AddRange(new ToolStripItem[] { statusLabel, autoRunStatusLabel });
+            mainStatusStrip.Location = new Point(0, 437);
+            mainStatusStrip.Name = "mainStatusStrip";
+            mainStatusStrip.Size = new Size(635, 22);
+            mainStatusStrip.TabIndex = 10;
+            mainStatusStrip.Text = "mainStatusStrip";
+            // 
+            // autoRunStatusLabel
+            // 
+            autoRunStatusLabel.Name = "autoRunStatusLabel";
+            autoRunStatusLabel.Size = new Size(108, 17);
+            autoRunStatusLabel.Text = "Auto Run: Disabled";
+            autoRunStatusLabel.TextAlign = ContentAlignment.MiddleRight;
+            // 
+            // sendToFemiOnlyCheckBox
+            // 
+<<<<<<< HEAD
+            sendToFemiOnlyCheckBox.AutoSize = true;
+            sendToFemiOnlyCheckBox.FlatStyle = FlatStyle.Flat;
+            sendToFemiOnlyCheckBox.Font = new Font("Segoe UI", 9.75F, FontStyle.Bold, GraphicsUnit.Point, 0);
+            sendToFemiOnlyCheckBox.Location = new Point(119, 147);
+            sendToFemiOnlyCheckBox.Name = "sendToFemiOnlyCheckBox";
+            sendToFemiOnlyCheckBox.Size = new Size(142, 21);
+            sendToFemiOnlyCheckBox.TabIndex = 11;
+            sendToFemiOnlyCheckBox.Text = "Send to only Femi?";
+            toolTip1.SetToolTip(sendToFemiOnlyCheckBox, "Check this to send the email report only to Femi (and relevant CCs based on build mode). Uncheck to send to the broader team.");
+            sendToFemiOnlyCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // skipEmailCheckBox
+            // 
+            skipEmailCheckBox.AutoSize = true;
+            skipEmailCheckBox.FlatStyle = FlatStyle.System;
+            skipEmailCheckBox.Font = new Font("Segoe UI", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            skipEmailCheckBox.Location = new Point(15, 168);
+            skipEmailCheckBox.Name = "skipEmailCheckBox";
+            skipEmailCheckBox.Size = new Size(130, 18);
+            skipEmailCheckBox.TabIndex = 21;
+            skipEmailCheckBox.Text = "Skip Sending Email";
+            toolTip1.SetToolTip(skipEmailCheckBox, "If checked, the email sending step will be skipped during processing.");
+            skipEmailCheckBox.UseVisualStyleBackColor = true;
+=======
+            this.sendToFemiOnlyCheckBox.AutoSize = true;
+            this.sendToFemiOnlyCheckBox.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.sendToFemiOnlyCheckBox.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.sendToFemiOnlyCheckBox.Location = new System.Drawing.Point(119, 147);
+            this.sendToFemiOnlyCheckBox.Name = "sendToFemiOnlyCheckBox";
+            this.sendToFemiOnlyCheckBox.Size = new System.Drawing.Size(142, 21);
+            this.sendToFemiOnlyCheckBox.TabIndex = 11;
+            this.sendToFemiOnlyCheckBox.Text = "Send to only Femi?";
+            this.toolTip1.SetToolTip(this.sendToFemiOnlyCheckBox, "Check this to send the email report only to Femi (and relevant CCs based on build" +
+        " mode). Uncheck to send to the broader team.");
+            this.sendToFemiOnlyCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // skipEmailCheckBox
+            // 
+            this.skipEmailCheckBox.AutoSize = true;
+            this.skipEmailCheckBox.FlatStyle = System.Windows.Forms.FlatStyle.System;
+            this.skipEmailCheckBox.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.skipEmailCheckBox.Location = new System.Drawing.Point(15, 168);
+            this.skipEmailCheckBox.Name = "skipEmailCheckBox";
+            this.skipEmailCheckBox.Size = new System.Drawing.Size(130, 18);
+            this.skipEmailCheckBox.TabIndex = 21;
+            this.skipEmailCheckBox.Text = "Skip Sending Email";
+            this.toolTip1.SetToolTip(this.skipEmailCheckBox, "If checked, the email sending step will be skipped during processing.");
+            this.skipEmailCheckBox.UseVisualStyleBackColor = true;
+>>>>>>> parent of 171b8e4 (v1.9.2)
+            // 
+            // reportTypeComboBox
+            // 
+            reportTypeComboBox.AutoCompleteCustomSource.AddRange(new string[] { "Weekly", "Monthly", "Quarterly (3 Months)", "Annual" });
+            reportTypeComboBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            reportTypeComboBox.AutoCompleteSource = AutoCompleteSource.CustomSource;
+            reportTypeComboBox.FormattingEnabled = true;
+            reportTypeComboBox.Items.AddRange(new object[] { "Daily", "Daily(5days >= £1000)", "Weekly", "Monthly", "Quarterly (3 Months)", "Annual", "Custom" });
+            reportTypeComboBox.Location = new Point(261, 72);
+            reportTypeComboBox.Name = "reportTypeComboBox";
+            reportTypeComboBox.Size = new Size(200, 21);
+            reportTypeComboBox.TabIndex = 12;
+            toolTip1.SetToolTip(reportTypeComboBox, "Select the type of report to generate (Daily, Weekly, etc.). Dates will adjust automatically based on the current date. Manual date changes will set this to 'Custom'.");
+            reportTypeComboBox.SelectedIndexChanged += reportTypeComboBox_SelectedIndexChanged;
+            // 
+            // reportTypeLabel
+            // 
+            reportTypeLabel.AutoSize = true;
+            reportTypeLabel.Location = new Point(157, 75);
+            reportTypeLabel.Name = "reportTypeLabel";
+            reportTypeLabel.Size = new Size(71, 13);
+            reportTypeLabel.TabIndex = 13;
+            reportTypeLabel.Text = "Report Type:";
+            // 
+            // reportSettingsGroupBox
+            // 
+            reportSettingsGroupBox.Controls.Add(skipEmailCheckBox);
+            reportSettingsGroupBox.Controls.Add(emailRecipientLabel);
+            reportSettingsGroupBox.Controls.Add(financialYearLabel);
+            reportSettingsGroupBox.Controls.Add(sendToFemiOnlyCheckBox);
+            reportSettingsGroupBox.Controls.Add(financialYearComboBox);
+            reportSettingsGroupBox.Font = new Font("Arial", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            reportSettingsGroupBox.Location = new Point(142, 50);
+            reportSettingsGroupBox.Name = "reportSettingsGroupBox";
+            reportSettingsGroupBox.Size = new Size(346, 200);
+            reportSettingsGroupBox.TabIndex = 14;
+            reportSettingsGroupBox.TabStop = false;
+            reportSettingsGroupBox.Text = "Report Settings";
+            // 
+            // emailRecipientLabel
+            // 
+            emailRecipientLabel.AutoSize = true;
+            emailRecipientLabel.Font = new Font("Arial", 9.75F, FontStyle.Bold);
+            emailRecipientLabel.Location = new Point(119, 147);
+            emailRecipientLabel.Name = "emailRecipientLabel";
+            emailRecipientLabel.Size = new Size(0, 16);
+            emailRecipientLabel.TabIndex = 17;
+            // 
+            // financialYearLabel
+            // 
+            financialYearLabel.AutoSize = true;
+            financialYearLabel.Location = new Point(15, 117);
+            financialYearLabel.Name = "financialYearLabel";
+            financialYearLabel.Size = new Size(78, 14);
+            financialYearLabel.TabIndex = 16;
+            financialYearLabel.Text = "Financial Year:";
+            // 
+            // financialYearComboBox
+            // 
+            financialYearComboBox.AutoCompleteCustomSource.AddRange(new string[] { "Daily", "Weekly", "Monthly", "Quarterly (3 Months)", "Annual" });
+            financialYearComboBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            financialYearComboBox.AutoCompleteSource = AutoCompleteSource.CustomSource;
+            financialYearComboBox.FormattingEnabled = true;
+            financialYearComboBox.Location = new Point(119, 114);
+            financialYearComboBox.Name = "financialYearComboBox";
+            financialYearComboBox.Size = new Size(200, 22);
+            financialYearComboBox.TabIndex = 15;
+            toolTip1.SetToolTip(financialYearComboBox, "Select the financial year for the report. Only applicable for certain report types.");
+            // 
+            // toggleAutoRunButton
+            // 
+            toggleAutoRunButton.Location = new Point(12, 359);
+            toggleAutoRunButton.Name = "toggleAutoRunButton";
+            toggleAutoRunButton.Size = new Size(107, 54);
+            toggleAutoRunButton.TabIndex = 16;
+            toggleAutoRunButton.Text = "Enable Daily Auto Run @ 8 AM";
+            toolTip1.SetToolTip(toggleAutoRunButton, "Enable or disable the automated daily report generation. The report runs around 8 AM for the previous workday.");
+            toggleAutoRunButton.UseVisualStyleBackColor = true;
+            toggleAutoRunButton.Click += toggleAutoRunButton_Click;
+            // 
+            // dailyCheckTimer
+            // 
+            dailyCheckTimer.Interval = 60000;
+            dailyCheckTimer.Tick += dailyCheckTimer_Tick;
+            // 
+            // menuStrip1
+            // 
+<<<<<<< HEAD
+            menuStrip1.Items.AddRange(new ToolStripItem[] { optionsToolStripMenuItem, settingsToolStripMenuItem, helpToolStripMenuItem });
+            menuStrip1.Location = new Point(0, 0);
+            menuStrip1.Name = "menuStrip1";
+            menuStrip1.Size = new Size(635, 24);
+            menuStrip1.TabIndex = 18;
+            menuStrip1.Text = "menuStrip1";
+            // 
+            // optionsToolStripMenuItem
+            // 
+            optionsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { darkModeToolStripMenuItem, toolStripSeparator7, enable1ClickProcessingToolStripMenuItem, toolStripSeparator6, setAutoRunHourToolStripMenuItem, manageAutomatedReportsToolStripMenuItem, toolStripSeparator8, viewConfigToolStripMenuItem, validateConfigToolStripMenuItem, toolStripSeparator4, manageCustomBankHolidaysToolStripMenuItem, toolStripSeparator3, manageEmailRecipientsToolStripMenuItem, manageGreetingsToolStripMenuItem, toolStripSeparator5, openLogsToolStripMenuItem, openAutoReportDefinitionsFileToolStripMenuItem, toolStripSeparator1, editConfigToolStripMenuItem, toolStripSeparator2, exitToolStripMenuItem });
+            optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
+            optionsToolStripMenuItem.Size = new Size(61, 20);
+            optionsToolStripMenuItem.Text = "&Options";
+            // 
+            // darkModeToolStripMenuItem
+            // 
+            darkModeToolStripMenuItem.CheckOnClick = true;
+            darkModeToolStripMenuItem.Name = "darkModeToolStripMenuItem";
+            darkModeToolStripMenuItem.Size = new Size(251, 22);
+            darkModeToolStripMenuItem.Text = "&Dark Mode";
+            darkModeToolStripMenuItem.ToolTipText = "Toggle between light and dark visual themes for the application.";
+            darkModeToolStripMenuItem.Click += darkModeToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator7
+            // 
+            toolStripSeparator7.Name = "toolStripSeparator7";
+            toolStripSeparator7.Size = new Size(248, 6);
+            // 
+            // enable1ClickProcessingToolStripMenuItem
+            // 
+            enable1ClickProcessingToolStripMenuItem.CheckOnClick = true;
+            enable1ClickProcessingToolStripMenuItem.Name = "enable1ClickProcessingToolStripMenuItem";
+            enable1ClickProcessingToolStripMenuItem.Size = new Size(251, 22);
+            enable1ClickProcessingToolStripMenuItem.Text = "Enable &1-Click Processing";
+            enable1ClickProcessingToolStripMenuItem.ToolTipText = "Toggle between 2-button and 1-button processing mode.";
+            enable1ClickProcessingToolStripMenuItem.Click += enable1ClickProcessingToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator6
+            // 
+            toolStripSeparator6.Name = "toolStripSeparator6";
+            toolStripSeparator6.Size = new Size(248, 6);
+            // 
+            // setAutoRunHourToolStripMenuItem
+            // 
+            setAutoRunHourToolStripMenuItem.Name = "setAutoRunHourToolStripMenuItem";
+            setAutoRunHourToolStripMenuItem.Size = new Size(251, 22);
+            setAutoRunHourToolStripMenuItem.Text = "Set Auto-Run &Hour...";
+            setAutoRunHourToolStripMenuItem.ToolTipText = "Change the hour at which the daily auto-run task executes.";
+            setAutoRunHourToolStripMenuItem.Click += setAutoRunHourToolStripMenuItem_Click;
+=======
+            this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.optionsToolStripMenuItem,
+            this.helpToolStripMenuItem});
+            this.menuStrip1.Location = new System.Drawing.Point(0, 0);
+            this.menuStrip1.Name = "menuStrip1";
+            this.menuStrip1.Size = new System.Drawing.Size(635, 24);
+            this.menuStrip1.TabIndex = 18;
+            this.menuStrip1.Text = "menuStrip1";
+            // 
+            // optionsToolStripMenuItem
+            // 
+            this.optionsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.darkModeToolStripMenuItem,
+            this.toolStripSeparator7,
+            this.enable1ClickProcessingToolStripMenuItem,
+            this.toolStripSeparator6,
+            this.setAutoRunHourToolStripMenuItem,
+            this.configureAutoRunReportsToolStripMenuItem,
+            this.toolStripSeparator8,
+            this.viewConfigToolStripMenuItem,
+            this.validateConfigToolStripMenuItem,
+            this.toolStripSeparator4,
+            this.manageCustomBankHolidaysToolStripMenuItem,
+            this.toolStripSeparator3,
+            this.manageEmailRecipientsToolStripMenuItem,
+            this.manageGreetingsToolStripMenuItem,
+            this.toolStripSeparator5,
+            this.openLogsToolStripMenuItem,
+            this.toolStripSeparator1,
+            this.editConfigToolStripMenuItem,
+            this.toolStripSeparator2,
+            this.exitToolStripMenuItem});
+            this.optionsToolStripMenuItem.Name = "optionsToolStripMenuItem";
+            this.optionsToolStripMenuItem.Size = new System.Drawing.Size(61, 20);
+            this.optionsToolStripMenuItem.Text = "&Options";
+            // 
+            // darkModeToolStripMenuItem
+            // 
+            this.darkModeToolStripMenuItem.CheckOnClick = true;
+            this.darkModeToolStripMenuItem.Name = "darkModeToolStripMenuItem";
+            this.darkModeToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.darkModeToolStripMenuItem.Text = "&Dark Mode";
+            this.darkModeToolStripMenuItem.ToolTipText = "Toggle between light and dark visual themes for the application.";
+            this.darkModeToolStripMenuItem.Click += new System.EventHandler(this.darkModeToolStripMenuItem_Click);
+            // 
+            // toolStripSeparator7
+            // 
+            this.toolStripSeparator7.Name = "toolStripSeparator7";
+            this.toolStripSeparator7.Size = new System.Drawing.Size(237, 6);
+            // 
+            // enable1ClickProcessingToolStripMenuItem
+            // 
+            this.enable1ClickProcessingToolStripMenuItem.CheckOnClick = true;
+            this.enable1ClickProcessingToolStripMenuItem.Name = "enable1ClickProcessingToolStripMenuItem";
+            this.enable1ClickProcessingToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.enable1ClickProcessingToolStripMenuItem.Text = "Enable &1-Click Processing";
+            this.enable1ClickProcessingToolStripMenuItem.ToolTipText = "Toggle between 2-button and 1-button processing mode.";
+            this.enable1ClickProcessingToolStripMenuItem.Click += new System.EventHandler(this.enable1ClickProcessingToolStripMenuItem_Click);
+            // 
+            // toolStripSeparator6
+            // 
+            this.toolStripSeparator6.Name = "toolStripSeparator6";
+            this.toolStripSeparator6.Size = new System.Drawing.Size(237, 6);
+            // 
+            // setAutoRunHourToolStripMenuItem
+            // 
+            this.setAutoRunHourToolStripMenuItem.Name = "setAutoRunHourToolStripMenuItem";
+            this.setAutoRunHourToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.setAutoRunHourToolStripMenuItem.Text = "Set Auto-Run &Hour...";
+            this.setAutoRunHourToolStripMenuItem.ToolTipText = "Change the hour at which the daily auto-run task executes.";
+            this.setAutoRunHourToolStripMenuItem.Click += new System.EventHandler(this.setAutoRunHourToolStripMenuItem_Click);
+>>>>>>> parent of 171b8e4 (v1.9.2)
+            // 
+            // configureAutoRunReportsToolStripMenuItem
+            // 
+<<<<<<< HEAD
+            manageAutomatedReportsToolStripMenuItem.Name = "manageAutomatedReportsToolStripMenuItem";
+            manageAutomatedReportsToolStripMenuItem.Size = new Size(251, 22);
+            manageAutomatedReportsToolStripMenuItem.Text = "Manage Automated Reports...";
+            manageAutomatedReportsToolStripMenuItem.ToolTipText = "Configure, add, or remove automated report definitions.";
+            manageAutomatedReportsToolStripMenuItem.Click += manageAutomatedReportsToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator8
+            // 
+            toolStripSeparator8.Name = "toolStripSeparator8";
+            toolStripSeparator8.Size = new Size(248, 6);
+            // 
+            // viewConfigToolStripMenuItem
+            // 
+            viewConfigToolStripMenuItem.Name = "viewConfigToolStripMenuItem";
+            viewConfigToolStripMenuItem.Size = new Size(251, 22);
+            viewConfigToolStripMenuItem.Text = "&View Configuration";
+            viewConfigToolStripMenuItem.ToolTipText = "Show detailed status of configuration settings like file paths.";
+            viewConfigToolStripMenuItem.Click += viewConfigToolStripMenuItem_Click;
+            // 
+            // validateConfigToolStripMenuItem
+            // 
+            validateConfigToolStripMenuItem.Name = "validateConfigToolStripMenuItem";
+            validateConfigToolStripMenuItem.Size = new Size(251, 22);
+            validateConfigToolStripMenuItem.Text = "V&alidate Configuration";
+            validateConfigToolStripMenuItem.ToolTipText = "Quickly validate essential configuration and update status bar.";
+            validateConfigToolStripMenuItem.Click += validateConfigToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator4
+            // 
+            toolStripSeparator4.Name = "toolStripSeparator4";
+            toolStripSeparator4.Size = new Size(248, 6);
+            // 
+            // manageCustomBankHolidaysToolStripMenuItem
+            // 
+            manageCustomBankHolidaysToolStripMenuItem.Name = "manageCustomBankHolidaysToolStripMenuItem";
+            manageCustomBankHolidaysToolStripMenuItem.Size = new Size(251, 22);
+            manageCustomBankHolidaysToolStripMenuItem.Text = "Manage Custom &Bank Holidays";
+            manageCustomBankHolidaysToolStripMenuItem.ToolTipText = "Add or remove custom bank holidays.";
+            manageCustomBankHolidaysToolStripMenuItem.Click += manageCustomBankHolidaysToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator3
+            // 
+            toolStripSeparator3.Name = "toolStripSeparator3";
+            toolStripSeparator3.Size = new Size(248, 6);
+            // 
+            // manageEmailRecipientsToolStripMenuItem
+            // 
+            manageEmailRecipientsToolStripMenuItem.Name = "manageEmailRecipientsToolStripMenuItem";
+            manageEmailRecipientsToolStripMenuItem.Size = new Size(251, 22);
+            manageEmailRecipientsToolStripMenuItem.Text = "Manage Email &Recipients";
+            manageEmailRecipientsToolStripMenuItem.ToolTipText = "Configure custom email recipients for different report types.";
+            manageEmailRecipientsToolStripMenuItem.Click += manageEmailRecipientsToolStripMenuItem_Click;
+            // 
+            // manageGreetingsToolStripMenuItem
+            // 
+            manageGreetingsToolStripMenuItem.Name = "manageGreetingsToolStripMenuItem";
+            manageGreetingsToolStripMenuItem.Size = new Size(251, 22);
+            manageGreetingsToolStripMenuItem.Text = "Manage Email &Greetings";
+            manageGreetingsToolStripMenuItem.ToolTipText = "Configure custom email greetings for different report scenarios.";
+            manageGreetingsToolStripMenuItem.Click += manageGreetingsToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator5
+            // 
+            toolStripSeparator5.Name = "toolStripSeparator5";
+            toolStripSeparator5.Size = new Size(248, 6);
+            // 
+            // openLogsToolStripMenuItem
+            // 
+            openLogsToolStripMenuItem.Name = "openLogsToolStripMenuItem";
+            openLogsToolStripMenuItem.Size = new Size(251, 22);
+            openLogsToolStripMenuItem.Text = "Open &Logs Folder";
+            openLogsToolStripMenuItem.ToolTipText = "Open the folder containing application log files.";
+            openLogsToolStripMenuItem.Click += openLogsToolStripMenuItem_Click;
+            // 
+            // openAutoReportDefinitionsFileToolStripMenuItem
+            // 
+            openAutoReportDefinitionsFileToolStripMenuItem.Name = "openAutoReportDefinitionsFileToolStripMenuItem";
+            openAutoReportDefinitionsFileToolStripMenuItem.Size = new Size(251, 22);
+            openAutoReportDefinitionsFileToolStripMenuItem.Text = "Open Auto Report Definitions File";
+            openAutoReportDefinitionsFileToolStripMenuItem.ToolTipText = "Opens the autoReportDefinitions.json file for viewing.";
+            openAutoReportDefinitionsFileToolStripMenuItem.Click += openAutoReportDefinitionsFileToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator1
+            // 
+            toolStripSeparator1.Name = "toolStripSeparator1";
+            toolStripSeparator1.Size = new Size(248, 6);
+            // 
+            // editConfigToolStripMenuItem
+            // 
+            editConfigToolStripMenuItem.Name = "editConfigToolStripMenuItem";
+            editConfigToolStripMenuItem.Size = new Size(251, 22);
+            editConfigToolStripMenuItem.Text = "&Edit appsettings.json";
+            editConfigToolStripMenuItem.ToolTipText = "Open the appsettings.json file for manual editing (use with caution).";
+            editConfigToolStripMenuItem.Click += editConfigToolStripMenuItem_Click;
+            // 
+            // toolStripSeparator2
+            // 
+            toolStripSeparator2.Name = "toolStripSeparator2";
+            toolStripSeparator2.Size = new Size(248, 6);
+            // 
+            // exitToolStripMenuItem
+            // 
+            exitToolStripMenuItem.Name = "exitToolStripMenuItem";
+            exitToolStripMenuItem.Size = new Size(251, 22);
+            exitToolStripMenuItem.Text = "E&xit";
+            exitToolStripMenuItem.ToolTipText = "Close the application.";
+            exitToolStripMenuItem.Click += exitToolStripMenuItem_Click;
+            // 
+            // settingsToolStripMenuItem
+            // 
+            settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
+            settingsToolStripMenuItem.Size = new Size(61, 20);
+            settingsToolStripMenuItem.Text = "&Settings";
+            settingsToolStripMenuItem.ToolTipText = "Configure application settings.";
+            settingsToolStripMenuItem.Click += settingsToolStripMenuItem_Click;
+=======
+            this.configureAutoRunReportsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.enableStandardDailyAutoReportToolStripMenuItem,
+            this.enableDaily5Day1kAutoReportToolStripMenuItem,
+            this.enableWeeklyAutoReportToolStripMenuItem}); // Added Weekly Toggle
+            this.configureAutoRunReportsToolStripMenuItem.Name = "configureAutoRunReportsToolStripMenuItem";
+            this.configureAutoRunReportsToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.configureAutoRunReportsToolStripMenuItem.Text = "Configure Auto-Run Reports";
+            this.configureAutoRunReportsToolStripMenuItem.ToolTipText = "Enable or disable specific automated reports.";
+            // 
+            // enableStandardDailyAutoReportToolStripMenuItem
+            // 
+            this.enableStandardDailyAutoReportToolStripMenuItem.CheckOnClick = true;
+            this.enableStandardDailyAutoReportToolStripMenuItem.Name = "enableStandardDailyAutoReportToolStripMenuItem";
+            this.enableStandardDailyAutoReportToolStripMenuItem.Size = new System.Drawing.Size(298, 22);
+            this.enableStandardDailyAutoReportToolStripMenuItem.Text = "Enable Standard Daily Auto Report";
+            this.enableStandardDailyAutoReportToolStripMenuItem.ToolTipText = "Toggle the automated generation of the standard daily report.";
+            this.enableStandardDailyAutoReportToolStripMenuItem.Click += new System.EventHandler(this.enableStandardDailyAutoReportToolStripMenuItem_Click);
+            // 
+            // enableDaily5Day1kAutoReportToolStripMenuItem
+            // 
+            this.enableDaily5Day1kAutoReportToolStripMenuItem.CheckOnClick = true;
+            this.enableDaily5Day1kAutoReportToolStripMenuItem.Name = "enableDaily5Day1kAutoReportToolStripMenuItem";
+            this.enableDaily5Day1kAutoReportToolStripMenuItem.Size = new System.Drawing.Size(298, 22);
+            this.enableDaily5Day1kAutoReportToolStripMenuItem.Text = "Enable Daily (5days >= £1000) Auto Report";
+            this.enableDaily5Day1kAutoReportToolStripMenuItem.ToolTipText = "Toggle the automated generation of the \'Daily (5days >= £1000)\' report.";
+            this.enableDaily5Day1kAutoReportToolStripMenuItem.Click += new System.EventHandler(this.enableDaily5Day1kAutoReportToolStripMenuItem_Click);
+            // 
+            // enableWeeklyAutoReportToolStripMenuItem
+            // 
+            this.enableWeeklyAutoReportToolStripMenuItem.CheckOnClick = true;
+            this.enableWeeklyAutoReportToolStripMenuItem.Name = "enableWeeklyAutoReportToolStripMenuItem";
+            this.enableWeeklyAutoReportToolStripMenuItem.Size = new System.Drawing.Size(298, 22);
+            this.enableWeeklyAutoReportToolStripMenuItem.Text = "Enable Weekly Auto Report";
+            this.enableWeeklyAutoReportToolStripMenuItem.ToolTipText = "Toggle the automated generation of the weekly report.";
+            this.enableWeeklyAutoReportToolStripMenuItem.Click += new System.EventHandler(this.enableWeeklyAutoReportToolStripMenuItem_Click);
+            // 
+            // toolStripSeparator8
+            // 
+            this.toolStripSeparator8.Name = "toolStripSeparator8";
+            this.toolStripSeparator8.Size = new System.Drawing.Size(237, 6);
+            // 
+            // viewConfigToolStripMenuItem
+            // 
+            this.viewConfigToolStripMenuItem.Name = "viewConfigToolStripMenuItem";
+            this.viewConfigToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.viewConfigToolStripMenuItem.Text = "&View Configuration";
+            this.viewConfigToolStripMenuItem.ToolTipText = "Show detailed status of configuration settings like file paths.";
+            this.viewConfigToolStripMenuItem.Click += new System.EventHandler(this.viewConfigToolStripMenuItem_Click);
+            // 
+            // validateConfigToolStripMenuItem
+            // 
+            this.validateConfigToolStripMenuItem.Name = "validateConfigToolStripMenuItem";
+            this.validateConfigToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.validateConfigToolStripMenuItem.Text = "V&alidate Configuration";
+            this.validateConfigToolStripMenuItem.ToolTipText = "Quickly validate essential configuration and update status bar.";
+            this.validateConfigToolStripMenuItem.Click += new System.EventHandler(this.validateConfigToolStripMenuItem_Click);
+            // 
+            // toolStripSeparator4
+            // 
+            this.toolStripSeparator4.Name = "toolStripSeparator4";
+            this.toolStripSeparator4.Size = new System.Drawing.Size(237, 6);
+            // 
+            // manageCustomBankHolidaysToolStripMenuItem
+            // 
+            this.manageCustomBankHolidaysToolStripMenuItem.Name = "manageCustomBankHolidaysToolStripMenuItem";
+            this.manageCustomBankHolidaysToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.manageCustomBankHolidaysToolStripMenuItem.Text = "Manage Custom &Bank Holidays";
+            this.manageCustomBankHolidaysToolStripMenuItem.ToolTipText = "Add or remove custom bank holidays.";
+            this.manageCustomBankHolidaysToolStripMenuItem.Click += new System.EventHandler(this.manageCustomBankHolidaysToolStripMenuItem_Click);
+            // 
+            // toolStripSeparator3
+            // 
+            this.toolStripSeparator3.Name = "toolStripSeparator3";
+            this.toolStripSeparator3.Size = new System.Drawing.Size(237, 6);
+            // 
+            // manageEmailRecipientsToolStripMenuItem
+            // 
+            this.manageEmailRecipientsToolStripMenuItem.Name = "manageEmailRecipientsToolStripMenuItem";
+            this.manageEmailRecipientsToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.manageEmailRecipientsToolStripMenuItem.Text = "Manage Email &Recipients";
+            this.manageEmailRecipientsToolStripMenuItem.ToolTipText = "Configure custom email recipients for different report types.";
+            this.manageEmailRecipientsToolStripMenuItem.Click += new System.EventHandler(this.manageEmailRecipientsToolStripMenuItem_Click);
+            // 
+            // manageGreetingsToolStripMenuItem
+            // 
+            this.manageGreetingsToolStripMenuItem.Name = "manageGreetingsToolStripMenuItem";
+            this.manageGreetingsToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.manageGreetingsToolStripMenuItem.Text = "Manage Email &Greetings";
+            this.manageGreetingsToolStripMenuItem.ToolTipText = "Configure custom email greetings for different report scenarios.";
+            this.manageGreetingsToolStripMenuItem.Click += new System.EventHandler(this.manageGreetingsToolStripMenuItem_Click);
+            // 
+            // toolStripSeparator5
+            // 
+            this.toolStripSeparator5.Name = "toolStripSeparator5";
+            this.toolStripSeparator5.Size = new System.Drawing.Size(237, 6);
+            // 
+            // openLogsToolStripMenuItem
+            // 
+            this.openLogsToolStripMenuItem.Name = "openLogsToolStripMenuItem";
+            this.openLogsToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.openLogsToolStripMenuItem.Text = "Open &Logs Folder";
+            this.openLogsToolStripMenuItem.ToolTipText = "Open the folder containing application log files.";
+            this.openLogsToolStripMenuItem.Click += new System.EventHandler(this.openLogsToolStripMenuItem_Click);
+            // 
+            // toolStripSeparator1
+            // 
+            this.toolStripSeparator1.Name = "toolStripSeparator1";
+            this.toolStripSeparator1.Size = new System.Drawing.Size(237, 6);
+            // 
+            // editConfigToolStripMenuItem
+            // 
+            this.editConfigToolStripMenuItem.Name = "editConfigToolStripMenuItem";
+            this.editConfigToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.editConfigToolStripMenuItem.Text = "&Edit appsettings.json";
+            this.editConfigToolStripMenuItem.ToolTipText = "Open the appsettings.json file for manual editing (use with caution).";
+            this.editConfigToolStripMenuItem.Click += new System.EventHandler(this.editConfigToolStripMenuItem_Click);
+            // 
+            // toolStripSeparator2
+            // 
+            this.toolStripSeparator2.Name = "toolStripSeparator2";
+            this.toolStripSeparator2.Size = new System.Drawing.Size(237, 6);
+            // 
+            // exitToolStripMenuItem
+            // 
+            this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(240, 22);
+            this.exitToolStripMenuItem.Text = "E&xit";
+            this.exitToolStripMenuItem.ToolTipText = "Close the application.";
+            this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
+>>>>>>> parent of 171b8e4 (v1.9.2)
+            // 
+            // helpToolStripMenuItem
+            // 
+            helpToolStripMenuItem.Name = "helpToolStripMenuItem";
+            helpToolStripMenuItem.Size = new Size(44, 20);
+            helpToolStripMenuItem.Text = "&Help";
+            helpToolStripMenuItem.ToolTipText = "Show the help window with instructions and troubleshooting tips.";
+            helpToolStripMenuItem.Click += helpToolStripMenuItem_Click;
+            // 
+            // toolTip1
+            // 
+            toolTip1.AutomaticDelay = 700;
+            toolTip1.AutoPopDelay = 7000;
+            toolTip1.InitialDelay = 500;
+            toolTip1.ReshowDelay = 140;
+            // 
+            // Form1
+            // 
+<<<<<<< HEAD
+            AutoScaleDimensions = new SizeF(6F, 13F);
+            AutoScaleMode = AutoScaleMode.Font;
+            BackColor = SystemColors.ControlLightLight;
+            ClientSize = new Size(635, 459);
+            Controls.Add(oneClickProcessButton);
+            Controls.Add(toggleAutoRunButton);
+            Controls.Add(reportTypeLabel);
+            Controls.Add(reportTypeComboBox);
+            Controls.Add(mainStatusStrip);
+            Controls.Add(menuStrip1);
+            Controls.Add(viewAnalysisButton);
+            Controls.Add(viewReportButton);
+            Controls.Add(processEmailButton);
+            Controls.Add(createReportButton);
+            Controls.Add(endDateLabel);
+            Controls.Add(startDateLabel);
+            Controls.Add(endDatePicker);
+            Controls.Add(startDatePicker);
+            Controls.Add(reportSettingsGroupBox);
+            Font = new Font("Segoe UI", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            Icon = (Icon)resources.GetObject("$this.Icon");
+            MainMenuStrip = menuStrip1;
+            Name = "Form1";
+            Text = "Quote Conversion Automation";
+            FormClosing += Form1_FormClosing;
+            Load += Form1_Load;
+            mainStatusStrip.ResumeLayout(false);
+            mainStatusStrip.PerformLayout();
+            reportSettingsGroupBox.ResumeLayout(false);
+            reportSettingsGroupBox.PerformLayout();
+            menuStrip1.ResumeLayout(false);
+            menuStrip1.PerformLayout();
+            ResumeLayout(false);
+            PerformLayout();
+=======
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.BackColor = System.Drawing.SystemColors.ControlLightLight;
+            this.ClientSize = new System.Drawing.Size(635, 459);
+            this.Controls.Add(this.oneClickProcessButton);
+            this.Controls.Add(this.toggleAutoRunButton);
+            this.Controls.Add(this.reportTypeLabel);
+            this.Controls.Add(this.reportTypeComboBox);
+            this.Controls.Add(this.mainStatusStrip);
+            this.Controls.Add(this.menuStrip1);
+            this.Controls.Add(this.viewAnalysisButton);
+            this.Controls.Add(this.viewReportButton);
+            this.Controls.Add(this.processEmailButton);
+            this.Controls.Add(this.createReportButton);
+            this.Controls.Add(this.endDateLabel);
+            this.Controls.Add(this.startDateLabel);
+            this.Controls.Add(this.endDatePicker);
+            this.Controls.Add(this.startDatePicker);
+            this.Controls.Add(this.reportSettingsGroupBox);
+            this.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.MainMenuStrip = this.menuStrip1;
+            this.Name = "Form1";
+            this.Text = "Quote Conversion Automation";
+            this.Load += new System.EventHandler(this.Form1_Load);
+            this.mainStatusStrip.ResumeLayout(false);
+            this.mainStatusStrip.PerformLayout();
+            this.reportSettingsGroupBox.ResumeLayout(false);
+            this.reportSettingsGroupBox.PerformLayout();
+            this.menuStrip1.ResumeLayout(false);
+            this.menuStrip1.PerformLayout();
+            this.ResumeLayout(false);
+            this.PerformLayout();
+>>>>>>> parent of 171b8e4 (v1.9.2)
+
+        }
+
+        #endregion
+
+        private System.Windows.Forms.DateTimePicker startDatePicker;
+        private System.Windows.Forms.DateTimePicker endDatePicker;
+        private System.Windows.Forms.Label startDateLabel;
+        private System.Windows.Forms.Label endDateLabel;
+        private System.Windows.Forms.Button createReportButton;
+        private System.Windows.Forms.Button processEmailButton;
+        private System.Windows.Forms.Button oneClickProcessButton;
+        private System.Windows.Forms.Button viewReportButton;
+        private System.Windows.Forms.Button viewAnalysisButton;
+        private System.Windows.Forms.ToolStripStatusLabel statusLabel;
+        private System.Windows.Forms.StatusStrip mainStatusStrip;
+        private System.Windows.Forms.CheckBox sendToFemiOnlyCheckBox;
+        private System.Windows.Forms.CheckBox skipEmailCheckBox;
+        private System.Windows.Forms.ComboBox reportTypeComboBox;
+        private System.Windows.Forms.Label reportTypeLabel;
+        private System.Windows.Forms.GroupBox reportSettingsGroupBox;
+        private System.Windows.Forms.Label financialYearLabel;
+        private System.Windows.Forms.ComboBox financialYearComboBox;
+        private System.Windows.Forms.Label emailRecipientLabel;
+        private System.Windows.Forms.Button toggleAutoRunButton;
+        private System.Windows.Forms.Timer dailyCheckTimer;
+        private System.Windows.Forms.MenuStrip menuStrip1;
+        private System.Windows.Forms.ToolStripMenuItem optionsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem darkModeToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem helpToolStripMenuItem;
+        private System.Windows.Forms.ToolStripStatusLabel autoRunStatusLabel;
+        private System.Windows.Forms.ToolTip toolTip1;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
+        private System.Windows.Forms.ToolStripMenuItem viewConfigToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem openLogsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem editConfigToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem validateConfigToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
+        private System.Windows.Forms.ToolStripMenuItem exitToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem manageCustomBankHolidaysToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator3;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator4;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator5;
+        private System.Windows.Forms.ToolStripMenuItem manageEmailRecipientsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem manageGreetingsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem enable1ClickProcessingToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem setAutoRunHourToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator7;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator6;
+        private System.Windows.Forms.ToolStripMenuItem configureAutoRunReportsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem enableStandardDailyAutoReportToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem enableDaily5Day1kAutoReportToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem enableWeeklyAutoReportToolStripMenuItem; // Added
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator8;
+    }
+}

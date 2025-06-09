@@ -11,12 +11,7 @@
     <AssemblyVersion>1.8.1.0</AssemblyVersion>
     <FileVersion>1.8.1.0</FileVersion>
     <NeutralLanguage>en-GB</NeutralLanguage>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Remove="Helpers\EmailSender.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <None Remove="Resources\Help_Template.rtf" />
@@ -71,9 +66,6 @@
 
   <ItemGroup>
     <None Update="appsettings.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="autoReportDefinitions.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Properties\Settings.settings">
