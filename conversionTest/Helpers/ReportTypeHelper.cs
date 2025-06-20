@@ -82,7 +82,7 @@ namespace QuoteConversionReportAutomation.Helpers
             return reportTypeString.Trim().ToLowerInvariant() switch
             {
                 "daily" => ReportType.Daily,
-                "daily (5days >= £1000)" => ReportType.Daily5Day1k, // Match exact display string
+                "daily(5days >= £1000)" => ReportType.Daily5Day1k, // Match exact display string
                 "daily5day1k" => ReportType.Daily5Day1k,           // Match config key string
                 "weekly" => ReportType.Weekly,
                 "monthly" => ReportType.Monthly,

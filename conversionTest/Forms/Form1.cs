@@ -7,18 +7,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualBasic;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Forms;
-
 // Project specific namespaces
 using QuoteConversionReportAutomation.Configuration;
 using QuoteConversionReportAutomation.Forms;
@@ -35,6 +23,17 @@ using QuoteConversionReportAutomation.Services.Excel;
 using QuoteConversionReportAutomation.Services.Interfaces;
 using QuoteConversionReportAutomation.Services.Logging;
 using QuoteConversionReportAutomation.Theming;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 #endregion
 
 namespace conversionTest
@@ -123,7 +122,7 @@ namespace conversionTest
         /// </summary>
         private void OnStatusChanged(object sender, StatusPayload payload)
         {
-            UIManager.SafeToolStripItemUpdate(statusLabel, () => 
+            UIManager.SafeToolStripItemUpdate(statusLabel, () =>
             {
                 statusLabel.Text = payload.Message;
                 statusLabel.ForeColor = payload.Type switch
