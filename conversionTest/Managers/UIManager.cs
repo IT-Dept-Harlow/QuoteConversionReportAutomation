@@ -46,6 +46,7 @@ namespace QuoteConversionReportAutomation.Managers
         private readonly CheckBox _skipEmailCheckBox;
         private readonly Label _emailRecipientLabel;
         private readonly ToolTip _toolTip;
+        private readonly CheckBox _includeLeadTimeAnalysisCheckBox;
 
         /// <summary>
         /// Stores the currently configured hour for the auto-run check, used for display purposes in the UI.
@@ -120,7 +121,7 @@ namespace QuoteConversionReportAutomation.Managers
             Button oneClickProcessButton, Button toggleAutoRunButton, Button viewReportButton,
             Button viewAnalysisButton, ComboBox reportTypeComboBox, DateTimePicker startDatePicker,
             DateTimePicker endDatePicker, ComboBox financialYearComboBox, Label financialYearLabel,
-            CheckBox sendToFemiOnlyCheckBox, CheckBox skipEmailCheckBox, Label emailRecipientLabel, ToolTip toolTip)
+            CheckBox sendToFemiOnlyCheckBox, CheckBox skipEmailCheckBox, CheckBox includeLeadTimeAnalysisCheckBox, Label emailRecipientLabel, ToolTip toolTip)
         {
             // TODO: The constructor has a large number of parameters. If more controls are added in the future,
             // consider refactoring to pass a single context object or a dictionary of controls to simplify the signature.
@@ -143,6 +144,7 @@ namespace QuoteConversionReportAutomation.Managers
             _financialYearLabel = financialYearLabel ?? throw new ArgumentNullException(nameof(financialYearLabel));
             _sendToFemiOnlyCheckBox = sendToFemiOnlyCheckBox ?? throw new ArgumentNullException(nameof(sendToFemiOnlyCheckBox));
             _skipEmailCheckBox = skipEmailCheckBox ?? throw new ArgumentNullException(nameof(skipEmailCheckBox));
+            _includeLeadTimeAnalysisCheckBox = includeLeadTimeAnalysisCheckBox ?? throw new ArgumentNullException(nameof(includeLeadTimeAnalysisCheckBox));
             _emailRecipientLabel = emailRecipientLabel ?? throw new ArgumentNullException(nameof(emailRecipientLabel));
             _toolTip = toolTip ?? throw new ArgumentNullException(nameof(toolTip));
         }

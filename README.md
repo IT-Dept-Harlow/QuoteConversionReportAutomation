@@ -25,8 +25,7 @@ Automates the running of the Daily, Weekly, Monthly, Quarterly, or Annual report
         -   `ThemePalette` struct defining a comprehensive set of UI colors for various controls and states (including `MenuDropDownBackColor`).
         -   Static `LightPalette` and `DarkPalette` properties.
         -   `CurrentPalette` property to get the active theme's colors.
-        -   `EnableCustomTheming` static boolean flag to globally enable or disable custom application theming.
-        -   `IsWindowsDarkModeEnabled()` static method (moved from `UIManager`) to detect OS dark mode preference via the registry.
+        -   `EnableCustomTheming` static boolean flag to globGet-ChildItem -Path '<YOUR-SOLUTION-PATH>' -Recurse | Unblock-FileModeEnabled()` static method (moved from `UIManager`) to detect OS dark mode preference via the registry.
         -   `SyncThemeWithSystem()` static method to initialize `CurrentThemeMode` based on OS settings.
 -   **Externalized Menu Renderers (`CustomMenuRenderers.cs`)**:
     -   Moved `CustomThemeMenuRenderer` and `CustomThemeColorTable` classes from `UIManager.cs` into a new dedicated file, `CustomMenuRenderers.cs`, under the `QuoteConversionReportAutomation.Theming` namespace.

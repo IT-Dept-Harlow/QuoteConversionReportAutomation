@@ -47,6 +47,11 @@ namespace QuoteConversionReportAutomation.Orchestrators
         public bool SkipEmail { get; init; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether to include lead time analysis in the report.
+        /// </summary>
+        public bool IncludeLeadTimeAnalysis { get; init; } // Add this property
+
+        /// <summary>
         /// Gets or sets the name of the report, used for file naming and logging.
         /// For example, "EstimateSuccessReport".
         /// </summary>

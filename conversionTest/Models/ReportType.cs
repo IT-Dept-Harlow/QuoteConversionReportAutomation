@@ -44,6 +44,11 @@ namespace QuoteConversionReportAutomation.Models
         Custom = 6,
 
         /// <summary>
+        /// Report for new customers, filtered by a specific list of posting codes.
+        /// </summary>
+        NewCustomer = 7,
+
+        /// <summary>
         /// Represents an unknown or unspecified report type.
         /// </summary>
         Unknown = -1 // Or another appropriate default/error value

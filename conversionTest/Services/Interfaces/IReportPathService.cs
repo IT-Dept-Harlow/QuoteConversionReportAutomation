@@ -1,13 +1,11 @@
-﻿// IReportPathService.cs
-// Defines the contract for a service that provides access to application paths
-// and report-specific path generation logic for the QCRA application.
-// Updated to use ReportType enum.
-
+﻿#region Using Directives
 using QuoteConversionReportAutomation.Models; // For ReportType enum
 using System;
+#endregion
 
 namespace QuoteConversionReportAutomation.Services.Interfaces
 {
+    #region Interface Definition
     /// <summary>
     /// Defines the contract for a service that provides access to application paths
     /// and report-specific path generation logic.
@@ -98,10 +96,30 @@ namespace QuoteConversionReportAutomation.Services.Interfaces
 
         /// <summary>
         /// Gets the fully resolved, user-specific directory path for storing log files.
-        /// This combines the <see cref="LogDirectoryBase"/> (or <see cref="FallbackLogDirectory"/>) with a sanitized username subfolder.
+        /// This combines the <see cref="LogDirectoryBase"/> (or <see cref="FallbackLogDirectory"/>) with a sanitised username subfolder.
         /// </summary>
         /// <returns>The full path to the user-specific log directory.</returns>
         string GetUserSpecificLogDirectory();
+
+        /// <summary>
+        /// Generates the final filename for a processed report based on its type and date.
+        /// </summary>
+        /// <param name="reportType">The type of the report.</param>
+        /// <param name="reportDate">The primary date for the report.</param>
+        /// <param name="runTimestamp">The timestamp of the run, used for uniqueness in custom reports.</param>
+        /// <returns>A string representing the generated filename.</returns>
+        string GenerateFinalFileName(ReportType reportType, DateTime reportDate, DateTime runTimestamp);
+
+        /// <summary>
+        /// Gets the expected full file path for a final processed report.
+        /// Used for checking if a report for the period already exists.
+        /// </summary>
+        /// <param name="reportType">The type of the report.</param>
+        /// <param name="baseFileSaveLocation">The base directory where final reports are saved.</param>
+        /// <param name="reportDate">The primary date for the report (e.g., end date).</param>
+        /// <returns>The expected full file path, or null if an error occurs.</returns>
+        string? GetExpectedFinalFilePath(ReportType reportType, string baseFileSaveLocation, DateTime reportDate);
         #endregion
     }
+    #endregion
 }

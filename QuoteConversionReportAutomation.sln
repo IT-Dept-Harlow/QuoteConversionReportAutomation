@@ -5,6 +5,8 @@ VisualStudioVersion = 17.13.35931.197
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuoteConversionReportAutomation", "conversionTest\QuoteConversionReportAutomation.csproj", "{7044E74D-0103-4DF3-AE71-06EE05170E74}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuoteConversionReportAutomation.AnalysisTool", "QuoteConversionReportAutomation.AnalysisTool\QuoteConversionReportAutomation.AnalysisTool.csproj", "{B680FCFF-70EA-4BA0-90DA-4706C62CB039}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{7044E74D-0103-4DF3-AE71-06EE05170E74}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7044E74D-0103-4DF3-AE71-06EE05170E74}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7044E74D-0103-4DF3-AE71-06EE05170E74}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B680FCFF-70EA-4BA0-90DA-4706C62CB039}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B680FCFF-70EA-4BA0-90DA-4706C62CB039}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B680FCFF-70EA-4BA0-90DA-4706C62CB039}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B680FCFF-70EA-4BA0-90DA-4706C62CB039}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

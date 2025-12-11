@@ -127,6 +127,10 @@ namespace QuoteConversionReportAutomation.Configuration
                 public const string TeamTo = Base + ":TeamTo";
                 /// <summary>Configuration key for 'CC' recipients for the general team list (manual non-daily/non-custom). Path: "EmailSettings:ProductionRecipients:TeamCC"</summary>
                 public const string TeamCC = Base + ":TeamCC";
+                /// <summary>Configuration key for 'To' recipients for the manual new customer report. Path: "EmailSettings:ProductionRecipients:ManualNewCustomerTo"</summary>
+                public const string ManualNewCustomerTo = Base + ":ManualNewCustomerTo";
+                /// <summary>Configuration key for 'CC' recipients for the manual new customer report. Path: "EmailSettings:ProductionRecipients:ManualNewCustomerCC"</summary>
+                public const string ManualNewCustomerCC = Base + ":ManualNewCustomerCC";
 
                 // Category-based automated report recipients
                 /// <summary>Configuration key for 'To' recipients for automated standard daily reports. Path: "EmailSettings:ProductionRecipients:AutoRunDailyStandardRecipientsTo"</summary>
@@ -141,6 +145,10 @@ namespace QuoteConversionReportAutomation.Configuration
                 public const string AutoRunWeeklyRecipientsTo = Base + ":AutoRunWeeklyRecipientsTo";
                 /// <summary>Configuration key for 'CC' recipients for automated weekly reports. Path: "EmailSettings:ProductionRecipients:AutoRunWeeklyRecipientsCC"</summary>
                 public const string AutoRunWeeklyRecipientsCC = Base + ":AutoRunWeeklyRecipientsCC";
+                /// <summary>Configuration key for 'To' recipients for the automated new customer report. Path: "EmailSettings:ProductionRecipients:AutoRunNewCustomerRecipientsTo"</summary>
+                public const string AutoRunNewCustomerRecipientsTo = Base + ":AutoRunNewCustomerRecipientsTo";
+                /// <summary>Configuration key for 'CC' recipients for the automated new customer report. Path: "EmailSettings:ProductionRecipients:AutoRunNewCustomerRecipientsCC"</summary>
+                public const string AutoRunNewCustomerRecipientsCC = Base + ":AutoRunNewCustomerRecipientsCC";
                 // Add other category keys here as needed, e.g.:
                 // public const string AutoRunMonthlyMarketingRecipientsTo = Base + ":AutoRunMonthlyMarketingRecipientsTo";
 
@@ -240,10 +248,25 @@ namespace QuoteConversionReportAutomation.Configuration
             public const string FinancialYearStartDay = Base + ":FinancialYearStartDay";
             /// <summary>Configuration key for the monetary threshold for 'Daily (5days >= £X)' report filtering. Path: "OperationalParameters:Daily5Day1kFilteringThreshold"</summary>
             public const string Daily5Day1kFilteringThreshold = Base + ":Daily5Day1kFilteringThreshold";
-            /// <summary>Configuration key for maximum retries for general file system operations. Path: "OperationalParameters:GeneralFileOperationMaxRetries"</summary>
+            /// <summary>Configuration key for the list of posting codes for the New Customer report. Path: "OperationalParameters:NewCustomerPostingCodes"</summary>
+            public const string NewCustomerPostingCodes = Base + ":NewCustomerPostingCodes";
+            /// <summary>Configuration key for the list of tender posting codes to exclude from analysis. Path: "OperationalParameters:TenderAccountPostingCodesToExclude"</summary>
+            public const string TenderAccountPostingCodesToExclude = Base + ":TenderAccountPostingCodesToExclude";
+            /// <summary>Configuration key for maximum retries for general file system operations. Path: 
+            /// "OperationalParameters:GeneralFileOperationMaxRetries"</summary>
             public const string GeneralFileOperationMaxRetries = Base + ":GeneralFileOperationMaxRetries";
             /// <summary>Configuration key for initial delay in milliseconds between file operation retries. Path: "OperationalParameters:GeneralFileOperationDelayMs"</summary>
             public const string GeneralFileOperationDelayMs = Base + ":GeneralFileOperationDelayMs";
+
+            /// <summary>
+            /// Lead Time Analysis settings.
+            /// </summary>
+            public static class LeadTimeAnalysisSettings
+            {
+                /// <summary>Base path for Lead Time Analysis settings. Path: "OperationalParameters:LeadTimeAnalysisSettings"</summary>
+                public const string Base = OperationalParameters.Base + ":LeadTimeAnalysisSettings";
+                public const string EnabledForReportTypes = Base + ":EnabledForReportTypes";
+            }
 
             /// <summary>
             /// Configuration keys for Excel sheet names.

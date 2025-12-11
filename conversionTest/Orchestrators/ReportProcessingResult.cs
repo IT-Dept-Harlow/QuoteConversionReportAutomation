@@ -25,11 +25,12 @@ namespace QuoteConversionReportAutomation.Orchestrators
         /// </summary>
         public string? GeneratedAnalysisPath { get; init; }
 
-        /// <summary>
-        /// Gets a value indicating whether a manual refresh of the Excel file is required by the user
-        /// before the email can be sent (if not skipped).
-        /// </summary>
-        public bool ManualRefreshRequired { get; init; }
+        // commented out as not needed for now
+        ///// <summary>
+        ///// Gets a value indicating whether a manual refresh of the Excel file is required by the user
+        ///// before the email can be sent (if not skipped).
+        ///// </summary>
+        //public bool ManualRefreshRequired { get; init; }
 
         /// <summary>
         /// Gets the result of the email sending operation. Null if email was skipped, if processing failed before email attempt,
@@ -55,7 +56,7 @@ namespace QuoteConversionReportAutomation.Orchestrators
                 Success = true,
                 GeneratedAnalysisPath = generatedAnalysisPath,
                 EmailResult = emailResult,
-                ManualRefreshRequired = manualRefreshRequired,
+                //ManualRefreshRequired = manualRefreshRequired,
                 ErrorMessage = emailResult is { Success: false } ? emailResult.ErrorMessage : null
             };
 
@@ -73,7 +74,7 @@ namespace QuoteConversionReportAutomation.Orchestrators
                 ErrorMessage = errorMessage,
                 GeneratedAnalysisPath = generatedAnalysisPath, // Can be set if Excel processing partially succeeded but email failed
                 EmailResult = emailResult,
-                ManualRefreshRequired = false // Typically false on failure, but could be true if failure happened after identifying refresh need
+                //ManualRefreshRequired = false // Typically false on failure, but could be true if failure happened after identifying refresh need
             };
     }
 }

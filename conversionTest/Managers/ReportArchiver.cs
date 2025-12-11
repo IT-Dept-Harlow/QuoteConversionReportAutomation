@@ -169,8 +169,15 @@ namespace QuoteConversionReportAutomation.Managers
                                     {
                                         if (!Directory.EnumerateFileSystemEntries(yearDirToArchive).Any())
                                         {
-                                            Directory.Delete(yearDirToArchive, false);
-                                            Logger.LogInfo($"Successfully deleted empty source year folder after merge: '{yearDirToArchive}'");
+                                            try
+                                            {
+                                               // Directory.Delete(yearDirToArchive, true);
+                                                Logger.LogInfo($"Successfully deleted empty source year folder after merge: '{yearDirToArchive}'");
+                                            }
+                                            catch(IOException ex)
+                                            { 
+                                            Logger.LogWarning($"Source year folder '{yearDirToArchive}' was not empty after merge attempt. Manual cleanup might be needed. Error: " + ex);
+                                            }
                                         }
                                         else
                                         {

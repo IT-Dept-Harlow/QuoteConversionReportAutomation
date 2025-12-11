@@ -64,6 +64,34 @@ namespace QuoteConversionReportAutomation.Models
         [JsonPropertyName("AutoRunWeeklyRecipientsCC")]
         public List<string>? AutoRunWeeklyRecipientsCC { get; set; }
 
+        /// <summary>
+        /// Gets or sets the user-override 'To' recipients for the automated "Femi Only" report.
+        /// corresponds to the "AutoRunFemiOnlyRecipients" category key.
+        /// </summary>
+        [JsonPropertyName("AutoRunFemiOnlyRecipientsTo")]
+        public List<string>? AutoRunFemiOnlyRecipientsTo { get; set; }
+
+        /// <summary>
+        /// Gets or sets the user-override 'CC' recipients for the automated "Femi Only" report.
+        /// corresponds to the "AutoRunFemiOnlyRecipients" category key.
+        /// </summary>
+        [JsonPropertyName("AutoRunFemiOnlyRecipientsCC")]
+        public List<string>? AutoRunFemiOnlyRecipientsCC { get; set; }
+
+        /// <summary>
+        /// Gets or sets the user-override 'To' recipients for the automated "New Customer" report.
+        /// corresponds to the "AutoRunNewCustomerRecipients" category key.
+        /// </summary>
+        [JsonPropertyName("AutoRunNewCustomerRecipientsTo")]
+        public List<string>? AutoRunNewCustomerRecipientsTo { get; set; }
+
+        /// <summary>
+        /// Gets or sets the user-override 'CC' recipients for the automated "New Customer" report.
+        /// corresponds to the "AutoRunNewCustomerRecipients" category key.
+        /// </summary>
+        [JsonPropertyName("AutoRunNewCustomerRecipientsCC")]
+        public List<string>? AutoRunNewCustomerRecipientsCC { get; set; }
+
         // Add more properties here if new RecipientCategoryKeys are defined for other automated reports.
         // Example:
         // [JsonPropertyName("AutoRunMonthlyMarketingRecipientsTo")]
@@ -100,6 +128,18 @@ namespace QuoteConversionReportAutomation.Models
         public List<string>? ProdManualCustomCC { get; set; }
 
         /// <summary>
+        /// Gets or sets the user-override 'To' recipients for MANUALLY RUN "New Customer" type reports.
+        /// </summary>
+        [JsonPropertyName("ManualNewCustomerTo")]
+        public List<string>? ManualNewCustomerTo { get; set; }
+
+        /// <summary>
+        /// Gets or sets the user-override 'CC' recipients for MANUALLY RUN "New Customer" type reports.
+        /// </summary>
+        [JsonPropertyName("ManualNewCustomerCC")]
+        public List<string>? ManualNewCustomerCC { get; set; }
+
+        /// <summary>
         /// Gets or sets the user-override 'To' recipients for manual production reports when "Send to Femi Only" is checked.
         /// (Typically for non-daily, non-custom manual reports).
         /// </summary>
@@ -120,6 +160,7 @@ namespace QuoteConversionReportAutomation.Models
         /// Gets or sets the user-override 'CC' recipients for manual production reports for the general team list.
         /// </summary>
         public List<string>? ProdTeamCC { get; set; }
+
 
         #endregion
 
@@ -154,6 +195,8 @@ namespace QuoteConversionReportAutomation.Models
             AutoRunDaily5Day1kRecipientsCC = new List<string>();
             AutoRunWeeklyRecipientsTo = new List<string>();
             AutoRunWeeklyRecipientsCC = new List<string>();
+            AutoRunFemiOnlyRecipientsTo = new List<string>();
+            AutoRunFemiOnlyRecipientsCC = new List<string>();
             // Initialise example for a future custom automated report
             // AutoRunMonthlyMarketingRecipientsTo = new List<string>();
             // AutoRunMonthlyMarketingRecipientsCC = new List<string>();

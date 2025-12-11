@@ -234,6 +234,8 @@ namespace QuoteConversionReportAutomation.Forms
 
             // --- Paths Tab ---
             txtCrystalReportRptFile.Text = _configuration["Paths:CrystalReportRptFile"]; // Typically absolute or UNC
+            txtExcelTemplateFileName.Text = _configuration.GetValue<string>("Paths:ExcelTemplateFileName", "TEMPLATE_Estimate Success Rate_FINAL.xlsx");
+            txtReportDefinitionsFileName.Text = _configuration.GetValue<string>("Paths:ReportDefinitionsFileName", "autoReportDefinitions.json");
 
             string finalReportOutputBaseConfig = _configuration["Paths:FinalReportOutputBase"];
             if (!string.IsNullOrEmpty(finalReportOutputBaseConfig) &&
@@ -332,6 +334,12 @@ namespace QuoteConversionReportAutomation.Forms
             txtFolderNamingAnnual.Text = _configuration.GetValue<string>("OperationalParameters:ReportTypeFolderNames:Annual", "Annual Reports");
             txtFolderNamingCustom.Text = _configuration.GetValue<string>("OperationalParameters:ReportTypeFolderNames:Custom", "Custom Reports");
             txtFolderNamingOther.Text = _configuration.GetValue<string>("OperationalParameters:ReportTypeFolderNames:Other", "Other Reports");
+            // ADDED: Load the New Customer Posting Codes from the config array
+            var codes = _configuration.GetSection("OperationalParameters:NewCustomerPostingCodes").Get<List<string>>();
+            if (codes != null)
+            {
+                txtNewCustomerPostingCodes.Text = string.Join(Environment.NewLine, codes);
+            }
 
             // --- Inter-Process Communication Tab ---
             txtNamedPipeName.Text = _configuration.GetValue<string>("InterProcessCommunication:NamedPipeName", "CrystalReportPipe");
@@ -382,6 +390,8 @@ namespace QuoteConversionReportAutomation.Forms
             toolTip1.SetToolTip(txtRawReportOutputBase, "Base directory for raw exported data files from Crystal Reports.\nHandles absolute, UNC, and user-profile relative paths like 'Final Report Output Base'.");
             toolTip1.SetToolTip(btnBrowseRawReportOutputBase, "Browse for the base directory for raw report exports.");
             toolTip1.SetToolTip(txtWrapperExecutable, "Full path to the Crystal Report Wrapper executable (typically CrystalReportWrapper.exe).");
+            // ADDED: Tooltip for new template filename setting
+            toolTip1.SetToolTip(txtExcelTemplateFileName, "The filename of the single Excel template to be used for all reports (e.g., TEMPLATE_Estimate Success Rate_FINAL.xlsx).");
             toolTip1.SetToolTip(btnBrowseWrapperExecutable, "Browse to select the Crystal Report Wrapper executable file (.exe).");
             toolTip1.SetToolTip(txtReportDefinitionsFileName, "Filename for the JSON file storing automated report definitions (e.g., autoReportDefinitions.json).\nExpected in the same directory as appsettings.json.");
             toolTip1.SetToolTip(txtFallbackLogDirectory, "Directory for logging if 'Log Directory Base' is inaccessible.\nSupports environment variables like %LOCALAPPDATA%.");
@@ -436,6 +446,8 @@ namespace QuoteConversionReportAutomation.Forms
             toolTip1.SetToolTip(txtFolderNamingAnnual, "Folder name for 'Annual' reports.");
             toolTip1.SetToolTip(txtFolderNamingCustom, "Folder name for 'Custom' date range reports.");
             toolTip1.SetToolTip(txtFolderNamingOther, "Default folder name for other report types.");
+            // ADDED: Tooltip for new posting codes textbox
+            toolTip1.SetToolTip(txtNewCustomerPostingCodes, "The list of posting codes used to identify 'New Customers'. Enter one code per line.");
 
             // --- Inter-Process Communication (IPC) Tab ---
             toolTip1.SetToolTip(txtNamedPipeName, "Unique name of the named pipe for Crystal Report Wrapper communication.");
@@ -530,6 +542,8 @@ namespace QuoteConversionReportAutomation.Forms
                 UpdateJsonValue(rootObject, "Paths:WrapperExecutable", txtWrapperExecutable.Text.Trim());
                 UpdateJsonValue(rootObject, "Paths:ReportDefinitionsFileName", txtReportDefinitionsFileName.Text.Trim());
                 UpdateJsonValue(rootObject, "Logging:DefaultFallbackLogDirectory", txtFallbackLogDirectory.Text.Trim());
+                UpdateJsonValue(rootObject, "Paths:ExcelTemplateFileName", txtExcelTemplateFileName.Text.Trim());
+                UpdateJsonValue(rootObject, "Paths:ReportDefinitionsFileName", txtReportDefinitionsFileName.Text.Trim());
 
 
                 // --- Update SMTP Configuration Tab Settings ---
@@ -590,6 +604,12 @@ namespace QuoteConversionReportAutomation.Forms
                 UpdateJsonValue(rootObject, "OperationalParameters:ReportTypeFolderNames:Annual", txtFolderNamingAnnual.Text.Trim());
                 UpdateJsonValue(rootObject, "OperationalParameters:ReportTypeFolderNames:Custom", txtFolderNamingCustom.Text.Trim());
                 UpdateJsonValue(rootObject, "OperationalParameters:ReportTypeFolderNames:Other", txtFolderNamingOther.Text.Trim());
+                // ADDED: Save the posting codes from the multiline textbox back to a JSON array
+                var codesList = txtNewCustomerPostingCodes.Text.Split(new[] { Environment.NewLine, "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+                                                              .Select(code => code.Trim())
+                                                              .Where(code => !string.IsNullOrEmpty(code))
+                                                              .ToList();
+                UpdateJsonValue(rootObject, "OperationalParameters:NewCustomerPostingCodes", JArray.FromObject(codesList));
 
                 // --- Update Inter-Process Communication (IPC) Tab ---
                 UpdateJsonValue(rootObject, "InterProcessCommunication:NamedPipeName", txtNamedPipeName.Text.Trim());
@@ -702,6 +722,13 @@ namespace QuoteConversionReportAutomation.Forms
             isValid &= ValidatePathControl(txtLogDirectoryBase, "Log Directory Base", isFile: false, required: false, fileMustExist: false); // Not strictly required to exist beforehand
             isValid &= ValidatePathControl(txtRawReportOutputBase, "Raw Report Output Base Directory", isFile: false, required: true, fileMustExist: false);
             isValid &= ValidatePathControl(txtWrapperExecutable, "Wrapper Executable Path", isFile: true, required: true, fileMustExist: true, expectedExtension: ".exe");
+            // ADDED: Validation for new template filename
+            isValid &= ValidateRequiredTextBox(txtExcelTemplateFileName, "Excel Template Filename");
+            if (!string.IsNullOrWhiteSpace(txtExcelTemplateFileName.Text) && !txtExcelTemplateFileName.Text.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+            {
+                SetError(txtExcelTemplateFileName, "Template filename must end with .xlsx");
+                isValid = false;
+            }
             isValid &= ValidateRequiredTextBox(txtReportDefinitionsFileName, "Report Definitions Filename");
             isValid &= ValidatePathControl(txtFallbackLogDirectory, "Fallback Log Directory", isFile: false, required: false, fileMustExist: false); // Not strictly required to exist
 
@@ -753,6 +780,8 @@ namespace QuoteConversionReportAutomation.Forms
             isValid &= ValidateFolderNameChars(txtFolderNamingAnnual, "Folder Name: Annual");
             isValid &= ValidateFolderNameChars(txtFolderNamingCustom, "Folder Name: Custom");
             isValid &= ValidateFolderNameChars(txtFolderNamingOther, "Folder Name: Other");
+            // ADDED: Validation for new posting codes textbox
+            isValid &= ValidateRequiredTextBox(txtNewCustomerPostingCodes, "New Customer Posting Codes");
 
             // --- Inter-Process Communication (IPC) Validation ---
             isValid &= ValidateRequiredTextBox(txtNamedPipeName, "Named Pipe Name");
@@ -1009,6 +1038,8 @@ namespace QuoteConversionReportAutomation.Forms
         private void btnBrowseRawReportOutputBase_Click(object? sender, EventArgs e) => BrowseFolder(txtRawReportOutputBase, "Select Base Directory for Raw Report Exports");
         private void btnBrowseWrapperExecutable_Click(object? sender, EventArgs e) => BrowseFile(txtWrapperExecutable, "Select Wrapper Executable", "Executable Files (*.exe)|*.exe|All Files (*.*)|*.*", true);
         private void btnBrowseFallbackLogDir_Click(object? sender, EventArgs e) => BrowseFolder(txtFallbackLogDirectory, "Select Default Fallback Log Directory");
+        private void btnBrowseTemplateFile_Click(object? sender, EventArgs e) => BrowseFile(txtExcelTemplateFileName, "Select Excel Template File", "Excel Files (*.xlsx)|*.xlsx", true);
+
         #endregion
     }
     #endregion

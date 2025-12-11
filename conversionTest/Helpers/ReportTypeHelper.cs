@@ -3,8 +3,11 @@
 // including conversions to/from strings, integer indices, and configuration keys.
 
 #region Using Directives
+using Microsoft.Extensions.Configuration; // Add this line
+using QuoteConversionReportAutomation.Configuration; // Add this for AppConfigKeys
 using QuoteConversionReportAutomation.Models; // For ReportType enum
 using QuoteConversionReportAutomation.Services.Logging; // For Logger
+using System.Globalization; // Add this for culture-specific formatting
 using System;
 #endregion
 
@@ -23,18 +26,29 @@ namespace QuoteConversionReportAutomation.Helpers
         /// This is typically used for UI elements like ComboBox items or display labels.
         /// </summary>
         /// <param name="reportType">The <see cref="ReportType"/> enum value.</param>
+        ///  <param name="configuration">The application configuration, used to read operational parameters.</param>
         /// <returns>A string representation suitable for display.</returns>
-        public static string GetDisplayString(ReportType reportType)
+        public static string GetDisplayString(ReportType reportType, IConfiguration configuration)
         {
+
+            if (reportType == ReportType.Daily5Day1k)
+            {
+                // Read the threshold value from configuration
+                decimal threshold = configuration.GetValue<decimal>(AppConfigKeys.OperationalParameters.Daily5Day1kFilteringThreshold, 1000m);
+                // Format it as currency with no decimal places
+                string formattedThreshold = threshold.ToString("C0", CultureInfo.GetCultureInfo("en-GB"));
+                return $"Daily (5days >= {formattedThreshold})";
+            }
+
             return reportType switch
             {
                 ReportType.Daily => "Daily",
-                ReportType.Daily5Day1k => "Daily (5days >= £1000)",
                 ReportType.Weekly => "Weekly",
                 ReportType.Monthly => "Monthly",
                 ReportType.Quarterly => "Quarterly (3 Months)", // Matches ComboBox text in Form1.Designer
                 ReportType.Annual => "Annual",
                 ReportType.Custom => "Custom",
+                ReportType.NewCustomer => "New Customer Report", // ADDED: Display name for the new report type.
                 ReportType.Unknown => "Unknown",
                 _ => reportType.ToString() // Fallback to enum member name
             };
@@ -57,6 +71,7 @@ namespace QuoteConversionReportAutomation.Helpers
                 ReportType.Monthly => "Monthly",
                 ReportType.Quarterly => "Quarterly",
                 ReportType.Annual => "Annual",
+                ReportType.NewCustomer => "NewCustomer", // ADDED: Configuration key for the new report type folder name.
                 ReportType.Custom => "Custom",
                 _ => "Other" // Fallback key for unknown or unmapped types
             };
@@ -79,18 +94,25 @@ namespace QuoteConversionReportAutomation.Helpers
                 return ReportType.Unknown;
             }
 
-            return reportTypeString.Trim().ToLowerInvariant() switch
+            string lowerTrimmedString = reportTypeString.Trim().ToLowerInvariant();
+
+            // Make the check more flexible for the dynamic name
+            if (lowerTrimmedString.StartsWith("daily (5days >="))
+            {
+                return ReportType.Daily5Day1k;
+            }
+
+            return lowerTrimmedString switch
             {
                 "daily" => ReportType.Daily,
-                "daily(5days >= £1000)" => ReportType.Daily5Day1k, // Match exact display string
-                "daily5day1k" => ReportType.Daily5Day1k,           // Match config key string
                 "weekly" => ReportType.Weekly,
                 "monthly" => ReportType.Monthly,
-                "quarterly (3 months)" => ReportType.Quarterly,    // Match exact display string
-                "quarterly" => ReportType.Quarterly,               // Match config key string
+                "quarterly (3 months)" => ReportType.Quarterly,
+                "quarterly" => ReportType.Quarterly,
                 "annual" => ReportType.Annual,
                 "custom" => ReportType.Custom,
-                _ => ReportType.Unknown // Default for unrecognized strings
+                "new customer report" => ReportType.NewCustomer, // ADDED: String conversion for the new report type.
+                _ => ReportType.Unknown
             };
         }
 

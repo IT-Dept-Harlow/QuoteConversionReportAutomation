@@ -171,6 +171,11 @@ namespace QuoteConversionReportAutomation.Forms
             this.panelButtons = new System.Windows.Forms.Panel();
             this.btnSaveChanges = new System.Windows.Forms.Button();
             this.btnCancel = new System.Windows.Forms.Button();
+            this.lblExcelTemplateFileName = new System.Windows.Forms.Label();
+            this.txtExcelTemplateFileName = new System.Windows.Forms.TextBox();
+            this.btnBrowseTemplateFile = new System.Windows.Forms.Button();
+            this.lblNewCustomerPostingCodes = new System.Windows.Forms.Label();
+            this.txtNewCustomerPostingCodes = new System.Windows.Forms.TextBox();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.mainTabControl.SuspendLayout();
             this.tabPageAppInfo.SuspendLayout();
@@ -343,9 +348,12 @@ namespace QuoteConversionReportAutomation.Forms
             this.tlpPaths.Dock = System.Windows.Forms.DockStyle.Top;
             this.tlpPaths.Location = new System.Drawing.Point(10, 10);
             this.tlpPaths.Name = "tlpPaths";
-            this.tlpPaths.RowCount = 8;
-            for (int i = 0; i < this.tlpPaths.RowCount; i++) { this.tlpPaths.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 35F)); }
-            this.tlpPaths.Size = new System.Drawing.Size(756, 280); // 8 rows * 35F
+            this.tlpPaths.RowCount = 9;
+            this.tlpPaths.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 35F));
+            this.tlpPaths.Controls.Add(this.lblExcelTemplateFileName, 0, 8);
+            this.tlpPaths.Controls.Add(this.txtExcelTemplateFileName, 1, 8);
+            this.tlpPaths.Controls.Add(this.btnBrowseTemplateFile, 2, 8); // Add the button here
+            this.tlpPaths.Size = new System.Drawing.Size(756, 315); // Update size (9 rows * 35)
             this.tlpPaths.TabIndex = 0;
             // 
             // lblCrystalReportRptFile
@@ -439,6 +447,24 @@ namespace QuoteConversionReportAutomation.Forms
             // btnBrowseFallbackLogDir
             // 
             this.btnBrowseFallbackLogDir.Anchor = System.Windows.Forms.AnchorStyles.Left; this.btnBrowseFallbackLogDir.Text = "Browse..."; this.btnBrowseFallbackLogDir.Name = "btnBrowseFallbackLogDir"; this.btnBrowseFallbackLogDir.Size = new System.Drawing.Size(85, 23); this.btnBrowseFallbackLogDir.TabIndex = 22; this.btnBrowseFallbackLogDir.UseVisualStyleBackColor = true; this.btnBrowseFallbackLogDir.Click += new System.EventHandler(this.btnBrowseFallbackLogDir_Click);
+            // 
+            // lblExcelTemplateFileName
+            // 
+            this.lblExcelTemplateFileName.Anchor = System.Windows.Forms.AnchorStyles.Right;
+            this.lblExcelTemplateFileName.AutoSize = true;
+            this.lblExcelTemplateFileName.Text = "Excel Template Filename:";
+            this.lblExcelTemplateFileName.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // txtExcelTemplateFileName
+            // 
+            this.txtExcelTemplateFileName.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.txtExcelTemplateFileName.Name = "txtExcelTemplateFileName";
+            this.txtExcelTemplateFileName.Size = new System.Drawing.Size(533, 20);
+
+            // 
+            // btnBrowseTemplateFile
+            // 
+            this.btnBrowseTemplateFile.Anchor = System.Windows.Forms.AnchorStyles.Left; this.btnBrowseTemplateFile.Text = "Browse..."; this.btnBrowseTemplateFile.Name = "btnBrowseTemplateFile"; this.btnBrowseTemplateFile.Size = new System.Drawing.Size(85, 23); this.btnBrowseTemplateFile.TabIndex = 23; this.btnBrowseTemplateFile.UseVisualStyleBackColor = true; this.btnBrowseTemplateFile.Click += new System.EventHandler(this.btnBrowseTemplateFile_Click);
             // 
             // tabPageSmtp
             // 
@@ -725,6 +751,8 @@ namespace QuoteConversionReportAutomation.Forms
             // tlpOperational
             // 
             this.tlpOperational.AutoSize = true;
+            this.tlpOperational.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+| System.Windows.Forms.AnchorStyles.Right)));
             this.tlpOperational.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.tlpOperational.ColumnCount = 2;
             this.tlpOperational.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 270F));
@@ -777,12 +805,31 @@ namespace QuoteConversionReportAutomation.Forms
             this.tlpOperational.Controls.Add(this.txtFolderNamingCustom, 1, 22);
             this.tlpOperational.Controls.Add(this.lblFolderNamingOther, 0, 23);
             this.tlpOperational.Controls.Add(this.txtFolderNamingOther, 1, 23);
+            this.tlpOperational.Controls.Add(this.lblNewCustomerPostingCodes, 0, 24);
+            this.tlpOperational.Controls.Add(this.txtNewCustomerPostingCodes, 1, 24);
+            this.tlpOperational.Location = new System.Drawing.Point(0, 0);
             this.tlpOperational.Dock = System.Windows.Forms.DockStyle.Top;
-            this.tlpOperational.Location = new System.Drawing.Point(10, 10);
             this.tlpOperational.Name = "tlpOperational";
-            this.tlpOperational.RowCount = 24;
-            for (int i = 0; i < this.tlpOperational.RowCount; i++) { this.tlpOperational.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 35F)); } // Increased row height
-            this.tlpOperational.Size = new System.Drawing.Size(756, 840); // 24 rows * 35F
+            this.tlpOperational.RowCount = 25;
+
+            // First, clear any old styles
+            this.tlpOperational.RowStyles.Clear();
+
+            // Set the first 24 rows to auto-size to their content's height
+            for (int i = 0; i < 24; i++)
+            {
+                this.tlpOperational.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            }
+
+            // Set the row for the posting codes textbox to the larger, fixed height
+            this.tlpOperational.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 120F));
+
+            this.tlpOperational.ColumnStyles.Clear();
+
+            // This makes the first column just wide enough for the longest label.
+            this.tlpOperational.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
+            // This makes the second column (with the textboxes) fill 100% of the remaining space.
+            this.tlpOperational.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tlpOperational.TabIndex = 0;
             // 
             // lblArchiveRawReportsOlderThanDays
@@ -976,6 +1023,23 @@ namespace QuoteConversionReportAutomation.Forms
             // txtFolderNamingOther
             // 
             this.txtFolderNamingOther.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right))); this.txtFolderNamingOther.Location = new System.Drawing.Point(273, 812); this.txtFolderNamingOther.Name = "txtFolderNamingOther"; this.txtFolderNamingOther.Size = new System.Drawing.Size(480, 20); this.txtFolderNamingOther.TabIndex = 47;
+            // 
+            // lblNewCustomerPostingCodes
+            // 
+            this.lblNewCustomerPostingCodes.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.lblNewCustomerPostingCodes.AutoSize = true;
+            this.lblNewCustomerPostingCodes.Padding = new System.Windows.Forms.Padding(0, 8, 3, 0);
+            this.lblNewCustomerPostingCodes.Text = "New Customer Posting Codes\r\n(one per line):";
+            this.lblNewCustomerPostingCodes.TextAlign = System.Drawing.ContentAlignment.TopRight;
+            // 
+            // txtNewCustomerPostingCodes
+            // 
+            this.txtNewCustomerPostingCodes.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.txtNewCustomerPostingCodes.Multiline = true;
+            this.txtNewCustomerPostingCodes.AcceptsReturn = true;
+            this.txtNewCustomerPostingCodes.Name = "txtNewCustomerPostingCodes";
+            this.txtNewCustomerPostingCodes.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.txtNewCustomerPostingCodes.Size = new System.Drawing.Size(480, 64);
             // 
             // tabPageIPC
             // 
@@ -1217,6 +1281,9 @@ namespace QuoteConversionReportAutomation.Forms
         private System.Windows.Forms.Label lblFallbackLogDirectory;
         private System.Windows.Forms.TextBox txtFallbackLogDirectory;
         private System.Windows.Forms.Button btnBrowseFallbackLogDir;
+        private System.Windows.Forms.Label lblExcelTemplateFileName;
+        private System.Windows.Forms.TextBox txtExcelTemplateFileName;
+        private System.Windows.Forms.Button btnBrowseTemplateFile;
 
         // SMTP Tab
         private System.Windows.Forms.TabPage tabPageSmtp;
@@ -1316,6 +1383,8 @@ namespace QuoteConversionReportAutomation.Forms
         private System.Windows.Forms.TextBox txtFolderNamingCustom;
         private System.Windows.Forms.Label lblFolderNamingOther;
         private System.Windows.Forms.TextBox txtFolderNamingOther;
+        private System.Windows.Forms.Label lblNewCustomerPostingCodes;
+        private System.Windows.Forms.TextBox txtNewCustomerPostingCodes;
 
         // Inter-Process Communication (IPC) Tab
         private System.Windows.Forms.TabPage tabPageIPC;

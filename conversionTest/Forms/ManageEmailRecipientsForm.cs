@@ -38,6 +38,8 @@ namespace QuoteConversionReportAutomation.Forms
         // They are initialised in InitializeManualCustomControls.
         private TextBox txtProdManualCustomTo;
         private TextBox txtProdManualCustomCC;
+        private TextBox txtManualNewCustomerTo; // ADDED
+        private TextBox txtManualNewCustomerCC; // ADDED
 
         // --- UI Control Fields for Category-Based Automated Report Overrides ---
         // These fields will hold references to the TextBoxes for the new category-based automated report overrides.
@@ -48,6 +50,10 @@ namespace QuoteConversionReportAutomation.Forms
         private TextBox txtAutoRunDaily5Day1kRecipientsCC;
         private TextBox txtAutoRunWeeklyRecipientsTo;
         private TextBox txtAutoRunWeeklyRecipientsCC;
+        private TextBox txtAutoRunFemiOnlyRecipientsTo;
+        private TextBox txtAutoRunFemiOnlyRecipientsCC;
+        private TextBox txtAutoRunNewCustomerRecipientsTo; // ADDED
+        private TextBox txtAutoRunNewCustomerRecipientsCC; // ADDED
         // Add fields here for other categories if defined, e.g.:
         // private TextBox txtAutoRunMonthlyMarketingRecipientsTo;
         // private TextBox txtAutoRunMonthlyMarketingRecipientsCC;
@@ -207,69 +213,70 @@ namespace QuoteConversionReportAutomation.Forms
         /// </summary>
         private void InitializeManualCustomControls()
         {
-            // This method remains unchanged as its logic is for control creation, not theming.
-            // Theming is applied globally in Form_Load after this method runs.
-            #region Original Method Content
-            Control[] foundTo = this.Controls.Find("txtProdManualCustomTo", true);
-            if (foundTo.Length > 0 && foundTo[0] is TextBox textBoxTo) { txtProdManualCustomTo = textBoxTo; }
+            // This region has been updated to also create controls for the new "Manual New Customer" report.
+            #region Control Creation Logic
+            Control[] foundCustomTo = this.Controls.Find("txtProdManualCustomTo", true);
+            if (foundCustomTo.Length > 0 && foundCustomTo[0] is TextBox textBoxTo) { txtProdManualCustomTo = textBoxTo; }
 
-            Control[] foundCC = this.Controls.Find("txtProdManualCustomCC", true);
-            if (foundCC.Length > 0 && foundCC[0] is TextBox textBoxCC) { txtProdManualCustomCC = textBoxCC; }
+            Control[] foundCustomCC = this.Controls.Find("txtProdManualCustomCC", true);
+            if (foundCustomCC.Length > 0 && foundCustomCC[0] is TextBox textBoxCC) { txtProdManualCustomCC = textBoxCC; }
 
             if (txtProdManualCustomTo == null || txtProdManualCustomCC == null)
             {
+                // Code to programmatically add Manual Custom controls (if needed)
                 Logger.LogDebug("Manual Custom recipient TextBoxes not found by name. Creating programmatically.");
                 TabPage manualCustomTabPage;
                 TableLayoutPanel tlpManualCustom;
 
                 const string manualCustomTabKey = "manualCustomReportRecipientsTabPage";
-
-                if (mainTabControl.TabPages.ContainsKey(manualCustomTabKey))
+                // This logic ensures that if you add the tab in the designer, it will use it, otherwise it creates it.
+                if (manualReportsTableLayoutPanel.Parent is TabPage)
                 {
-                    manualCustomTabPage = mainTabControl.TabPages[manualCustomTabKey];
-                    tlpManualCustom = manualCustomTabPage.Controls.OfType<TableLayoutPanel>().FirstOrDefault() ??
-                                      new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, Padding = new Padding(10) };
-                    if (tlpManualCustom.Parent == null) manualCustomTabPage.Controls.Add(tlpManualCustom);
+                    manualCustomTabPage = (TabPage)manualReportsTableLayoutPanel.Parent;
+                    tlpManualCustom = manualReportsTableLayoutPanel;
                 }
                 else
                 {
-                    manualCustomTabPage = new TabPage("Manual Custom") { Name = manualCustomTabKey };
+                    manualCustomTabPage = new TabPage("Manual Reports") { Name = "manualReportsTabPage" };
                     tlpManualCustom = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, Padding = new Padding(10) };
                     manualCustomTabPage.Controls.Add(tlpManualCustom);
                     mainTabControl.TabPages.Add(manualCustomTabPage);
                 }
 
-                tlpManualCustom.ColumnStyles.Clear();
-                tlpManualCustom.RowStyles.Clear();
-                tlpManualCustom.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200F));
-                tlpManualCustom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-                tlpManualCustom.RowCount = 3;
-                tlpManualCustom.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
-                tlpManualCustom.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
-                tlpManualCustom.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-
                 Label lblManualCustomTo = new Label { Text = "Manual Custom Report TO:", Anchor = AnchorStyles.Right | AnchorStyles.Top, AutoSize = true, Margin = new Padding(3, 6, 3, 3) };
                 Label lblManualCustomCC = new Label { Text = "Manual Custom Report CC:", Anchor = AnchorStyles.Right | AnchorStyles.Top, AutoSize = true, Margin = new Padding(3, 6, 3, 3) };
 
-                if (txtProdManualCustomTo == null)
-                {
-                    txtProdManualCustomTo = new TextBox { Name = "txtProdManualCustomTo", Multiline = false, Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top, Height = 20 };
-                    tlpManualCustom.Controls.Add(lblManualCustomTo, 0, 0);
-                    tlpManualCustom.Controls.Add(txtProdManualCustomTo, 1, 0);
-                }
+                txtProdManualCustomTo = new TextBox { Name = "txtProdManualCustomTo", Multiline = false, Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top, Height = 20 };
+                txtProdManualCustomCC = new TextBox { Name = "txtProdManualCustomCC", Multiline = false, Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top, Height = 20 };
 
-                if (txtProdManualCustomCC == null)
-                {
-                    txtProdManualCustomCC = new TextBox { Name = "txtProdManualCustomCC", Multiline = false, Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top, Height = 20 };
-                    tlpManualCustom.Controls.Add(lblManualCustomCC, 0, 1);
-                    tlpManualCustom.Controls.Add(txtProdManualCustomCC, 1, 1);
-                }
-                Logger.LogInfo("Programmatically added/configured UI elements for Manual Custom recipients.");
+                int newRow = tlpManualCustom.RowCount++;
+                tlpManualCustom.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
+                tlpManualCustom.Controls.Add(lblManualCustomTo, 0, newRow - 1);
+                tlpManualCustom.Controls.Add(txtProdManualCustomTo, 1, newRow - 1);
+
+                newRow = tlpManualCustom.RowCount++;
+                tlpManualCustom.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
+                tlpManualCustom.Controls.Add(lblManualCustomCC, 0, newRow - 1);
+                tlpManualCustom.Controls.Add(txtProdManualCustomCC, 1, newRow - 1);
             }
-            else
-            {
-                Logger.LogDebug("Manual Custom recipient TextBoxes found by name (likely from designer).");
-            }
+
+            // ADDED: Logic to programmatically add controls for the Manual New Customer report.
+            Label lblManualNewCustomerTo = new Label { Text = "Manual New Customer TO:", Anchor = AnchorStyles.Right | AnchorStyles.Top, AutoSize = true, Margin = new Padding(3, 6, 3, 3) };
+            txtManualNewCustomerTo = new TextBox { Name = "txtManualNewCustomerTo", Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top, Height = 20 };
+            Label lblManualNewCustomerCC = new Label { Text = "Manual New Customer CC:", Anchor = AnchorStyles.Right | AnchorStyles.Top, AutoSize = true, Margin = new Padding(3, 6, 3, 3) };
+            txtManualNewCustomerCC = new TextBox { Name = "txtManualNewCustomerCC", Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top, Height = 20 };
+
+            int newRowIndex = manualReportsTableLayoutPanel.RowCount++;
+            manualReportsTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
+            manualReportsTableLayoutPanel.Controls.Add(lblManualNewCustomerTo, 0, newRowIndex - 1);
+            manualReportsTableLayoutPanel.Controls.Add(txtManualNewCustomerTo, 1, newRowIndex - 1);
+
+            newRowIndex = manualReportsTableLayoutPanel.RowCount++;
+            manualReportsTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35F));
+            manualReportsTableLayoutPanel.Controls.Add(lblManualNewCustomerCC, 0, newRowIndex - 1);
+            manualReportsTableLayoutPanel.Controls.Add(txtManualNewCustomerCC, 1, newRowIndex - 1);
+
+            Logger.LogInfo("Programmatically added UI elements for Manual recipients.");
             #endregion
         }
 
@@ -279,9 +286,8 @@ namespace QuoteConversionReportAutomation.Forms
         /// </summary>
         private void InitializeAutomatedReportControls()
         {
-            // This method remains unchanged as its logic is for control creation, not theming.
-            // Theming is applied globally in Form_Load after this method runs.
-            #region Original Method Content
+            // This method has been updated to include a category for the new "New Customer" report.
+            #region Control Creation Logic
             Logger.LogDebug("Initialising/Rebuilding controls for Automated Report recipient categories.");
             if (automatedReportsTableLayoutPanel == null)
             {
@@ -327,6 +333,9 @@ namespace QuoteConversionReportAutomation.Forms
             AddCategoryControls("Auto Std. Daily Recipients", out txtAutoRunDailyStandardRecipientsTo, out txtAutoRunDailyStandardRecipientsCC, "AutoRunDailyStandardRecipients");
             AddCategoryControls("Auto Daily (5d>=£1k) Recipients", out txtAutoRunDaily5Day1kRecipientsTo, out txtAutoRunDaily5Day1kRecipientsCC, "AutoRunDaily5Day1kRecipients");
             AddCategoryControls("Auto Weekly Recipients", out txtAutoRunWeeklyRecipientsTo, out txtAutoRunWeeklyRecipientsCC, "AutoRunWeeklyRecipients");
+            AddCategoryControls("Auto 'Femi Only' Recipients", out txtAutoRunFemiOnlyRecipientsTo, out txtAutoRunFemiOnlyRecipientsCC, "AutoRunFemiOnlyRecipients");
+            // ADDED: Controls for the new automated report category.
+            AddCategoryControls("Auto New Customer Recipients", out txtAutoRunNewCustomerRecipientsTo, out txtAutoRunNewCustomerRecipientsCC, "AutoRunNewCustomerRecipients");
 
             automatedReportsTableLayoutPanel.RowCount++;
             automatedReportsTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
@@ -350,6 +359,8 @@ namespace QuoteConversionReportAutomation.Forms
             if (txtAutoRunDaily5Day1kRecipientsCC != null) toolTipProvider.SetToolTip(this.txtAutoRunDaily5Day1kRecipientsCC, "Override 'CC' for AUTOMATED 'Daily (5days >= £1k)' reports. Separate emails with comma/semicolon.");
             if (txtAutoRunWeeklyRecipientsTo != null) toolTipProvider.SetToolTip(this.txtAutoRunWeeklyRecipientsTo, "Override 'To' for AUTOMATED Weekly reports. Separate emails with comma/semicolon.");
             if (txtAutoRunWeeklyRecipientsCC != null) toolTipProvider.SetToolTip(this.txtAutoRunWeeklyRecipientsCC, "Override 'CC' for AUTOMATED Weekly reports. Separate emails with comma/semicolon.");
+            if (txtAutoRunFemiOnlyRecipientsTo != null) toolTipProvider.SetToolTip(this.txtAutoRunFemiOnlyRecipientsTo, "Override 'To' for automated reports using the 'Femi Only' category. Separate emails with comma/semicolon.");
+            if (txtAutoRunFemiOnlyRecipientsCC != null) toolTipProvider.SetToolTip(this.txtAutoRunFemiOnlyRecipientsCC, "Override 'CC' for automated reports using the 'Femi Only' category. Separate emails with comma/semicolon.");
 
             toolTipProvider.SetToolTip(this.txtProdManualRunDailyTo, "Default 'To' for MANUALLY RUN standard daily reports. Separate emails with comma/semicolon.");
             toolTipProvider.SetToolTip(this.txtProdManualRunDailyCC, "Default 'CC' for MANUALLY RUN standard daily reports. Separate emails with comma/semicolon.");
@@ -360,6 +371,10 @@ namespace QuoteConversionReportAutomation.Forms
 
             if (txtProdManualCustomTo != null) toolTipProvider.SetToolTip(this.txtProdManualCustomTo, "Default 'To' for MANUALLY RUN custom reports. Separate emails with comma/semicolon.");
             if (txtProdManualCustomCC != null) toolTipProvider.SetToolTip(this.txtProdManualCustomCC, "Default 'CC' for MANUALLY RUN custom reports. Separate emails with comma/semicolon.");
+
+            // ADDED: Tooltips for new manual report controls.
+            if (txtManualNewCustomerTo != null) toolTipProvider.SetToolTip(this.txtManualNewCustomerTo, "Default 'To' for MANUALLY RUN New Customer reports. Separate emails with comma/semicolon.");
+            if (txtManualNewCustomerCC != null) toolTipProvider.SetToolTip(this.txtManualNewCustomerCC, "Default 'CC' for MANUALLY RUN New Customer reports. Separate emails with comma/semicolon.");
 
 #if DEBUG
             if (txtDebugTo != null) toolTipProvider.SetToolTip(this.txtDebugTo, "Primary 'To' recipient for ALL reports in DEBUG mode. Single email address.");
@@ -389,6 +404,11 @@ namespace QuoteConversionReportAutomation.Forms
             if (txtAutoRunDaily5Day1kRecipientsCC != null) txtAutoRunDaily5Day1kRecipientsCC.Text = string.Join(", ", currentSettings.AutoRunDaily5Day1kRecipientsCC ?? Enumerable.Empty<string>());
             if (txtAutoRunWeeklyRecipientsTo != null) txtAutoRunWeeklyRecipientsTo.Text = string.Join(", ", currentSettings.AutoRunWeeklyRecipientsTo ?? Enumerable.Empty<string>());
             if (txtAutoRunWeeklyRecipientsCC != null) txtAutoRunWeeklyRecipientsCC.Text = string.Join(", ", currentSettings.AutoRunWeeklyRecipientsCC ?? Enumerable.Empty<string>());
+            if (txtAutoRunFemiOnlyRecipientsTo != null) txtAutoRunFemiOnlyRecipientsTo.Text = string.Join(", ", currentSettings.AutoRunFemiOnlyRecipientsTo ?? Enumerable.Empty<string>());
+            if (txtAutoRunFemiOnlyRecipientsCC != null) txtAutoRunFemiOnlyRecipientsCC.Text = string.Join(", ", currentSettings.AutoRunFemiOnlyRecipientsCC ?? Enumerable.Empty<string>());
+            // ADDED: Load data for new automated report category.
+            if (txtAutoRunNewCustomerRecipientsTo != null) txtAutoRunNewCustomerRecipientsTo.Text = string.Join(", ", currentSettings.AutoRunNewCustomerRecipientsTo ?? Enumerable.Empty<string>());
+            if (txtAutoRunNewCustomerRecipientsCC != null) txtAutoRunNewCustomerRecipientsCC.Text = string.Join(", ", currentSettings.AutoRunNewCustomerRecipientsCC ?? Enumerable.Empty<string>());
 
             txtProdManualRunDailyTo.Text = string.Join(", ", currentSettings.ProdManualRunDailyTo ?? Enumerable.Empty<string>());
             txtProdManualRunDailyCC.Text = string.Join(", ", currentSettings.ProdManualRunDailyCC ?? Enumerable.Empty<string>());
@@ -399,6 +419,10 @@ namespace QuoteConversionReportAutomation.Forms
 
             if (txtProdManualCustomTo != null) txtProdManualCustomTo.Text = string.Join(", ", currentSettings.ProdManualCustomTo ?? Enumerable.Empty<string>());
             if (txtProdManualCustomCC != null) txtProdManualCustomCC.Text = string.Join(", ", currentSettings.ProdManualCustomCC ?? Enumerable.Empty<string>());
+
+            // ADDED: Load data for new manual report controls.
+            if (txtManualNewCustomerTo != null) txtManualNewCustomerTo.Text = string.Join(", ", currentSettings.ManualNewCustomerTo ?? Enumerable.Empty<string>());
+            if (txtManualNewCustomerCC != null) txtManualNewCustomerCC.Text = string.Join(", ", currentSettings.ManualNewCustomerCC ?? Enumerable.Empty<string>());
 
 #if DEBUG
             if (txtDebugTo != null) txtDebugTo.Text = currentSettings.DebugTo ?? string.Empty;
@@ -428,6 +452,11 @@ namespace QuoteConversionReportAutomation.Forms
                 AutoRunDaily5Day1kRecipientsCC = txtAutoRunDaily5Day1kRecipientsCC != null ? StringToEmailList(txtAutoRunDaily5Day1kRecipientsCC.Text) : new List<string>(),
                 AutoRunWeeklyRecipientsTo = txtAutoRunWeeklyRecipientsTo != null ? StringToEmailList(txtAutoRunWeeklyRecipientsTo.Text) : new List<string>(),
                 AutoRunWeeklyRecipientsCC = txtAutoRunWeeklyRecipientsCC != null ? StringToEmailList(txtAutoRunWeeklyRecipientsCC.Text) : new List<string>(),
+                AutoRunFemiOnlyRecipientsTo = txtAutoRunFemiOnlyRecipientsTo != null ? StringToEmailList(txtAutoRunFemiOnlyRecipientsTo.Text) : new List<string>(),
+                AutoRunFemiOnlyRecipientsCC = txtAutoRunFemiOnlyRecipientsCC != null ? StringToEmailList(txtAutoRunFemiOnlyRecipientsCC.Text) : new List<string>(),
+                // ADDED: Save data for new automated report category.
+                AutoRunNewCustomerRecipientsTo = txtAutoRunNewCustomerRecipientsTo != null ? StringToEmailList(txtAutoRunNewCustomerRecipientsTo.Text) : new List<string>(),
+                AutoRunNewCustomerRecipientsCC = txtAutoRunNewCustomerRecipientsCC != null ? StringToEmailList(txtAutoRunNewCustomerRecipientsCC.Text) : new List<string>(),
 
                 ProdManualRunDailyTo = StringToEmailList(txtProdManualRunDailyTo.Text),
                 ProdManualRunDailyCC = StringToEmailList(txtProdManualRunDailyCC.Text),
@@ -436,7 +465,10 @@ namespace QuoteConversionReportAutomation.Forms
                 ProdTeamTo = StringToEmailList(txtProdTeamTo.Text),
                 ProdTeamCC = StringToEmailList(txtProdTeamCC.Text),
                 ProdManualCustomTo = txtProdManualCustomTo != null ? StringToEmailList(txtProdManualCustomTo.Text) : new List<string>(),
-                ProdManualCustomCC = txtProdManualCustomCC != null ? StringToEmailList(txtProdManualCustomCC.Text) : new List<string>()
+                ProdManualCustomCC = txtProdManualCustomCC != null ? StringToEmailList(txtProdManualCustomCC.Text) : new List<string>(),
+                // ADDED: Save data for new manual report controls.
+                ManualNewCustomerTo = txtManualNewCustomerTo != null ? StringToEmailList(txtManualNewCustomerTo.Text) : new List<string>(),
+                ManualNewCustomerCC = txtManualNewCustomerCC != null ? StringToEmailList(txtManualNewCustomerCC.Text) : new List<string>()
             };
 
 #if DEBUG
@@ -457,6 +489,11 @@ namespace QuoteConversionReportAutomation.Forms
             allEmailsToValidate.AddRange(newSettings.AutoRunDaily5Day1kRecipientsCC ?? Enumerable.Empty<string>());
             allEmailsToValidate.AddRange(newSettings.AutoRunWeeklyRecipientsTo ?? Enumerable.Empty<string>());
             allEmailsToValidate.AddRange(newSettings.AutoRunWeeklyRecipientsCC ?? Enumerable.Empty<string>());
+            allEmailsToValidate.AddRange(newSettings.AutoRunFemiOnlyRecipientsTo ?? Enumerable.Empty<string>());
+            allEmailsToValidate.AddRange(newSettings.AutoRunFemiOnlyRecipientsCC ?? Enumerable.Empty<string>());
+            // ADDED: Include new lists in validation.
+            allEmailsToValidate.AddRange(newSettings.AutoRunNewCustomerRecipientsTo ?? Enumerable.Empty<string>());
+            allEmailsToValidate.AddRange(newSettings.AutoRunNewCustomerRecipientsCC ?? Enumerable.Empty<string>());
 
             allEmailsToValidate.AddRange(newSettings.ProdManualRunDailyTo ?? Enumerable.Empty<string>());
             allEmailsToValidate.AddRange(newSettings.ProdManualRunDailyCC ?? Enumerable.Empty<string>());
@@ -466,6 +503,9 @@ namespace QuoteConversionReportAutomation.Forms
             allEmailsToValidate.AddRange(newSettings.ProdTeamCC ?? Enumerable.Empty<string>());
             allEmailsToValidate.AddRange(newSettings.ProdManualCustomTo ?? Enumerable.Empty<string>());
             allEmailsToValidate.AddRange(newSettings.ProdManualCustomCC ?? Enumerable.Empty<string>());
+            // ADDED: Include new lists in validation.
+            allEmailsToValidate.AddRange(newSettings.ManualNewCustomerTo ?? Enumerable.Empty<string>());
+            allEmailsToValidate.AddRange(newSettings.ManualNewCustomerCC ?? Enumerable.Empty<string>());
 
 #if DEBUG
             if (!string.IsNullOrWhiteSpace(newSettings.DebugTo)) allEmailsToValidate.Add(newSettings.DebugTo);

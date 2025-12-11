@@ -1,8 +1,3 @@
-// Program.cs
-// Main entry point for the QCRA (Quote Conversion Report Automation) application.
-// Sets up Dependency Injection, loads configuration, initialises logging,
-// and launches the main form.
-
 #region Using Directives
 // System related namespaces
 using System;
@@ -27,9 +22,11 @@ using QuoteConversionReportAutomation.Orchestrators.Interfaces;
 using QuoteConversionReportAutomation.Configuration;
 using QuoteConversionReportAutomation.Helpers;
 using QuoteConversionReportAutomation.Forms;
-using QuoteConversionReportAutomation.Interfaces; // For IAutoRunUIContext
+using QuoteConversionReportAutomation.Interfaces;
 #endregion
 
+// Disable specific warnings about async void usage in event handlers
+// This is a known pattern in WinForms applications.
 #pragma warning disable WFO5001
 
 namespace QuoteConversionReportAutomation
@@ -40,40 +37,57 @@ namespace QuoteConversionReportAutomation
     internal static class Program
     {
         #region Properties
+        /// <summary>
+        /// Gets the application configuration loaded from appsettings.json.
+        /// </summary>
         public static IConfiguration? Configuration { get; private set; }
+        /// <summary>
+        /// Gets the root service provider for dependency injection.
+        /// </summary>
         public static IServiceProvider? ServiceProvider { get; private set; }
+        /// <summary>
+        /// The UNC path to the directory containing the application settings file.
+        /// </summary>
         private const string SettingsDirectoryPath = @"\\harlow.local\DFS\IT Department\Applications\Development 2025\QuoteConversionReportAutomation\conversionTest";
+        /// <summary>
+        /// The name of the application settings file.
+        /// </summary>
         private const string SettingsFileName = "appsettings.json";
         #endregion
 
         #region Main Entry Point
+        /// <summary>
+        /// The main entry point for the application. Handles configuration loading, DI setup, and application startup.
+        /// </summary>
         [STAThread]
         static void Main()
         {
-            // Disabled until it works properly
-            //Application.SetColorMode(SystemColorMode.System);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
             try
             {
+                // Load configuration from appsettings.json
                 Configuration = LoadConfiguration();
                 if (Configuration == null) return;
 
+                // Initialize the logger
                 Logger.Initialize(Configuration);
                 Logger.LogInfo("Logger initialised successfully.");
 
+                // Set up dependency injection
                 var services = new ServiceCollection();
                 ConfigureServices(services, Configuration);
                 ServiceProvider = services.BuildServiceProvider();
 
                 Logger.LogInfo("Resolving and running the main application form (Form1).");
-                // Form1 itself is resolved, and its dependencies (including AutoRunManager) are created by DI.
+                // Resolve and run the main form
                 var mainForm = ServiceProvider.GetRequiredService<Form1>();
                 Application.Run(mainForm);
             }
             catch (Exception ex)
             {
+                // Handle critical startup errors
                 string errorMessage = $"A critical error occurred during application startup: {ex.Message}";
                 if (Logger.IsInitialized) Logger.LogCritical(errorMessage, ex);
                 else Debug.WriteLine($"CRITICAL STARTUP ERROR (Logger not ready): {ex}");
@@ -83,6 +97,7 @@ namespace QuoteConversionReportAutomation
             }
             finally
             {
+                // Log shutdown and dispose DI provider if needed
                 if (Logger.IsInitialized) Logger.LogInfo("Application shutting down.");
                 if (ServiceProvider is IDisposable disposableProvider)
                 {
@@ -93,24 +108,29 @@ namespace QuoteConversionReportAutomation
         #endregion
 
         #region Configuration Loading
+        /// <summary>
+        /// Loads the application configuration from the specified settings file.
+        /// </summary>
+        /// <returns>The loaded configuration, or null if loading fails.</returns>
         private static IConfiguration? LoadConfiguration()
         {
-            // This method's logic is unchanged.
-            #region Original Method Content
             string settingsFilePath = string.Empty;
             try
             {
                 settingsFilePath = Path.Combine(SettingsDirectoryPath, SettingsFileName);
 
+                // Ensure the settings directory exists
                 if (!Directory.Exists(SettingsDirectoryPath))
                 {
-                    throw new DirectoryNotFoundException($"Configuration directory does not exist or is inaccessible: {SettingsDirectoryPath}. Please ensure the application can access this path or update it in Program.cs.");
+                    throw new DirectoryNotFoundException($"Configuration directory does not exist or is inaccessible: {SettingsDirectoryPath}.");
                 }
+                // Ensure the settings file exists
                 if (!File.Exists(settingsFilePath))
                 {
-                    throw new FileNotFoundException($"Configuration file ('{SettingsFileName}') was not found at: {settingsFilePath}. Please ensure it exists or update the path in Program.cs.", settingsFilePath);
+                    throw new FileNotFoundException($"Configuration file ('{SettingsFileName}') was not found at: {settingsFilePath}.", settingsFilePath);
                 }
 
+                // Build the configuration
                 var builder = new ConfigurationBuilder()
                     .SetBasePath(SettingsDirectoryPath)
                     .AddJsonFile(SettingsFileName, optional: false, reloadOnChange: false);
@@ -121,21 +141,26 @@ namespace QuoteConversionReportAutomation
             }
             catch (Exception ex)
             {
+                // Handle configuration loading errors
                 string loadErrorMsg = $"Failed to load configuration from '{settingsFilePath}': {ex.Message}";
                 Debug.WriteLine($"CRITICAL CONFIGURATION ERROR: {loadErrorMsg}");
                 Debug.WriteLine(ex.ToString());
-
-                MessageBox.Show($"A critical error occurred while loading application configuration from '{settingsFilePath}':\n\n{ex.Message}\n\nThe application cannot start and will now exit. Please check the file path and JSON format.",
+                MessageBox.Show($"A critical error occurred while loading application configuration from '{settingsFilePath}':\n\n{ex.Message}\n\nThe application cannot start and will now exit.",
                                         "Configuration Load Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return null;
             }
-            #endregion
         }
         #endregion
 
         #region Dependency Injection Configuration
+        /// <summary>
+        /// Configures the dependency injection container with all the application's services, managers, and forms.
+        /// </summary>
+        /// <param name="services">The service collection to add registrations to.</param>
+        /// <param name="configuration">The application configuration.</param>
         private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
         {
+            // Add the main configuration object itself as a singleton.
             services.AddSingleton(configuration);
 
             // --- Services ---
@@ -143,7 +168,20 @@ namespace QuoteConversionReportAutomation
             services.AddSingleton<IStatusManagerService, StatusManagerService>();
             services.AddSingleton<EmailUtility>();
             services.AddSingleton<NamedPipeCommunicator>();
-            services.AddSingleton<ExcelCopyData>();
+            //services.AddSingleton<ExcelCopyData>();
+            // --- Orchestrator registration ---
+            services.AddSingleton<IExcelProcessingOrchestrator, ExcelProcessingOrchestrator>();
+
+
+            // --- NEW: Register the newly created, specialised services ---
+            services.AddSingleton<IReportPeriodService, ReportPeriodService>();
+            services.AddSingleton<IFormValidationService, FormValidationService>();
+            services.AddSingleton<IFinancialYearService, FinancialYearService>();
+            services.AddSingleton<IExcelFilteringService, ExcelFilteringService>();
+            services.AddSingleton<IExcelAnalysisService, ExcelAnalysisService>();
+            services.AddSingleton<ILeadTimeAnalysisService, LeadTimeAnalysisService>();
+            services.AddSingleton<IPowerBiDataService, PowerBiDataService>();
+            services.AddSingleton<IExcelDataExclusionService, ExcelDataExclusionService>();
 
 
             // --- Managers ---
@@ -166,54 +204,49 @@ namespace QuoteConversionReportAutomation
                 var emailUtility = sp.GetRequiredService<EmailUtility>();
                 var processManager = sp.GetRequiredService<ReportProcessManager>();
                 var pipeCommunicator = sp.GetRequiredService<NamedPipeCommunicator>();
-
                 var lazyAutoRunUIContext = new Lazy<IAutoRunUIContext>(() => sp.GetRequiredService<IAutoRunUIContext>());
-
-                var excelProcessor = sp.GetRequiredService<ExcelCopyData>();
+                var excelProcessor = sp.GetRequiredService<IExcelProcessingOrchestrator>();
                 var emailRecipientManager = sp.GetRequiredService<EmailRecipientManager>();
                 var greetingManager = sp.GetRequiredService<GreetingManager>();
                 var statusManager = sp.GetRequiredService<IStatusManagerService>();
 
-                return new AutoRunManager(
-                    config,
-                    reportPathService,
-                    emailUtility,
-                    processManager,
-                    pipeCommunicator,
-                    lazyAutoRunUIContext,
-                    excelProcessor,
-                    emailRecipientManager,
-                    greetingManager,
-                    statusManager
-                );
+                return new AutoRunManager(config, reportPathService, emailUtility, processManager, pipeCommunicator, lazyAutoRunUIContext,
+                                          excelProcessor, emailRecipientManager, greetingManager, statusManager);
             });
 
             // --- Orchestrators ---
             services.AddSingleton<IManualReportOrchestrator, ManualReportOrchestrator>();
+            services.AddSingleton<IBatchRegenerationOrchestrator>(sp =>
+                new BatchRegenerationOrchestrator(
+                    sp.GetRequiredService<IStatusManagerService>(),
+                    sp.GetRequiredService<IManualReportOrchestrator>(),
+                    sp.GetRequiredService<IConfiguration>()
+                ));
+            services.AddSingleton<IRetrospectiveAnalysisOrchestrator>(sp =>
+                new RetrospectiveAnalysisOrchestrator(
+                    sp.GetRequiredService<IStatusManagerService>(),
+                    sp.GetRequiredService<ILeadTimeAnalysisService>()
+                ));
 
             // --- Forms (Dialogs) ---
-            // Register forms that can be resolved directly or need specific parameters built.
-            // The 'isDarkMode' parameter is no longer needed as forms now read from the static ThemeSettings class.
             services.AddTransient<SettingsForm>(sp =>
                 new SettingsForm(
                     sp.GetRequiredService<IConfiguration>(),
                     Path.Combine(sp.GetRequiredService<IReportPathService>().AppSettingsDirectory, SettingsFileName)
                 )
             );
-
-            // Assuming ManageAutoReportDefinitionsForm constructor was also simplified to remove the boolean theme flag.
-            // If its constructor is now just (IConfiguration, string), this registration is correct.
+            services.AddTransient<DateRangeSelectionForm>(sp => new DateRangeSelectionForm(sp.GetRequiredService<IConfiguration>()));
             services.AddTransient<ManageAutoReportDefinitionsForm>(sp =>
                 new ManageAutoReportDefinitionsForm(
                     sp.GetRequiredService<IConfiguration>(),
                     Path.Combine(sp.GetRequiredService<IReportPathService>().AppSettingsDirectory, "autoReportDefinitions.json")
                 )
             );
-
-            // These forms now have simpler constructors that can be resolved by the container.
             services.AddTransient<ManageBankHolidaysForm>();
             services.AddTransient<ManageEmailRecipientsForm>();
             services.AddTransient<ManageGreetingsForm>();
+            services.AddTransient<AnalysisOptionsForm>();
+            services.AddTransient<ManageTenderExclusionsForm>();
 
             Logger.LogInfo("Dependency Injection services configured.");
         }

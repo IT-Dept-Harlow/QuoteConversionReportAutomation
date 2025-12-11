@@ -105,6 +105,13 @@ namespace QuoteConversionReportAutomation.Models
         public bool AppendToPowerBi { get; set; }
 
         /// <summary>
+        /// Gets or sets whether the "Lead Time Analysis" sheet should be included in the final report.
+        /// This is configured for each automated report definition.
+        /// </summary>
+        [JsonProperty("IncludeLeadTimeAnalysis")]
+        public bool IncludeLeadTimeAnalysis { get; set; }
+
+        /// <summary>
         /// Returns the report name for display purposes.
         /// </summary>
         /// <returns>The report name or a default string if the name is not set.</returns>

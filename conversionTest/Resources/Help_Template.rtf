@@ -44,7 +44,7 @@ The application orchestrates several components:\par
 Choose from the \cf5\b Report Type\cf2\b0  dropdown. Dates will often adjust automatically. Bank holidays (England & Wales, plus custom) are considered for 'previous working day' calculations.\par
 
 \pard\fi-360\li720    \f1\'b7\tab\cf5\b\f0 Daily:\cf2\b0  Report for the \i previous working day\i0 .\par
-   \f1\'b7\tab\cf5\b\f0 Daily (5days >= \'a31000):\cf2\b0  Covers the \i previous five working days\i0 . After raw data generation, it filters for estimates with a 'Net Value' of \'a31000 or more before final analysis.\par
+   \f1\'b7\tab\cf5\b\f0 Daily (5days >= \'a35000):\cf2\b0  Covers the \i previous five working days\i0 . After raw data generation, it filters for estimates with a 'Net Value' of \'a3500 or more before final analysis.\par
    \f1\'b7\tab\cf5\b\f0 Weekly:\cf2\b0  Covers a \i 15-day rolling period ending on the current day\i0 . Data is appended to a central Excel file used by Power BI.\par
    \f1\'b7\tab\cf5\b\f0 Monthly:\cf2\b0  Report for the \i previous full calendar month\i0 .\par
    \f1\'b7\tab\cf5\b\f0 Quarterly:\cf2\b0  Report for the \i previous full calendar quarter\i0 .\par
@@ -70,18 +70,7 @@ For 'Weekly' or 'Custom' reports, the \cf5\b Financial Year\cf2\b0  dropdown may
    \f1\'b7\tab\f0 If using \i 1-Click Mode\i0  (see Options Menu to enable), click the single \cf5\b Generate, Process & Email Report\cf2\b0  button.
 
 \pard\sa200\sl276\slmult1\par
-\b 6. Manual Excel Refresh (for Monthly, Quarterly, Annual, Custom reports):\b0\par
-For these report types, the Excel template contains PivotTables that require manual refreshing after the data is populated. You will be prompted:\par
-
-\pard\fi-360\li720    \f1\'b7\tab\f0 The Excel file will open automatically.\par
-   \f1\'b7\tab\f0 If prompted by Excel, click \b 'Enable Editing'\b0 .\par
-   \f1\'b7\tab\f0 Specifically, ensure PivotTables on the 'OrderPivot' and 'Estimate Success PivotTable' sheets are updated. You may need to right-click them and select 'Refresh'. Check any Slicers as well.\par
-   \f1\'b7\tab\b\f0 SAVE\b0  the Excel file.\par
-   \f1\'b7\tab\b\f0 CLOSE\b0  Excel.\par
-   \f1\'b7\tab\f0 The application will then ask you to confirm if you want to proceed with emailing the (now refreshed) report.
-
-\pard\sa200\sl276\slmult1\par
-\b 7. Viewing Reports:\b0\par
+\b 6. Viewing Reports:\b0\par
 
 \pard\fi-360\li720    \f1\'b7\tab\f0 After the raw report is generated, the \cf5\b View Raw Report\cf2\b0  button becomes active. Click it to open the raw Excel data file.\par
    \f1\'b7\tab\f0 After the report is processed (and emailed, if not skipped), the \cf5\b View Processed Analysis\cf2\b0  button becomes active. Click it to open the final, formatted Excel report.\par
@@ -151,7 +140,6 @@ If you encounter issues, consider the following steps:\par
    \f1\'b7\tab\cf6\b\f0 Check Application Logs:\cf2\b0  Always the best source for detailed errors. Access via \cf5\b Options -> Open Logs Folder\cf2\b0 .\par
    \f1\'b7\tab\b\f0 Incorrect Formulae in Excel:\b0  The application copies formulae from row 6 of the 'Analysis' sheet in the template. Ensure these are correct in your template files.\par
    \f1\'b7\tab\b\f0 User Settings Not Applying:\b0  Check the JSON files in your AppData folder mentioned under 'Configuration Files Overview'. Deleting a corrupted user settings file reverts that specific setting type to application defaults.\par
-   \f1\'b7\tab\b\f0 Manual Refresh Reports (Pivots/Slicers):\b0  For Monthly, Quarterly, Annual, Custom reports, carefully follow on-screen prompts to \b Enable Editing\b0 , \b Refresh Pivots/Slicers\b0  in Excel, \b Save\b0 , and \b Close\b0  before confirming in the app.\par
    \f1\'b7\tab\b\f0 Contact IT Dept:\b0  If problems persist, contact IT with details and relevant logs.\par
 
 \pard\sa200\sl276\slmult1\par

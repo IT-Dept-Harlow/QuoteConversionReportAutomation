@@ -83,6 +83,8 @@ namespace QuoteConversionReportAutomation.Managers
         private const string AutoRunDaily5Day1kRecipientsCCKey = "EmailSettings:ProductionRecipients:AutoRunDaily5Day1kRecipientsCC";
         private const string AutoRunWeeklyRecipientsToKey = "EmailSettings:ProductionRecipients:AutoRunWeeklyRecipientsTo";
         private const string AutoRunWeeklyRecipientsCCKey = "EmailSettings:ProductionRecipients:AutoRunWeeklyRecipientsCC";
+        private const string AutoRunFemiOnlyRecipientsToKey = "EmailSettings:ProductionRecipients:AutoRunFemiOnlyRecipientsTo";
+        private const string AutoRunFemiOnlyRecipientsCCKey = "EmailSettings:ProductionRecipients:AutoRunFemiOnlyRecipientsCC";
         // Add more constants here for other RecipientCategoryKeys if introduced, following the pattern:
         // e.g., "EmailSettings:ProductionRecipients:YourNewCategoryRecipientsTo"
 
@@ -300,6 +302,8 @@ namespace QuoteConversionReportAutomation.Managers
             effective.AutoRunDaily5Day1kRecipientsCC = GetList(_userOverrides.AutoRunDaily5Day1kRecipientsCC, AutoRunDaily5Day1kRecipientsCCKey);
             effective.AutoRunWeeklyRecipientsTo = GetList(_userOverrides.AutoRunWeeklyRecipientsTo, AutoRunWeeklyRecipientsToKey);
             effective.AutoRunWeeklyRecipientsCC = GetList(_userOverrides.AutoRunWeeklyRecipientsCC, AutoRunWeeklyRecipientsCCKey);
+            effective.AutoRunFemiOnlyRecipientsTo = GetList(_userOverrides.AutoRunFemiOnlyRecipientsTo, AutoRunFemiOnlyRecipientsToKey);
+            effective.AutoRunFemiOnlyRecipientsCC = GetList(_userOverrides.AutoRunFemiOnlyRecipientsCC, AutoRunFemiOnlyRecipientsCCKey);
             // Add more categories here following the pattern.
 
             // Populate manual report recipient lists.
@@ -384,6 +388,10 @@ namespace QuoteConversionReportAutomation.Managers
                             case "AutoRunWeeklyRecipients":
                                 toAddresses.AddRange(settings.AutoRunWeeklyRecipientsTo ?? Enumerable.Empty<string>());
                                 ccAddresses.AddRange(settings.AutoRunWeeklyRecipientsCC ?? Enumerable.Empty<string>());
+                                break;
+                            case "AutoRunFemiOnlyRecipients":
+                                toAddresses.AddRange(settings.AutoRunFemiOnlyRecipientsTo ?? Enumerable.Empty<string>());
+                                ccAddresses.AddRange(settings.AutoRunFemiOnlyRecipientsCC ?? Enumerable.Empty<string>());
                                 break;
                             // Add more cases here for other RecipientCategoryKey values as needed.
                             default:

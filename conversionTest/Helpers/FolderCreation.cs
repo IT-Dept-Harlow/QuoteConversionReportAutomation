@@ -124,7 +124,7 @@ namespace QuoteConversionReportAutomation.Helpers
             string fullConfigPathForFolderName = $"{AppConfigKeys.OperationalParameters.ReportTypeFolderNames.Base}:{reportTypeConfigKey}";
 
             // Default folder name if not found in config (e.g., "Daily Reports", "Custom Reports")
-            string defaultFolderName = ReportTypeHelper.GetDisplayString(reportType); // Using display string as a base for default
+            string defaultFolderName = ReportTypeHelper.GetDisplayString(reportType, configuration); // Using display string as a base for default
             if (reportType != ReportType.Unknown && !defaultFolderName.EndsWith("Reports", StringComparison.OrdinalIgnoreCase) && !defaultFolderName.EndsWith("Report", StringComparison.OrdinalIgnoreCase))
             {
                 defaultFolderName += " Reports"; // Append " Reports" for a more descriptive default folder

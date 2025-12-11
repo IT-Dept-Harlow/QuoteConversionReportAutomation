@@ -1,5 +1,5 @@
 ﻿// AutoRunManager.cs
-// This version has been fully corrected for formatting and readability, with detailed comments.
+// This version has been fully corrected for the date calculation bug in automated reports.
 // It uses the IReportPathService for all path generation to ensure consistency.
 
 #region Using Directives
@@ -80,7 +80,7 @@ namespace QuoteConversionReportAutomation.Managers
         /// <summary>
         /// The service responsible for all Excel file processing tasks.
         /// </summary>
-        private readonly ExcelCopyData _excelProcessor;
+        private readonly IExcelProcessingOrchestrator _excelProcessingOrchestrator;
 
         /// <summary>
         /// The manager responsible for determining email recipients for different scenarios.
@@ -172,7 +172,7 @@ namespace QuoteConversionReportAutomation.Managers
             ReportProcessManager processManager,
             NamedPipeCommunicator pipeCommunicator,
             Lazy<IAutoRunUIContext> lazyAutoRunUIContext,
-            ExcelCopyData excelProcessor,
+            IExcelProcessingOrchestrator excelProcessingOrchestrator,
             EmailRecipientManager emailRecipientManager,
             GreetingManager greetingManager,
             IStatusManagerService statusManager)
@@ -184,7 +184,7 @@ namespace QuoteConversionReportAutomation.Managers
             _processManager = processManager ?? throw new ArgumentNullException(nameof(processManager));
             _pipeCommunicator = pipeCommunicator ?? throw new ArgumentNullException(nameof(pipeCommunicator));
             _lazyAutoRunUIContext = lazyAutoRunUIContext ?? throw new ArgumentNullException(nameof(lazyAutoRunUIContext));
-            _excelProcessor = excelProcessor ?? throw new ArgumentNullException(nameof(excelProcessor));
+            _excelProcessingOrchestrator = excelProcessingOrchestrator ?? throw new ArgumentNullException(nameof(excelProcessingOrchestrator));
             _emailRecipientManager = emailRecipientManager ?? throw new ArgumentNullException(nameof(emailRecipientManager));
             _greetingManager = greetingManager ?? throw new ArgumentNullException(nameof(greetingManager));
             _statusManager = statusManager ?? throw new ArgumentNullException(nameof(statusManager));
@@ -341,15 +341,10 @@ namespace QuoteConversionReportAutomation.Managers
 
                     _statusManager.Post($"Auto Run: Processing {definition.ReportName}...", MessageType.InProgress);
 
-                    // Calculate the date range for the report.
-                    DateTime reportEndDate = ReportHelper.GetNthPreviousWorkday(now.Date, definition.ReportEndDateOffsetDays ?? 1);
-                    DateTime reportStartDate = (definition.ReportDurationDays.HasValue && definition.ReportDurationDays.Value > 1) ? ReportHelper.GetNthPreviousWorkday(reportEndDate, definition.ReportDurationDays.Value - 1) : reportEndDate;
-
-                    if (ReportTypeHelper.FromInt(definition.ReportTypeIndex) == ReportType.Weekly)
-                    {
-                        reportEndDate = now.Date;
-                        reportStartDate = reportEndDate.AddDays(-14);
-                    }
+                    // The original code called a generic helper that did not use the definition's offset/duration.
+                    // This new call uses a dedicated method that correctly calculates the date range based on
+                    // the specific properties in the AutoReportDefinition.
+                    var (reportStartDate, reportEndDate) = CalculateAutoRunDateRange(definition, now);
 
                     // Execute the report workflow.
                     await RunConfiguredAutomatedReportAsync(definition, reportEndDate, reportStartDate, now.Date);
@@ -422,6 +417,29 @@ namespace QuoteConversionReportAutomation.Managers
 
         #region Private Helper Methods
         /// <summary>
+        /// Calculates the correct start and end date for an automated report based on its specific definition.
+        /// This method correctly uses the offset and duration properties from the AutoReportDefinition.
+        /// </summary>
+        /// <param name="definition">The definition of the automated report.</param>
+        /// <param name="referenceDate">The current date and time to calculate from (usually DateTime.Now).</param>
+        /// <returns>A tuple containing the calculated start and end dates for the report period.</returns>
+        private (DateTime StartDate, DateTime EndDate) CalculateAutoRunDateRange(AutoReportDefinition definition, DateTime referenceDate)
+        {
+            // 1. Determine the End Date by applying the offset.
+            //    The offset is in *workdays*. E.g., an offset of 1 means the previous workday.
+            int endDateOffset = definition.ReportEndDateOffsetDays ?? 1; // Default to 1 (previous workday) if not specified.
+            DateTime endDate = ReportHelper.GetNthPreviousWorkday(referenceDate, endDateOffset);
+
+            // 2. Determine the Start Date from the End Date by applying the duration.
+            //    The duration is also in *workdays*. A duration of 1 means start and end dates are the same.
+            int durationDays = definition.ReportDurationDays ?? 1; // Default to a 1-day duration if not specified.
+            DateTime startDate = ReportHelper.GetNthPreviousWorkday(endDate, durationDays - 1);
+
+            Logger.LogDebug($"Calculated auto-run date range for '{definition.ReportName}'. EndDateOffset: {endDateOffset}, Duration: {durationDays}. Result: {startDate:d} to {endDate:d}");
+            return (startDate, endDate);
+        }
+
+        /// <summary>
         /// The main execution logic for a single automated report.
         /// This method orchestrates the creation, processing, and emailing of a report defined by an <see cref="AutoReportDefinition"/>.
         /// </summary>
@@ -454,7 +472,7 @@ namespace QuoteConversionReportAutomation.Managers
                 // Step 2: Get all required paths from the centralised path service.
                 string crystalRptPath = _reportPathService.CrystalReportRptFilePath ?? throw new InvalidOperationException("Crystal Report path not configured.");
 
-                // *** FIX: Use the injected IReportPathService to get the output path ***
+                // *** Use the injected IReportPathService to get the output path ***
                 // This ensures the path resolution logic is consistent with the rest of the application.
                 string? outputPath = _reportPathService.GetRawReportOutputPath(currentReportType, reportEndDate, definition.ReportName);
 
@@ -477,9 +495,10 @@ namespace QuoteConversionReportAutomation.Managers
                 string templatePath = _reportPathService.GetExcelTemplatePath(currentReportType) ?? throw new InvalidOperationException("Excel template path not configured.");
                 string baseSaveLocation = _reportPathService.FinalReportOutputBaseDirectory ?? throw new InvalidOperationException("Final report output directory not configured.");
 
-                string? finalAnalysisPath = await _excelProcessor.ProcessExcelReportAsync(
-                    _excelProcessor.GetCurrentFinancialYear(true), currentReportType, generatedRawPath, "RawDataSourceSheet",
-                    baseSaveLocation, templatePath, "TemplateDataCopySheet", 1, 1, reportEndDate, token);
+                string? finalAnalysisPath = await _excelProcessingOrchestrator.ProcessExcelReportAsync(
+                    selectedFinYear: null, currentReportType, generatedRawPath, "RawDataSourceSheet",
+                    baseSaveLocation, templatePath, "TemplateDataCopySheet", 1, 1, reportEndDate, manualParams: null,
+    autoRunDef: definition, token);
 
                 if (string.IsNullOrEmpty(finalAnalysisPath))
                 {
@@ -770,6 +789,59 @@ namespace QuoteConversionReportAutomation.Managers
             string body = $"{greeting}\n\nPlease find attached the automated {definition.SubjectPrefix.ToLowerInvariant()} report {rangeInfo}.\n\n{emailSignature}";
 
             return (subject, body);
+        }
+
+        /// <summary>
+        /// Reads the current report definitions and ensures a success flag key exists
+        /// for each one in the appsettings.json DailyRunStatus section.
+        /// </summary>
+        public void SynchronizeSuccessFlags()
+        {
+            lock (s_jsonFileLock)
+            {
+                try
+                {
+                    Logger.LogInfo("Synchronizing success flags in appsettings.json with current definitions...");
+                    string jsonContent = File.Exists(_appSettingsFilePath) ? File.ReadAllText(_appSettingsFilePath) : "{}";
+                    var jsonRoot = JObject.Parse(string.IsNullOrWhiteSpace(jsonContent) ? "{}" : jsonContent);
+
+                    // Navigate to or create the 'DailyRunStatus' section
+                    JObject autoRunProcessSection = GetOrAddSection(jsonRoot, AppConfigKeys.AutoRunProcess.Base);
+                    string dailyRunStatusSimpleKey = AppConfigKeys.AutoRunProcess.DailyRunStatus.Split(':').Last();
+                    JObject dailyStatusJson = GetOrAddSection(autoRunProcessSection, dailyRunStatusSimpleKey, logCreation: false);
+
+                    int flagsAdded = 0;
+                    // Loop through all current definitions
+                    foreach (var definition in _reportDefinitions)
+                    {
+                        if (!string.IsNullOrEmpty(definition.SuccessFlagJsonName))
+                        {
+                            // Check if the key already exists
+                            if (!dailyStatusJson.ContainsKey(definition.SuccessFlagJsonName))
+                            {
+                                // If not, add it with a default value of false
+                                dailyStatusJson[definition.SuccessFlagJsonName] = false;
+                                flagsAdded++;
+                                Logger.LogDebug($"Added missing success flag to appsettings: '{definition.SuccessFlagJsonName}'");
+                            }
+                        }
+                    }
+
+                    if (flagsAdded > 0)
+                    {
+                        File.WriteAllText(_appSettingsFilePath, jsonRoot.ToString(Formatting.Indented));
+                        Logger.LogInfo($"Synchronization complete. Added {flagsAdded} new success flag(s) to appsettings.json.");
+                    }
+                    else
+                    {
+                        Logger.LogInfo("Synchronization complete. No new success flags needed.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError($"Error during success flag synchronization: {ex.Message}", ex);
+                }
+            }
         }
         #endregion
     }

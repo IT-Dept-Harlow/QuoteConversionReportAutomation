@@ -43,17 +43,18 @@ namespace QuoteConversionReportAutomation.Orchestrators.Interfaces
             ManualReportParameters parameters,
             CancellationToken cancellationToken);
 
-        /// <summary>
-        /// Asynchronously sends an email with the specified analysis file after a manual user refresh.
-        /// </summary>
-        /// <param name="analysisFilePath">The full path to the analysis file to be attached.</param>
-        /// <param name="parameters">The original parameters for the report.</param>
-        /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-        /// <returns>A <see cref="Task{TResult}"/> that represents the asynchronous operation.
-        /// The task result contains an <see cref="EmailSendResult"/> object with the outcome of the email operation.</returns>
-        Task<EmailSendResult> SendEmailAfterManualRefreshAsync(
-            string analysisFilePath,
-            ManualReportParameters parameters,
-            CancellationToken cancellationToken);
+        // Commented out as not currently used
+        ///// <summary>
+        ///// Asynchronously sends an email with the specified analysis file after a manual user refresh.
+        ///// </summary>
+        ///// <param name="analysisFilePath">The full path to the analysis file to be attached.</param>
+        ///// <param name="parameters">The original parameters for the report.</param>
+        ///// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+        ///// <returns>A <see cref="Task{TResult}"/> that represents the asynchronous operation.
+        ///// The task result contains an <see cref="EmailSendResult"/> object with the outcome of the email operation.</returns>
+        //Task<EmailSendResult> SendEmailAfterManualRefreshAsync(
+        //    string analysisFilePath,
+        //    ManualReportParameters parameters,
+        //    CancellationToken cancellationToken);
     }
 }

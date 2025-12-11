@@ -1,19 +1,20 @@
 ﻿// ManageAutoReportDefinitionsForm.cs
 #region Using Directives
-using QuoteConversionReportAutomation.Models;
+using Microsoft.Extensions.Configuration;
 using QuoteConversionReportAutomation.Managers;
 using QuoteConversionReportAutomation.Helpers;
+using QuoteConversionReportAutomation.Models;
 using QuoteConversionReportAutomation.Services.Logging;
+using QuoteConversionReportAutomation.Theming;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Windows.Forms;
-using Microsoft.Extensions.Configuration; // Required for IConfiguration
 using System.IO;
-using QuoteConversionReportAutomation.Theming; // Import the new Theming namespace
+using System.Linq;
+using System.Reflection; // Required for reflection
+using System.Windows.Forms;
 #endregion
 
 namespace QuoteConversionReportAutomation.Forms
@@ -384,6 +385,7 @@ namespace QuoteConversionReportAutomation.Forms
                 _selectedDefinitionInFields = selectedDef;  // Store the selected definition for editing.
                 PopulateInputFields(_selectedDefinitionInFields); // Load its details into the input fields.
                 btnDelete.Enabled = true;                   // Enable the Delete button.
+                btnDuplicate.Enabled = true;                // Enable the Duplicate button to allow copying the selected definition.
                 btnUpdate.Enabled = true;                   // Enable the Update button.
                 btnAdd.Text = "New";                        // Change "Add" button text to "New", indicating it will clear fields for a new entry.
             }
@@ -393,6 +395,7 @@ namespace QuoteConversionReportAutomation.Forms
                 // Optionally, clear input fields when selection is lost. Current behavior leaves last selected data.
                 // ClearInputFields(); 
                 btnDelete.Enabled = false;  // Disable Delete button.
+                btnDuplicate.Enabled = false; // Disable Duplicate button as no valid selection exists.
                 btnUpdate.Enabled = false;  // Disable Update button.
                 btnAdd.Text = "Add";      // Reset "New" button text to "Add".
             }
@@ -452,12 +455,11 @@ namespace QuoteConversionReportAutomation.Forms
 
         #region Input Field Management
         /// <summary>
-        /// Populates the ComboBox controls (`cmbReportTypeIndex`, `cmbRunOnDayOfWeek`) with their static choice lists.
-        /// This is typically called once during form initialization.
+        /// Populates all ComboBox controls with their required static or dynamic choice lists.
         /// </summary>
         private void PopulateComboBoxes()
         {
-            // Populate ReportTypeIndex ComboBox with predefined report types and their corresponding integer values.
+            // Populate ReportTypeIndex ComboBox (static values)
             cmbReportTypeIndex.Items.Clear();
             cmbReportTypeIndex.Items.Add(new { Text = "0 - Daily", Value = 0 });
             cmbReportTypeIndex.Items.Add(new { Text = "1 - Daily (5d >= £1k)", Value = 1 });
@@ -465,17 +467,61 @@ namespace QuoteConversionReportAutomation.Forms
             cmbReportTypeIndex.Items.Add(new { Text = "3 - Monthly", Value = 3 });
             cmbReportTypeIndex.Items.Add(new { Text = "4 - Quarterly", Value = 4 });
             cmbReportTypeIndex.Items.Add(new { Text = "5 - Annual", Value = 5 });
-            // Add other report types here if they have specific indices and behaviors.
-            cmbReportTypeIndex.DisplayMember = "Text"; // Property of the anonymous type to display.
-            cmbReportTypeIndex.ValueMember = "Value";   // Property of the anonymous type for the underlying value.
+            cmbReportTypeIndex.Items.Add(new { Text = "7 - New Customer", Value = 7 }); // ADDED: New report type for automation.
+            cmbReportTypeIndex.DisplayMember = "Text";
+            cmbReportTypeIndex.ValueMember = "Value";
 
-            // Populate RunOnDayOfWeek ComboBox with days of the week and a "Not Specific" option.
+            // Populate RunOnDayOfWeek ComboBox (static values)
             cmbRunOnDayOfWeek.Items.Clear();
-            cmbRunOnDayOfWeek.Items.Add("Not Specific (Runs Daily if Enabled)"); // This string represents a null DayOfWeek.
-            foreach (DayOfWeek day in Enum.GetValues(typeof(DayOfWeek))) // Add all DayOfWeek enum values.
+            cmbRunOnDayOfWeek.Items.Add("Not Specific (Runs Daily if Enabled)");
+            foreach (DayOfWeek day in Enum.GetValues(typeof(DayOfWeek)))
             {
                 cmbRunOnDayOfWeek.Items.Add(day);
             }
+
+            // Dynamically populate Greeting and Recipient Key ComboBoxes
+            PopulateKeyComboBoxes();
+        }
+
+        /// <summary>
+        /// Uses reflection to dynamically populate the Greeting Key and Recipient Category Key
+        /// ComboBoxes with available keys from the data models.
+        /// </summary>
+        private void PopulateKeyComboBoxes()
+        {
+            // --- Populate Greeting Keys ---
+            cmbGreetingKey.Items.Clear();
+            // Get all public string properties from the UserGreetingSettings model
+            var greetingKeys = typeof(UserGreetingSettings)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.PropertyType == typeof(string))
+                .Select(p => p.Name)
+                .OrderBy(name => name)
+                .ToList();
+
+            cmbGreetingKey.Items.AddRange(greetingKeys.ToArray());
+            Logger.LogDebug($"Populated GreetingKey ComboBox with: {string.Join(", ", greetingKeys)}");
+
+            // --- Populate Recipient Category Keys ---
+            cmbRecipientCategoryKey.Items.Clear();
+            // Get all public properties from UserEmailSettings that are List<string>
+            var recipientProperties = typeof(UserEmailSettings)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(p => p.PropertyType == typeof(List<string>))
+                .Select(p => p.Name);
+
+            // Derive category names by removing "To" and "CC" suffixes
+            var recipientCategoryKeys = recipientProperties
+                .Select(name => name.EndsWith("To") ? name.Substring(0, name.Length - 2) :
+                               name.EndsWith("CC") ? name.Substring(0, name.Length - 2) :
+                               null)
+                .Where(name => name != null)
+                .Distinct()
+                .OrderBy(name => name)
+                .ToList();
+
+            cmbRecipientCategoryKey.Items.AddRange(recipientCategoryKeys.ToArray());
+            Logger.LogDebug($"Populated RecipientCategoryKey ComboBox with: {string.Join(", ", recipientCategoryKeys)}");
         }
 
         /// <summary>
@@ -517,11 +563,11 @@ namespace QuoteConversionReportAutomation.Forms
                 }
             }
 
-            // Populate other text fields from the definition.
-            // txtEnableConfigKey.Text = definition.EnableConfigKey; // REMOVED - EnableConfigKey is obsolete.
+            // Set ComboBox selections instead of TextBox text
+            cmbGreetingKey.SelectedItem = definition.GreetingKey;
+            cmbRecipientCategoryKey.SelectedItem = definition.RecipientCategoryKey;
+
             txtSuccessFlagJsonName.Text = definition.SuccessFlagJsonName;
-            txtGreetingKey.Text = definition.GreetingKey;
-            txtRecipientCategoryKey.Text = definition.RecipientCategoryKey;
             txtSubjectPrefix.Text = definition.SubjectPrefix;
             txtTemplateName.Text = definition.TemplateName;
 
@@ -532,6 +578,7 @@ namespace QuoteConversionReportAutomation.Forms
             // Populate CheckBox controls.
             chkRequiresNetValueFiltering.Checked = definition.RequiresNetValueFiltering;
             chkAppendToPowerBi.Checked = definition.AppendToPowerBi;
+            chkIncludeLeadTimeAnalysis.Checked = definition.IncludeLeadTimeAnalysis;
 
             // Store the ReportId (typically in a hidden label or Tag) for update operations.
             lblReportId.Text = definition.ReportId;
@@ -558,22 +605,25 @@ namespace QuoteConversionReportAutomation.Forms
                 cmbRunOnDayOfWeek.SelectedIndex = -1; // Safety if ComboBox is empty.
             }
 
-            // txtEnableConfigKey.Clear(); // REMOVED - EnableConfigKey is obsolete.
+            // Clear ComboBox selections
+            cmbGreetingKey.SelectedIndex = -1;
+            cmbRecipientCategoryKey.SelectedIndex = -1;
+
             txtSuccessFlagJsonName.Clear();
-            txtGreetingKey.Clear();
-            txtRecipientCategoryKey.Clear();
             txtSubjectPrefix.Clear();
             txtTemplateName.Clear();
             numReportEndDateOffsetDays.Value = 0; // Default offset.
             numReportDurationDays.Value = 1;    // Default duration.
             chkRequiresNetValueFiltering.Checked = false;
             chkAppendToPowerBi.Checked = false;
+            chkIncludeLeadTimeAnalysis.Checked = false;
             lblReportId.Text = string.Empty; // Clear any stored ReportId.
 
             _selectedDefinitionInFields = null; // No definition is currently loaded in the fields.
             dgvReportDefinitions.ClearSelection();  // Deselect any row in the grid.
             btnAdd.Text = "Add";                    // Reset "New" button text back to "Add".
             btnUpdate.Enabled = false;              // Disable Update button as no item is selected for update.
+            btnDuplicate.Enabled = false;           // Disable Duplicate button as no item is selected.
             btnDelete.Enabled = false;              // Disable Delete button.
             txtReportName.Focus();                  // Set focus to the Report Name field for new entry.
         }
@@ -647,11 +697,10 @@ namespace QuoteConversionReportAutomation.Forms
                 IsEnabled = chkIsEnabled.Checked,
                 ReportTypeIndex = (int)((dynamic)cmbReportTypeIndex.SelectedItem).Value, // Get value from anonymous type.
                 RunOnDayOfWeek = runOnDay,
-                // EnableConfigKey is removed.
                 // Auto-generate SuccessFlagJsonName and GreetingKey if left empty, based on ReportName, for convenience.
                 SuccessFlagJsonName = string.IsNullOrWhiteSpace(txtSuccessFlagJsonName.Text) ? $"{txtReportName.Text.Replace(" ", "")}Succeeded" : txtSuccessFlagJsonName.Text.Trim(),
-                GreetingKey = string.IsNullOrWhiteSpace(txtGreetingKey.Text) ? $"AutoRun_{txtReportName.Text.Replace(" ", "")}" : txtGreetingKey.Text.Trim(),
-                RecipientCategoryKey = string.IsNullOrWhiteSpace(txtRecipientCategoryKey.Text) ? null : txtRecipientCategoryKey.Text.Trim(), // Null if empty.
+                GreetingKey = cmbGreetingKey.SelectedItem?.ToString() ?? string.Empty,
+                RecipientCategoryKey = cmbRecipientCategoryKey.SelectedItem?.ToString(),
                 SubjectPrefix = txtSubjectPrefix.Text.Trim(),
                 TemplateName = txtTemplateName.Text.Trim(),
                 // For nullable numeric fields, use value from NumericUpDown.
@@ -659,7 +708,8 @@ namespace QuoteConversionReportAutomation.Forms
                 ReportEndDateOffsetDays = (int)numReportEndDateOffsetDays.Value,
                 ReportDurationDays = (int)numReportDurationDays.Value,
                 RequiresNetValueFiltering = chkRequiresNetValueFiltering.Checked,
-                AppendToPowerBi = chkAppendToPowerBi.Checked
+                AppendToPowerBi = chkAppendToPowerBi.Checked,
+                IncludeLeadTimeAnalysis = chkIncludeLeadTimeAnalysis.Checked
             };
         }
 
@@ -679,6 +729,79 @@ namespace QuoteConversionReportAutomation.Forms
         #endregion
 
         #region Button Event Handlers
+        /// <summary>
+        /// Handles the Click event for the "Duplicate" button. Creates a copy of the
+        /// currently selected report definition.
+        /// </summary>
+        private void btnDuplicate_Click(object? sender, EventArgs e)
+        {
+            if (dgvReportDefinitions.SelectedRows.Count == 0 ||
+                dgvReportDefinitions.SelectedRows[0].DataBoundItem is not AutoReportDefinition selectedDef)
+            {
+                FlexibleMessageBox.Show(this, "Please select a report definition from the list to duplicate.", "No Report Selected", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            Logger.LogInfo($"User initiated duplication of report: '{selectedDef.ReportName}'");
+
+            // Create a deep copy with a new ID and a unique name.
+            var newDef = new AutoReportDefinition
+            {
+                ReportId = Guid.NewGuid().ToString(), // CRITICAL: Assign a new unique ID
+                IsEnabled = false, // Start the copy as disabled for safety
+                ReportName = GetUniqueCopyName(selectedDef.ReportName),
+                ReportTypeIndex = selectedDef.ReportTypeIndex,
+                RunOnDayOfWeek = selectedDef.RunOnDayOfWeek,
+                GreetingKey = selectedDef.GreetingKey,
+                RecipientCategoryKey = selectedDef.RecipientCategoryKey,
+                SubjectPrefix = selectedDef.SubjectPrefix,
+                TemplateName = selectedDef.TemplateName,
+                ReportEndDateOffsetDays = selectedDef.ReportEndDateOffsetDays,
+                ReportDurationDays = selectedDef.ReportDurationDays,
+                RequiresNetValueFiltering = selectedDef.RequiresNetValueFiltering,
+                AppendToPowerBi = selectedDef.AppendToPowerBi,
+                IncludeLeadTimeAnalysis = selectedDef.IncludeLeadTimeAnalysis
+            };
+            // Generate a new unique success flag based on the new unique name
+            newDef.SuccessFlagJsonName = $"{newDef.ReportName.Replace(" ", "")}Succeeded";
+
+
+            _bindingList.Add(newDef);
+            SetHasUnsavedChanges(true);
+
+            // Find and select the newly added row in the DataGridView for immediate user feedback.
+            int newRowIndex = dgvReportDefinitions.Rows.GetLastRow(DataGridViewElementStates.Visible);
+            if (newRowIndex >= 0)
+            {
+                dgvReportDefinitions.ClearSelection();
+                dgvReportDefinitions.Rows[newRowIndex].Selected = true;
+                dgvReportDefinitions.FirstDisplayedScrollingRowIndex = newRowIndex;
+            }
+
+            Logger.LogInfo($"Duplicated report '{selectedDef.ReportName}' as '{newDef.ReportName}'. Save needed to persist.");
+        }
+
+        /// <summary>
+        /// Generates a unique name for a duplicated report by appending "(copy)" or "(copy N)".
+        /// </summary>
+        /// <param name="originalName">The name of the report being copied.</param>
+        /// <returns>A unique name that does not already exist in the binding list.</returns>
+        private string GetUniqueCopyName(string originalName)
+        {
+            string baseCopyName = $"{originalName} (copy)";
+            string finalName = baseCopyName;
+            int copyNumber = 2;
+
+            // Check if a report with the proposed name already exists.
+            // If so, append a number until a unique name is found.
+            while (_bindingList.Any(d => d.ReportName.Equals(finalName, StringComparison.OrdinalIgnoreCase)))
+            {
+                finalName = $"{baseCopyName} {copyNumber}";
+                copyNumber++;
+            }
+            return finalName;
+        }
+
         /// <summary>
         /// Handles the Click event for the "Add" / "New" button.
         /// If the button text is "New" (meaning a definition is currently selected and displayed in fields),
@@ -774,6 +897,7 @@ namespace QuoteConversionReportAutomation.Forms
                     definitionToUpdate.ReportDurationDays = updatedDefinitionFromFields.ReportDurationDays;
                     definitionToUpdate.RequiresNetValueFiltering = updatedDefinitionFromFields.RequiresNetValueFiltering;
                     definitionToUpdate.AppendToPowerBi = updatedDefinitionFromFields.AppendToPowerBi;
+                    definitionToUpdate.IncludeLeadTimeAnalysis = updatedDefinitionFromFields.IncludeLeadTimeAnalysis;
 
                     // Notify the BindingList (and thus DataGridView) that the item has changed.
                     int indexToUpdate = _bindingList.IndexOf(definitionToUpdate);
